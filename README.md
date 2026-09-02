@@ -1,8 +1,21 @@
 # TiCash Website
-Static public website for TiCash.
 
-## GitHub
-Upload all files and the `assets` folder to the repository root. `index.html` is the homepage.
+Premium static marketing website for TiCash.
 
-## Important
-App Store/Google Play buttons are intentionally marked Coming Soon. Payment and mobile-wallet claims are written as development/partner-dependent until integrations and approvals are complete.
+## Deploy on Render
+- Type: Static Site
+- Branch: main
+- Root Directory: leave blank
+- Build Command: leave blank
+- Publish Directory: `./`
+
+Upload the contents of this folder to the root of the GitHub repository.
+
+## Files
+- index.html
+- style.css
+- privacy.html
+- terms.html
+- assets/ticash-logo.png
+
+Contact: contact@ticash-app.com

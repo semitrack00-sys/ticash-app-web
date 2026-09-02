@@ -1,5 +1,6 @@
 services:
   - type: web
-    name: ticash-website
+    name: ticash-app-web
     runtime: static
+    buildCommand: echo "Static TiCash site"
     staticPublishPath: .
