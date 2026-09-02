@@ -31,3 +31,11 @@ Final clean pass:
 - Duplicate TiCash/TiCash extraction is removed.
 - Generic image labels are removed from HTML accessibility text.
 - Brand links retain a clear TiCash home accessible label.
+
+Added dedicated public pages:
+- about.html
+- security.html
+- privacy.html (expanded)
+- terms.html (expanded)
+
+These are development-stage documents and should receive qualified legal/compliance review before regulated money-transfer launch.
