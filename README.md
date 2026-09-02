@@ -25,3 +25,9 @@ The TiCash logo is embedded directly into the HTML for reliable display. Physica
 Before launch, connect TiCash to its own domain and keep www.semitrax.com connected only to Semi-Trax.
 
 Final polish includes semantic/accessibility cleanup, focus states, reduced-motion support, and cleaner wallet/store labels.
+
+Final clean pass:
+- Brand logos are decorative where the TiCash wordmark is already visible.
+- Duplicate TiCash/TiCash extraction is removed.
+- Generic image labels are removed from HTML accessibility text.
+- Brand links retain a clear TiCash home accessible label.
