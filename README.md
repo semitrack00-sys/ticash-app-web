@@ -1,17 +1,25 @@
-# TiCash Website — Embedded Logo Build
+# TiCash Website — Final Premium Build
 
-This build embeds the TiCash logo directly into the HTML as a PNG data URI.
-The website no longer depends on Render/GitHub image paths for the visible logo.
+This package is ONLY for the TiCash website.
 
-## Upload to GitHub
-Replace the current website files with ALL files from this ZIP at the repository root.
+IMPORTANT:
+Do NOT upload/deploy these files to the Semi-Trax repository or the Render service connected to www.semitrax.com.
 
-## Render
+Correct GitHub repository:
+semitrack00-sys/ticash-app-web
+
+Recommended Render service:
+ticash-app-web
+
+Render settings:
 - Type: Static Site
 - Branch: main
 - Root Directory: blank
 - Build Command: blank
 - Publish Directory: ./
 
-The included `ticash-logo.png` and `assets/ticash-logo.png` are retained as source assets,
-but the HTML-rendered logos are embedded and will display even if those asset paths fail.
+The TiCash logo is embedded directly into the HTML for reliable display. Physical logo files are also included at:
+- /ticash-logo.png
+- /assets/ticash-logo.png
+
+Before launch, connect TiCash to its own domain and keep www.semitrax.com connected only to Semi-Trax.
