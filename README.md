@@ -1,21 +1,17 @@
-# TiCash Website
+# TiCash Website — Embedded Logo Build
 
-Premium static marketing website for TiCash.
+This build embeds the TiCash logo directly into the HTML as a PNG data URI.
+The website no longer depends on Render/GitHub image paths for the visible logo.
 
-## Deploy on Render
+## Upload to GitHub
+Replace the current website files with ALL files from this ZIP at the repository root.
+
+## Render
 - Type: Static Site
 - Branch: main
-- Root Directory: leave blank
-- Build Command: leave blank
-- Publish Directory: `./`
+- Root Directory: blank
+- Build Command: blank
+- Publish Directory: ./
 
-Upload the contents of this folder to the root of the GitHub repository.
-
-## Files
-- index.html
-- style.css
-- privacy.html
-- terms.html
-- assets/ticash-logo.png
-
-Contact: contact@ticash-app.com
+The included `ticash-logo.png` and `assets/ticash-logo.png` are retained as source assets,
+but the HTML-rendered logos are embedded and will display even if those asset paths fail.
