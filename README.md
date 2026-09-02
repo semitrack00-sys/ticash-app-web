@@ -23,3 +23,5 @@ The TiCash logo is embedded directly into the HTML for reliable display. Physica
 - /assets/ticash-logo.png
 
 Before launch, connect TiCash to its own domain and keep www.semitrax.com connected only to Semi-Trax.
+
+Final polish includes semantic/accessibility cleanup, focus states, reduced-motion support, and cleaner wallet/store labels.

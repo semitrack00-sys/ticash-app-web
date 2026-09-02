@@ -18,3 +18,10 @@
   .phone{width:min(100%,340px)}
   .wallet-row{grid-template-columns:1fr 1fr}
 }
+
+/* Accessibility and final interaction polish */
+a:focus-visible,button:focus-visible{outline:3px solid #e0b341;outline-offset:3px}
+.wallet-mark[aria-hidden="true"]{user-select:none}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
