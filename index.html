@@ -56,6 +56,25 @@
 @media(max-width:800px){.ticash-services{padding:70px 20px}.service-grid{grid-template-columns:1fr}.connect-feature{grid-template-columns:1fr;padding:30px 22px}.benefit-grid{grid-template-columns:1fr}.service-card{min-height:0}}
 </style>
 
+
+<style id="recharge-amounts-css">
+.recharge-demo{background:#fff;color:#07182f;border-radius:24px;padding:28px;box-shadow:0 18px 50px rgba(0,0,0,.16)}
+.recharge-demo-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.demo-label{font-size:11px;font-weight:900;letter-spacing:.14em;color:#9a6d00}
+.demo-status{font-size:9px;font-weight:900;letter-spacing:.1em;background:#fbf3d9;color:#8b6400;padding:7px 9px;border-radius:999px}
+.recharge-demo h3{font-size:25px;margin:0 0 7px}
+.demo-sub{font-size:13px!important;line-height:1.5!important;color:#6a778a!important;margin:0 0 20px!important}
+.amount-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.amount-grid button{border:1px solid #dce3e9;background:#f8fafb;color:#07182f;border-radius:12px;padding:15px 5px;font-size:18px;font-weight:900;font-family:inherit}
+.amount-grid button:first-child{background:#e0b341;border-color:#e0b341}
+.custom-amount{margin-top:10px;border:1px solid #dce3e9;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:10px}
+.custom-amount span{color:#c78d00;font-size:20px;font-weight:900}
+.custom-amount strong{font-size:14px}
+.mini-flow{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:22px;padding-top:18px;border-top:1px solid #e7ebef;font-size:10px;font-weight:800;color:#59677a}
+.mini-flow b{color:#c78d00}
+@media(max-width:800px){.amount-grid{grid-template-columns:repeat(2,1fr)}.mini-flow{flex-wrap:wrap;justify-content:flex-start}.mini-flow span{font-size:11px}}
+</style>
+
 </head>
 <body>
 <header class="nav">
@@ -130,7 +149,7 @@
         <div class="service-icon">📱</div>
         <span class="service-status">COMING SOON</span>
         <h3>Mobile Recharge</h3>
-        <p>Send mobile credit directly to a family member or friend's Haitian mobile phone.</p>
+        <p>Recharge a loved one's phone in Haiti from as little as $5, or choose another available recharge amount.</p>
       </article>
       <article class="service-card">
         <div class="service-icon">🌐</div>
@@ -153,14 +172,23 @@
         </div>
         <a class="services-cta" href="#app">Coming Soon</a>
       </div>
-      <div class="recharge-flow" aria-label="How mobile recharge works">
-        <div class="flow-step"><b>01</b><span>Enter phone number</span></div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step"><b>02</b><span>Choose airtime or data</span></div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step"><b>03</b><span>Review</span></div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step"><b>04</b><span>Send</span></div>
+      <div class="recharge-demo" aria-label="Mobile recharge preview">
+        <div class="recharge-demo-head">
+          <span class="demo-label">MOBILE RECHARGE</span>
+          <span class="demo-status">COMING SOON</span>
+        </div>
+        <h3>Choose a recharge amount</h3>
+        <p class="demo-sub">Starting from $5. Available amounts may vary by mobile provider.</p>
+        <div class="amount-grid">
+          <button type="button" aria-label="5 dollar recharge">$5</button>
+          <button type="button" aria-label="10 dollar recharge">$10</button>
+          <button type="button" aria-label="20 dollar recharge">$20</button>
+          <button type="button" aria-label="50 dollar recharge">$50</button>
+        </div>
+        <div class="custom-amount"><span>$</span><strong>Choose amount</strong></div>
+        <div class="mini-flow">
+          <span>Phone number</span><b>→</b><span>Airtime or data</span><b>→</b><span>Review</span><b>→</b><span>Send</span>
+        </div>
       </div>
     </div>
   </div>
