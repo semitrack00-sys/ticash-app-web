@@ -1,0 +1,7 @@
+{
+  "name": "ticash-app-web",
+  "private": true,
+  "scripts": {
+    "test": "node tools/check-site.mjs"
+  }
+}

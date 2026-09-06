@@ -4,3 +4,16 @@ services:
     runtime: static
     buildCommand: echo "Static TiCash site"
     staticPublishPath: .
+    headers:
+      - path: /.well-known/*
+        name: Content-Type
+        value: application/json
+      - path: /apple-app-site-association
+        name: Content-Type
+        value: application/json
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
