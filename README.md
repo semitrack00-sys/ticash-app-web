@@ -42,7 +42,7 @@ These are development-stage documents and should receive qualified legal/complia
 
 ## Website and mobile-app links
 
-The public site provides safe fallback pages for:
+The public site provides these routes (recharge and login now share an authenticated test checkout):
 
 - `/send`
 - `/recharge`
@@ -60,15 +60,20 @@ Before enabling iOS Universal Links, replace the empty `details` list in both Ap
 
 Both association files must be served directly over HTTPS from `ticash-app.com` and `www.ticash-app.com`, without redirects, with `Content-Type: application/json`. Verify the production responses before publishing the apps.
 
-`public-config.js` contains public availability booleans only. Send Money, Mobile Recharge, Android, and iOS remain Coming Soon by default. Never put provider, database, KYC, payment, or signing secrets in this file or elsewhere in the static website.
+`public-config.js` contains public availability booleans and a configurable `apiBaseUrl`. All availability flags remain false. `/recharge` implements test checkout; `/login` signs in through the existing TiCash backend and opens that checkout in the same document. The API URL is deliberately empty until a confirmed TiCash test backend is supplied. No hostname is guessed. Never put provider, database, KYC, payment, or signing secrets in browser files.
+
+See [RECHARGE_CONTRACT.md](RECHARGE_CONTRACT.md) for the audited backend contract, setup, authentication lifecycle, safety gates, and validation limitations. This change is for review only: do not merge or deploy it as part of implementation.
 
 Website action analytics use `data-analytics` and the `ticash_web_action` event. Events include only an action name and the public page path; do not add amounts, phone numbers, names, account IDs, KYC status, transaction references, or other sensitive data.
 
-Run the zero-dependency website checks with:
+Run the website integrity, browser security, authentication, state, and DOM tests (Node.js 24) with:
 
 ```powershell
+npm ci --ignore-scripts
 npm test
 ```
+
+`npm run check` runs integrity/security checks independently. There is no application build step or separate lint script; the website uses native browser modules. `jsdom` is a development-only DOM test dependency. Runtime pages do not import test fixtures, dependencies, or credentials. Recharge/login do not emit analytics events.
 
 The legacy tracked path `ticash-logo.png?v=3` has been removed from the proposed
 Git tree. All website references use the cross-platform `/ticash-logo.png` path.
