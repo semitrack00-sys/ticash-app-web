@@ -2,14 +2,15 @@ import { ApiError } from './api-client.js';
 
 const root = '/mobile-topups';
 const invalid = (message) => new ApiError('INVALID_RESPONSE', message);
-export function internationalPhone(value) {
+export function internationalPhone(value, callingCode) {
   const compact = value.trim().replace(/[\s().-]/g, '').replace(/^00/, '+');
   if (!/^\+[1-9]\d{7,14}$/.test(compact)) throw new ApiError('INVALID_TOPUP_PHONE', 'Enter the full international phone number, including + and its country code.');
+  if (callingCode && !compact.startsWith(callingCode)) throw new ApiError('INVALID_TOPUP_PHONE', 'The phone number must begin with the selected country’s calling code.');
   return compact;
 }
 export function searchCountries(countries, search) {
   const term = search.trim().toLocaleLowerCase();
-  return countries.filter((country) => `${country.name} ${country.code}`.toLocaleLowerCase().includes(term));
+  return countries.filter((country) => `${country.name} ${country.code} ${country.callingCode || ''}`.toLocaleLowerCase().includes(term));
 }
 export function secureId(crypto = globalThis.crypto) {
   if (crypto?.randomUUID) return crypto.randomUUID();
@@ -76,19 +77,25 @@ export class Recharge {
     await this.run('catalog', async (active) => {
       assertTestService(await this.api.request(`${root}/status`));
       const countries = array(await this.api.request(`${root}/countries`), 'countries');
-      if (countries.some((c) => !/^[A-Z]{2}$/.test(c.code) || typeof c.name !== 'string')) throw invalid('Invalid country catalog.');
+      if (countries.some((c) => !/^[A-Z]{2}$/.test(c.code) || typeof c.name !== 'string' || !/^\+[1-9]\d{0,2}$/.test(c.callingCode))) throw invalid('Invalid country catalog or missing calling codes. Please try again after the service is updated.');
       if (active()) { this.state.countries = countries; this.state.ready = true; }
     });
     if (this.state.ready) await Promise.all([this.loadHistory(), this.loadRecipients()]);
   }
   async selectCountry(code) {
     this.editable(); this.invalidate(); this.clearOperator();
-    Object.assign(this.state, { country: code, phone: '', operators: [] }); this.emit();
+    const destination = this.state.countries.find((c) => c.code === code);
+    Object.assign(this.state, { country: code, phone: destination?.callingCode || '', operators: [] }); this.emit();
     if (!this.state.countries.some((c) => c.code === code)) return;
     await this.loadOperators();
   }
   setPhone(value) {
     this.editable(); this.invalidate(); this.clearOperator(); this.state.phone = value; this.emit();
+  }
+  normalizedPhone() {
+    const destination = this.state.countries.find((c) => c.code === this.state.country);
+    if (!destination) throw new ApiError('SELECTION_REQUIRED', 'Choose a destination country.');
+    return internationalPhone(this.state.phone, destination.callingCode);
   }
   async loadOperators() {
     const country = this.state.country;
@@ -104,7 +111,7 @@ export class Recharge {
     const revision = this.revision;
     return this.run('detect', async (active) => {
       const country = this.state.country;
-      const phone = internationalPhone(this.state.phone);
+      const phone = this.normalizedPhone();
       const { operator } = await this.api.request(`${root}/operators/detect?${new URLSearchParams({ country, phone })}`);
       if (!validOperator(operator, country)) throw invalid('The detected operator is unavailable for this country.');
       if (active()) {
@@ -135,11 +142,11 @@ export class Recharge {
   }
   setAmount(value) { this.editable(); this.invalidate(); this.state.amount = value; this.emit(); }
   quoteBody() {
-    const { country, phone, operator, product, amount } = this.state;
+    const { country, operator, product, amount } = this.state;
     if (!operator || !product || product.operatorId !== operator.id || product.countryCode !== country) {
       throw new ApiError('SELECTION_REQUIRED', 'Choose an operator and a recharge product.');
     }
-    const body = { countryCode: country, phone: internationalPhone(phone), operatorId: operator.id, productId: product.id };
+    const body = { countryCode: country, phone: this.normalizedPhone(), operatorId: operator.id, productId: product.id };
     if (product.amountType === 'RANGE') {
       if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0 || Number(amount) < product.minimumAmount || Number(amount) > product.maximumAmount) {
         throw new ApiError('INVALID_TOPUP_AMOUNT', 'Enter an amount within the displayed range, using up to two decimal places.');

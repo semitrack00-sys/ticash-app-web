@@ -42,6 +42,8 @@ export function mountRecharge(root, config, dependencies = {}) {
   let client;
   let model;
   let signedIn = false;
+  let guestSession = false;
+  let authMode = 'login';
   let signingIn = false;
   let disposed = false;
   let configured = true;
@@ -57,24 +59,64 @@ export function mountRecharge(root, config, dependencies = {}) {
   const notice = el('p', { className: 'message', role: 'status', id: 'recharge-notice', hidden: '' });
   const email = el('input', { id: 'email', type: 'email', autocomplete: 'username', required: '', maxlength: '254' });
   const password = el('input', { id: 'password', type: 'password', autocomplete: 'current-password', required: '', minlength: '8', maxlength: '128' });
+  const passwordControls = [];
+  const passwordField = (label, input) => {
+    const toggle = button('Show', () => {
+      input.type = input.type === 'password' ? 'text' : 'password';
+      const showing = input.type === 'text';
+      toggle.textContent = showing ? 'Hide' : 'Show';
+      toggle.setAttribute('aria-label', `${showing ? 'Hide' : 'Show'} ${label.toLowerCase()}`);
+      toggle.setAttribute('aria-pressed', String(showing));
+    }, true);
+    toggle.id = `${input.id}-visibility`;
+    toggle.setAttribute('aria-label', `Show ${label.toLowerCase()}`); toggle.setAttribute('aria-controls', input.id); toggle.setAttribute('aria-pressed', 'false');
+    passwordControls.push({ input, toggle, label });
+    return el('div', { className: 'field' }, el('label', { for: input.id }, label), el('div', { className: 'password-control' }, input, toggle));
+  };
+  const clearPasswords = () => passwordControls.forEach(({ input, toggle, label }) => {
+    input.value = ''; input.type = 'password'; toggle.textContent = 'Show';
+    toggle.setAttribute('aria-label', `Show ${label.toLowerCase()}`); toggle.setAttribute('aria-pressed', 'false');
+  });
   const loginButton = el('button', { className: 'button', type: 'submit' }, 'Sign in for test recharge');
   const loginError = el('p', { role: 'alert', className: 'message error', hidden: '' });
-  const loginForm = el('form', { id: 'login-form' }, field('Email address', email), field('Password', password), loginError, loginButton);
+  const loginForm = el('form', { id: 'login-form' }, field('Email address', email), passwordField('Password', password), loginButton);
+  const firstName = el('input', { id: 'first-name', autocomplete: 'given-name', required: '', minlength: '1', maxlength: '80' });
+  const lastName = el('input', { id: 'last-name', autocomplete: 'family-name', required: '', minlength: '1', maxlength: '80' });
+  const registerEmail = el('input', { id: 'register-email', type: 'email', autocomplete: 'email', required: '', maxlength: '254' });
+  const registerPassword = el('input', { id: 'register-password', type: 'password', autocomplete: 'new-password', required: '', minlength: '8', maxlength: '128' });
+  const registerButton = el('button', { className: 'button', type: 'submit' }, 'Create TiCash account');
+  const registerForm = el('form', { id: 'register-form', hidden: '' }, field('First name', firstName), field('Last name', lastName),
+    field('Email address', registerEmail), passwordField('Account password', registerPassword),
+    el('p', { className: 'small muted' }, 'Create a permanent account to access your saved recipients and history when you sign in again.'), registerButton);
+  const chooseAuth = (mode) => { if (signingIn) return; authMode = mode; clearPasswords(); loginError.hidden = true; render(); };
+  const signInChoice = button('Sign in', () => chooseAuth('login'), true); signInChoice.id = 'choose-login';
+  const registerChoice = button('Create account', () => chooseAuth('register'), true); registerChoice.id = 'choose-register';
+  const guestButton = button('Continue as guest', () => authenticate('guest'), true); guestButton.id = 'continue-guest';
+  const authChoices = el('div', { className: 'auth-choices', 'aria-label': 'Account options' }, signInChoice, registerChoice, guestButton);
   const loginPanel = el('section', { className: 'panel login-panel', 'aria-labelledby': 'login-title' },
     el('div', {}, el('span', { className: 'step' }, 'YOUR TICASH ACCOUNT'), el('h2', { id: 'login-title' }, 'Sign in to stay connected.'),
-      el('p', { className: 'muted' }, 'Use your existing TiCash account. This test checkout does not move real money or deliver real airtime.'),
+      el('p', { className: 'muted' }, 'Sign in, create an account, or explore recharge as a guest. This test checkout does not move real money or deliver real airtime.'),
       el('p', { className: 'small muted' }, 'Your session lasts only while this page stays open. Reloading or leaving the page signs you out.'),
       el('a', { href: '/support' }, 'Need help with your account?')),
-    loginForm);
+    el('div', {}, authChoices, loginError, loginForm, registerForm));
   const logout = button('Sign out', async () => {
-    signedIn = false; model.reset(); render();
+    signedIn = false; guestSession = false; clearPasswords(); model.reset(); render();
     try { await client.logout(); }
     catch { loginError.textContent = 'You are signed out here. TiCash could not confirm server logout; sign in again if needed.'; loginError.hidden = false; }
     email.focus();
   }, true);
   logout.id = 'sign-out';
-  const accountBar = el('div', { className: 'account-bar', hidden: '' }, el('span', {}, 'Signed in · private test session'), logout);
-  const countrySearchInput = el('input', { id: 'country-search', type: 'search', placeholder: 'Search by country or code', autocomplete: 'off' });
+  const accountLabel = el('span', {}, 'Signed in · private test session');
+  const guestNote = el('p', { className: 'small muted', id: 'guest-note', hidden: '' }, 'Closing or reloading this page ends your guest session. Guest history is temporary and will not transfer to a new account.');
+  const createFromGuest = button('Create account', async () => {
+    if (model.state.submitting || model.state.attempt) return;
+    signedIn = false; guestSession = false; authMode = 'register'; clearPasswords(); model.reset(); render();
+    try { await client.logout(); } catch { /* Local tokens are already cleared. */ }
+    firstName.focus();
+  }, true); createFromGuest.id = 'guest-create-account';
+  const accountBar = el('div', { className: 'account-bar', hidden: '' }, el('div', {}, accountLabel, guestNote),
+    el('div', { className: 'compact-actions' }, createFromGuest, logout));
+  const countrySearchInput = el('input', { id: 'country-search', type: 'search', placeholder: 'Country, ISO code, or calling code', autocomplete: 'off' });
   const country = el('select', { id: 'country', required: '' });
   const phone = el('input', { id: 'phone', type: 'tel', autocomplete: 'tel', maxlength: '40', 'aria-describedby': 'phone-hint', placeholder: '+ country code and mobile number' });
   const operator = el('select', { id: 'operator' });
@@ -118,7 +160,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const historyRefresh = button('Refresh history', action(() => model.loadHistory()), true); historyRefresh.id = 'refresh-history';
   const historyPanel = el('section', { className: 'panel history-panel' },
     el('div', { className: 'section-heading' }, el('div', {}, el('span', { className: 'step' }, 'YOUR ACTIVITY'), el('h2', {}, 'Test recharge history')), historyRefresh),
-    el('p', { className: 'small muted' }, 'Recent test transactions from your TiCash account. Repeat always requests a new quote.'), historyError, historyList);
+    el('p', { className: 'small muted' }, 'Test transactions for this account or guest session. Repeat always requests a new quote.'), historyError, historyList);
   const checkout = el('div', { id: 'checkout', hidden: '' },
     el('div', { className: 'checkout-grid' }, el('section', { className: 'panel selection-panel' }, countriesRetry, selectionFields), reviewPanel),
     receipt, historyPanel);
@@ -132,6 +174,16 @@ export function mountRecharge(root, config, dependencies = {}) {
     if (disposed || !model) return;
     const s = model.state; const busy = model.busy;
     loginPanel.hidden = signedIn; accountBar.hidden = !signedIn; checkout.hidden = !signedIn;
+    loginForm.hidden = authMode !== 'login'; registerForm.hidden = authMode !== 'register';
+    accountLabel.textContent = guestSession ? 'Guest · private test session' : 'Signed in · private test session';
+    guestNote.hidden = !guestSession; createFromGuest.hidden = !guestSession;
+    createFromGuest.disabled = s.submitting || Boolean(s.attempt);
+    for (const control of [registerButton, signInChoice, registerChoice, guestButton]) control.disabled = !configured || signingIn;
+    for (const control of [email, password, firstName, lastName, registerEmail, registerPassword]) control.disabled = signingIn;
+    signInChoice.setAttribute('aria-pressed', String(authMode === 'login'));
+    registerChoice.setAttribute('aria-pressed', String(authMode === 'register'));
+    guestButton.textContent = signingIn && authMode === 'guest' ? 'Starting guest session…' : 'Continue as guest';
+    registerButton.textContent = signingIn && authMode === 'register' ? 'Creating account…' : 'Create TiCash account';
     loginButton.disabled = !configured || signingIn;
     loginButton.textContent = signingIn ? 'Signing in…' : 'Sign in for test recharge';
     error.textContent = s.error; error.hidden = !s.error;
@@ -144,7 +196,10 @@ export function mountRecharge(root, config, dependencies = {}) {
     // Keep a selected country visible even while the search is being refined.
     const selectedCountry = s.countries.find((c) => c.code === s.country);
     if (selectedCountry && !matches.includes(selectedCountry)) matches.unshift(selectedCountry);
-    options(country, matches, s.country, matches.length ? 'Choose a country' : 'No matching countries', (c) => c.name, (c) => c.code);
+    options(country, matches, s.country, matches.length ? 'Choose a country' : 'No matching countries', (c) => `${c.name} (${c.callingCode})`, (c) => c.code);
+    root.querySelector('#phone-hint').textContent = selectedCountry
+      ? `${selectedCountry.name} calling code: ${selectedCountry.callingCode}. Add the recipient’s mobile digits after this prefix, without repeating it.`
+      : 'Choose a country to prepare its international calling code. Check the full number before confirming.';
     if (phone.value !== s.phone) phone.value = s.phone;
     phone.disabled = !s.country;
     options(operator, s.operators, s.operator?.id, busy.has(`operators:${s.country}`) ? 'Loading operators…' : 'Choose an operator', (op) => op.name, (op) => op.id);
@@ -219,7 +274,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     }
   }
   const expired = () => {
-    signedIn = false; model?.reset(); render();
+    signedIn = false; guestSession = false; clearPasswords(); model?.reset(); render();
     loginError.textContent = 'Your session expired or account access changed. Sign in again, then check history before repeating a recharge.';
     loginError.hidden = false;
   };
@@ -230,19 +285,27 @@ export function mountRecharge(root, config, dependencies = {}) {
     configured = false; loginError.textContent = error.message; loginError.hidden = false;
   }
   model = new Recharge(client, { ...dependencies, onChange: render });
-  loginForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    if (signingIn || !configured || !loginForm.reportValidity()) return;
+  async function authenticate(mode) {
+    if (signingIn || !configured) return;
+    const form = mode === 'register' ? registerForm : loginForm;
+    if (mode !== 'guest' && !form.reportValidity()) return;
+    authMode = mode === 'guest' ? 'guest' : mode;
     signingIn = true; loginError.hidden = true; render();
     try {
-      await client.login(email.value.trim(), password.value);
-      password.value = ''; signedIn = true; model.reset(); render();
+      if (mode === 'guest') await client.guest();
+      else if (mode === 'register') await client.register({ firstName: firstName.value.trim(), lastName: lastName.value.trim(), email: registerEmail.value.trim(), password: registerPassword.value });
+      else await client.login(email.value.trim(), password.value);
+      clearPasswords(); signedIn = true; guestSession = mode === 'guest'; model.reset();
+      if (mode === 'register') model.state.notice = 'Your TiCash account was created.';
+      render();
       // Fixed local destination; user-supplied return URLs are never used.
       if (globalThis.location?.pathname.startsWith('/login')) globalThis.history.replaceState(null, '', '/recharge');
       await model.start();
-    } catch (error) { password.value = ''; loginError.textContent = error.message; loginError.hidden = false; }
-    finally { signingIn = false; render(); }
-  });
+    } catch (error) { clearPasswords(); loginError.textContent = error.message; loginError.hidden = false; }
+    finally { if (authMode === 'guest') authMode = 'login'; signingIn = false; render(); }
+  }
+  loginForm.addEventListener('submit', (event) => { event.preventDefault(); void authenticate('login'); });
+  registerForm.addEventListener('submit', (event) => { event.preventDefault(); void authenticate('register'); });
   countrySearchInput.addEventListener('input', () => { countrySearch = countrySearchInput.value; render(); });
   country.addEventListener('change', action(() => model.selectCountry(country.value)));
   phone.addEventListener('input', action(() => model.setPhone(phone.value)));
@@ -251,7 +314,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   amount.addEventListener('input', action(() => model.setAmount(amount.value)));
   reviewed.addEventListener('change', () => model.review(reviewed.checked));
   recipientsSelect.addEventListener('change', action(() => model.useRecipient(recipientsSelect.value)));
-  const pageHide = () => { client?.clear(); signedIn = false; model.reset(); render(); };
+  const pageHide = () => { client?.clear(); signedIn = false; guestSession = false; clearPasswords(); model.reset(); render(); };
   globalThis.addEventListener?.('pagehide', pageHide);
   const timer = setInterval(() => { if (signedIn && model.state.quote) render(); }, 1000);
   render();

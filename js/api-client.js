@@ -87,6 +87,21 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
       acceptTokens(data, version);
       return data.user;
     },
+    async register({ firstName, lastName, email, password }) {
+      clear();
+      const version = sessionVersion;
+      const data = await send('/auth/register', { method: 'POST', body: { firstName, lastName, email, password } });
+      acceptTokens(data, version);
+      return data.user;
+    },
+    async guest() {
+      clear();
+      const version = sessionVersion;
+      const data = await send('/auth/guest', { method: 'POST' });
+      if (data?.guest !== true || data.user?.role !== 'CUSTOMER') throw new ApiError('INVALID_RESPONSE', 'The service did not return a guest customer session.');
+      acceptTokens(data, version);
+      return data.user;
+    },
     async logout() {
       const token = refreshToken;
       clear();

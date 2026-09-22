@@ -1,30 +1,32 @@
 # Test recharge implementation and contract
 
-Scope: `semitrack00-sys/ticash-app-web` only. No backend changes, merges, deployments, real payments, or production provider calls are part of this implementation.
+Website scope: `semitrack00-sys/ticash-app-web`, with a companion backend upgrade in `semitrack00-sys/Ticash`. No merges, deployments, real payments, or production provider calls are part of this implementation.
 
 ## Audited source
 
-Website main at audit: `bef59760912758244736a8afa2141bcbdbe9788f`. The previous `copilot/copilotticash-web-recharge-final` remote branch had an empty diff against main and still contained the placeholder page. Work starts from main on `codex/ticash-web-recharge-final`.
+This upgrade starts from website main `6059f4ee12d5c6bfbc59c732fbef0dc562d4ecf2` on `codex/ticash-recharge-accounts-calling-codes`. The previous authenticated recharge implementation is already merged in website PR #4.
 
-Backend reference: [TiCash PR #9](https://github.com/semitrack00-sys/Ticash/pull/9), head `bcc9166fdf416c0000652fcad4061a362412ec76`. Backend main inspected at `a3e91d9d1c393faf29c0aaa338b34cfa0237ac60`. The topup router and service are identical between these revisions. PR #9 is open and unmerged at this audit; its browser CORS changes must not be assumed deployed.
-
-Read-only source review covered `apps/api/src/app.ts`, `topup/router.ts`, `topup/service.ts`, `topup/types.ts`, `topup/validation.ts`, `topup/config.ts`, `topup/repository.ts`, and backend topup tests. Router blob: `caad121676bd1a60a369cc7dc5918afe77596969`; service blob: `6edc4f079058d49217bdf3ed814d013cbfcc0807`.
+The companion backend branch `codex/ticash-recharge-guest-calling-codes` starts from main `d799f8ccf6df467feb482c7cb964b1045e405386`, which includes [TiCash PR #9](https://github.com/semitrack00-sys/Ticash/pull/9). Merge status does not establish deployed behavior. The upgrade adds sandbox guest identities and expiry, calling-code metadata, and the $3.50 development fee example while preserving existing registration and protected purchase routes.
 
 ## Configuration and authentication
 
-Set `window.TICASH_PUBLIC_CONFIG.apiBaseUrl` to a confirmed TiCash **test** backend URL ending in `/api`. It is empty by default; login is disabled with a clear explanation until configured. HTTPS is required except when both the page and API use loopback HTTP for local testing. URLs with credentials, query strings, or fragments are rejected. Keep `mobileRechargeLive: false`; changing it causes this checkout to refuse initialization.
+`window.TICASH_PUBLIC_CONFIG.apiBaseUrl` currently retains main's `https://ticash-api.onrender.com/api`. An empty URL disables authentication with a clear explanation. A configured URL alone does not approve live use: the API must explicitly report sandbox/mock status. HTTPS is required except when both the page and API use loopback HTTP for local testing. URLs with credentials, query strings, or fragments are rejected. Keep `mobileRechargeLive: false`; changing it causes this checkout to refuse initialization.
 
-The previous `/login` was a placeholder. Both `/login` and `/recharge` now use the real backend login contract. Successful login on `/login` replaces the address with the fixed local `/recharge` path without navigating away. No user-supplied redirect is followed. No signup, authentication bypass, or demo account exists in runtime code.
+Both `/login` and `/recharge` now offer sign-in, Create account, and Continue as guest. Successful authentication on `/login` replaces the address with the fixed local `/recharge` path without navigating away. No user-supplied redirect is followed. There is no authentication bypass or demo account in runtime code.
 
 | Method and API-relative path | Request | Response used |
 | --- | --- | --- |
 | POST `/auth/login` | JSON `{email,password}` | `{user,accessToken,refreshToken}` |
+| POST `/auth/register` | JSON `{firstName,lastName,email,password}` | 201 `{user,accessToken,refreshToken}` |
+| POST `/auth/guest` | No body or credentials | 201 `{guest:true,expiresAt,user,accessToken,refreshToken}` |
 | POST `/auth/refresh` | JSON `{refreshToken}` | `{accessToken,refreshToken}` |
 | POST `/auth/logout` | JSON `{refreshToken}` | 204 |
 
 The backend issues a 15-minute access JWT and rotating refresh token. Tokens stay in a private memory closure, never local/session storage, the DOM, URLs, or analytics. Concurrent 401s share one refresh; the original request is retried once, preserving its body and idempotency key. Failed refresh, a second 401, or account lock clears the session. Stale responses cannot reestablish a signed-out session. Logout clears local data immediately even if server logout fails.
 
 Reloading/leaving the page signs the user out. This deliberately avoids persistent bearer credentials in a static website. After an interrupted confirmation, sign in and inspect history before starting another recharge. The in-memory retry key does not survive a reload.
+
+Registration uses the existing persistent backend account flow and automatically enters checkout. A configured backend database is required for persistence; the API's development memory store is not permanent. Both password fields have keyboard-accessible Show/Hide buttons, default to hidden, and are cleared after authentication attempts and mode changes. Guest entry requires an explicit `guest:true` response with a `CUSTOMER` role and normal tokens. Guest sessions display `Guest · private test session`; history is temporary and does not migrate to a new account. Creating an account from a guest session signs the guest out first. The backend bounds guest identities to one hour and keeps account/funding restrictions in place.
 
 ## Recharge requests
 
@@ -33,7 +35,7 @@ All paths below are relative to `/api/mobile-topups`. Every request uses `Author
 | Method and path | Query or JSON body | Response |
 | --- | --- | --- |
 | GET `/status` | None | Availability object |
-| GET `/countries` | None | `{countries:[{code,name}]}` |
+| GET `/countries` | None | `{countries:[{code,name,callingCode}]}` |
 | GET `/operators` | `country` | `{operators}` |
 | GET `/operators/detect` | `country`, full international `phone` | `{operator}` |
 | GET `/operators/:id/products` | `country` | `{operator,products}` |
@@ -47,6 +49,10 @@ All paths below are relative to `/api/mobile-topups`. Every request uses `Author
 The backend also supports saving recipients; this UI reads existing recipients and rechecks current catalogs. It does not submit `recipientId` or create recipients.
 
 Country/operator/product lists come exclusively from authenticated backend responses. Fixed products omit `amount`; range products send the entered numeric amount within the returned bounds, with at most two decimal places. No browser catalog or destination code is hardcoded. The browser never calls Reloadly directly.
+
+Country options display `Name (+callingCode)` and search matches name, ISO identity, and calling code. Selection prefills a full international-number input with the backend prefix; switching countries discards the old number and replaces the prefix. Phone input is structurally checked as E.164 with the selected calling prefix before detection and quoting. Formatting and a leading `00` are normalized; repeated `+` prefixes are rejected. There is no uniform national-number length rule, invented code map, or inference of ISO identity from a shared calling code. Operator detection and backend/provider validation remain authoritative.
+
+The backend's test/development fee example is $3.50: a $5.00 recharge quote returns a $3.50 fee and $8.50 total. The page only formats returned quote values; it has no configured or computed fee. Deploying this website version requires the companion backend's calling-code field and guest endpoint plus its reviewed guest-expiry database migration. Missing calling-code metadata leaves checkout unavailable with a clear error. No deployments or migration application are part of this work.
 
 Quotes use the backend's `id`, `countryCode`, `recipientPhone`, `operatorId`, `operatorName`, `productId`, `productName`, `providerAmount`, `providerCurrency`, `deliveredValue`, `deliveredCurrency`, `feeUsd`, `totalChargeUsd`, and `expiresAt`. USD fee/total fields are the explicit backend contract. The browser formats these values and does not calculate charges. Returned quote selections must match the submitted country, phone, operator, and product. Expired quotes cannot be newly confirmed. Changes to country/phone/operator clear dependent selections and receipts; product/amount changes invalidate quotes. Revision and session guards discard stale asynchronous responses.
 
@@ -72,4 +78,4 @@ The route CSP blocks inline scripts, plugins, base URL changes, and native form 
 
 Run `npm ci --ignore-scripts`, `npm test`, and `npm run check` on Node.js 24. Tests exercise country/search/reset behavior, detection/manual fallback, fixed/range contracts, quote integrity/expiry/review, secure keys, duplicate/uncertain confirmation, late responses across logout, authentication/refresh failures, network errors, receipts/refresh/repeat, safe text rendering, configuration gates, and TEST MODE visibility. `npm audit` checks development dependencies. No separate lint or build script exists.
 
-Contract checks are source comparison and deterministic test doubles. Test data is confined to `tools/` and never imported by runtime modules. Browser smoke testing uses a loopback-only fixture server and generated test account. It cannot establish deployed API availability, real user authentication, actual cross-origin preflight behavior, or provider delivery. No deployed backend URL or real account was supplied; those integration checks remain unexecuted. No real recharge/payment/provider transaction or deployment is authorized by this change.
+Contract checks use source comparison and deterministic test doubles. Test data is confined to `tools/` and never imported by runtime modules. Local browser checks cannot establish deployed API availability, real user authentication, actual cross-origin preflight behavior, or provider delivery. The configured remote backend and real accounts were not exercised; those integration checks remain unexecuted. No real recharge/payment/provider transaction or deployment is authorized by this change.
