@@ -60,7 +60,7 @@ Before enabling iOS Universal Links, replace the empty `details` list in both Ap
 
 Both association files must be served directly over HTTPS from `ticash-app.com` and `www.ticash-app.com`, without redirects, with `Content-Type: application/json`. Verify the production responses before publishing the apps.
 
-`public-config.js` contains public availability booleans and a configurable `apiBaseUrl`. All availability flags remain false. `/recharge` implements test checkout; `/login` signs in through the existing TiCash backend and opens that checkout in the same document. The API URL is deliberately empty until a confirmed TiCash test backend is supplied. No hostname is guessed. Never put provider, database, KYC, payment, or signing secrets in browser files.
+`public-config.js` contains public availability booleans and a configurable `apiBaseUrl`. All availability flags remain false. `/recharge` and `/login` offer sign-in, account registration, and sandbox guest checkout with memory-only tokens and Show/Hide password controls. Main already configures `https://ticash-api.onrender.com/api`; this upgrade preserves that URL without asserting that the companion backend changes are deployed. Checkout requires explicit sandbox/mock status and country calling-code metadata. Never put provider, database, KYC, payment, or signing secrets in browser files.
 
 See [RECHARGE_CONTRACT.md](RECHARGE_CONTRACT.md) for the audited backend contract, setup, authentication lifecycle, safety gates, and validation limitations. This change is for review only: do not merge or deploy it as part of implementation.
 

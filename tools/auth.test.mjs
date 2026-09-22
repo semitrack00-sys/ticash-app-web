@@ -102,3 +102,58 @@ test('invalid login, locked account, backend errors and timeout have controlled 
   const account = createApiClient({ baseUrl: 'https://test.example/api', onSessionExpired: () => locked++, fetchImpl: async (url) => url.endsWith('/login') ? json(session) : json({ code: 'ACCOUNT_LOCKED', error: 'Locked' }, 423) });
   await account.login('tester@example.com', 'test-password'); await assert.rejects(account.request('/mobile-topups/status'), { status: 423 }); assert.equal(locked, 1);
 });
+
+test('registration sends only account fields and authenticates through memory-only tokens', async () => {
+  const calls = [];
+  const api = createApiClient({ baseUrl: 'https://test.example/api', fetchImpl: async (url, options) => {
+    calls.push({ url, ...options }); return json(session);
+  } });
+  const account = { firstName: 'Ti', lastName: 'Cash', email: 'new@example.com', password: 'test-password' };
+  assert.deepEqual(await api.register({ ...account, role: 'ADMIN' }), session.user);
+  await api.request('/mobile-topups/countries');
+  assert.equal(calls[0].url, 'https://test.example/api/auth/register'); assert.deepEqual(JSON.parse(calls[0].body), account);
+  assert.equal(calls[1].headers.Authorization, `Bearer ${tokens.accessToken}`);
+  api.clear(); await assert.rejects(api.request('/mobile-topups/countries'), { code: 'UNAUTHENTICATED' });
+});
+
+test('guest entry requires explicit guest CUSTOMER response and normal tokens, never fake credentials', async () => {
+  const calls = [];
+  const api = createApiClient({ baseUrl: 'https://test.example/api', fetchImpl: async (url, options) => {
+    calls.push({ url, ...options }); return json({ ...session, guest: true, user: { role: 'CUSTOMER' } });
+  } });
+  await api.guest(); await api.request('/mobile-topups/countries');
+  assert.equal(calls[0].url, 'https://test.example/api/auth/guest'); assert.equal(calls[0].method, 'POST'); assert.equal(calls[0].body, undefined);
+  assert.equal(calls[1].headers.Authorization, `Bearer ${tokens.accessToken}`);
+  for (const response of [session, { ...session, guest: true, user: { role: 'ADMIN' } }, { guest: true, user: { role: 'CUSTOMER' } }]) {
+    const bad = createApiClient({ baseUrl: 'https://test.example/api', fetchImpl: async () => json(response) });
+    await assert.rejects(bad.guest(), { code: 'INVALID_RESPONSE' });
+    await assert.rejects(bad.request('/mobile-topups/status'), { code: 'UNAUTHENTICATED' });
+  }
+});
+
+test('all authentication choices avoid persistent browser storage and token URLs', async () => {
+  const original = ['localStorage', 'sessionStorage'].map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]);
+  for (const [key] of original) Object.defineProperty(globalThis, key, { configurable: true, get() { throw new Error('Browser storage accessed'); } });
+  try {
+    for (const mode of ['login', 'register', 'guest']) {
+      const api = createApiClient({ baseUrl: 'https://test.example/api', fetchImpl: async (url, options) => {
+        assert.doesNotMatch(url, /test-access|11111111|test-password/); assert.equal(options.credentials, 'omit');
+        return json({ ...session, guest: true, user: { role: 'CUSTOMER' } });
+      } });
+      if (mode === 'login') await api.login('test@example.com', 'test-password');
+      if (mode === 'register') await api.register({ firstName: 'T', lastName: 'C', email: 'test@example.com', password: 'test-password' });
+      if (mode === 'guest') await api.guest();
+      await api.request('/mobile-topups/countries');
+      const freshPage = createApiClient({ baseUrl: 'https://test.example/api' });
+      await assert.rejects(freshPage.request('/mobile-topups/countries'), { code: 'UNAUTHENTICATED' });
+    }
+  } finally { for (const [key, descriptor] of original) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; } }
+});
+
+test('registration conflict and unsafe guest errors leave requests unauthenticated', async () => {
+  for (const [method, code, status] of [['register', 'EMAIL_EXISTS', 409], ['guest', 'GUEST_SANDBOX_REQUIRED', 403]]) {
+    const api = createApiClient({ baseUrl: 'https://test.example/api', fetchImpl: async () => json({ error: 'Denied', code }, status) });
+    await assert.rejects(api[method]({}), { code, status });
+    await assert.rejects(api.request('/mobile-topups/status'), { code: 'UNAUTHENTICATED' });
+  }
+});

@@ -34,7 +34,7 @@ for (const change of ['country', 'phone', 'operator', 'product', 'amount']) {
     if (change === 'amount') model.setAmount('12');
     assert.equal(model.state.quote, null); assert.equal(model.state.reviewed, false); assert.equal(model.state.transaction, null);
     if (['country', 'phone', 'operator'].includes(change)) { assert.equal(model.state.operator, null); assert.deepEqual(model.state.products, []); assert.equal(model.state.product, null); }
-    if (change === 'country') assert.equal(model.state.phone, '');
+    if (change === 'country') assert.equal(model.state.phone, '+1');
   });
 }
 test('detects an operator and loads its returned products', async () => {
@@ -166,4 +166,26 @@ test('fails closed on all live/unknown safety flags, including immediately befor
 test('UUID fallback uses secure randomness and fails closed without crypto', () => {
   assert.match(secureId({ getRandomValues: (bytes) => globalThis.crypto.getRandomValues(bytes) }), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   assert.throws(() => secureId({}));
+});
+
+test('country calling-code search, prefills and switches preserve ISO identity', async () => {
+  const { model } = await setup();
+  for (const term of ['509', '+509', 'HT', 'Haiti']) assert.deepEqual(searchCountries(countries, term), [countries[2]]);
+  assert.deepEqual(searchCountries(countries, '+1'), countries.slice(0, 2));
+  await model.selectCountry('HT'); assert.equal(model.state.phone, '+509');
+  model.setPhone('+50937050210'); assert.equal(model.normalizedPhone(), '+50937050210');
+  await model.selectCountry('FR'); assert.equal(model.state.phone, '+33'); assert.equal(model.state.operator, null);
+  model.setPhone('+33612345678'); assert.equal(model.normalizedPhone(), '+33612345678');
+  for (const phone of ['+50937050210', '+33+33612345678', '+33']) { model.setPhone(phone); assert.throws(() => model.normalizedPhone()); }
+});
+
+test('detection and quote receive exactly one prefix; malformed prefixes never reach backend', async () => {
+  const { model, api } = await setup();
+  model.setPhone('+1+18765551234'); await model.detect();
+  assert.equal(api.calls.filter((c) => c.path.startsWith('/mobile-topups/operators/detect')).length, 0);
+  model.setPhone('00 1 (876) 555-1234'); await model.detect();
+  const detection = api.calls.find((c) => c.path.startsWith('/mobile-topups/operators/detect'));
+  assert.equal(new URL(detection.path, 'https://test.invalid').searchParams.get('phone'), '+18765551234');
+  model.selectProduct(products[0].id); await model.getQuote();
+  assert.equal(api.calls.find((c) => c.path === '/mobile-topups/quotes').body.phone, '+18765551234');
 });
