@@ -7,11 +7,11 @@ import { ApiError } from '../js/api-client.js';
 import { fixtureApi, operator, products, quote, transaction } from './fixtures.mjs';
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-async function page(callback, { api = fixtureApi(), config = { mobileRechargeLive: false } } = {}) {
-  const dom = new JSDOM('<header><nav><a data-i18n="mobileRecharge">Mobile Recharge</a></nav></header><main id="root"></main>', { url: 'https://website.example/recharge' });
+async function page(callback, { api = fixtureApi(), config = { mobileRechargeLive: false }, url = 'https://website.example/recharge' } = {}) {
+  const dom = new JSDOM('<header><nav><a data-i18n="mobileRecharge">Mobile Recharge</a></nav></header><main id="root"></main>', { url });
   globalThis.document = dom.window.document;
   const root = document.getElementById('root'); const app = mountRecharge(root, config, { api });
-  const query = (selector) => root.querySelector(selector);
+  const query = (selector) => dom.window.document.querySelector(selector);
   const input = (selector, value, type = 'input') => { const node = query(selector); node.value = value; node.dispatchEvent(new dom.window.Event(type, { bubbles: true })); };
   const login = async () => {
     input('#email', 'tester@example.com'); input('#password', 'test-password');
@@ -23,7 +23,7 @@ async function page(callback, { api = fixtureApi(), config = { mobileRechargeLiv
 
 test('UI renders TEST MODE, legitimate sign-in and no card inputs', async () => page(async ({ query, root, login }) => {
   assert.match(root.textContent, /TEST MODE/); assert.equal(query('#checkout').hidden, true);
-  assert.equal(root.querySelectorAll('input[type=password]').length, 2);
+  assert.equal(root.querySelectorAll('input[type=password]').length, 4);
   assert.doesNotMatch(root.textContent, /CVV|card number/i);
   await login(); assert.equal(query('#checkout').hidden, false); assert.equal(query('#password').value, '');
 }));
@@ -260,3 +260,71 @@ test('visible country picker uses local SVG flags instead of platform emoji glyp
   assert.equal(query('#country-picker-button img').getAttribute('src'), '/flags/ht.svg');
   assert.doesNotMatch(query('#country-picker-button').textContent, /\p{Regional_Indicator}/u);
 }));
+
+
+test('signed-out account screen is compact with one language selector and segmented authentication', async()=>page(async({query,dom})=>{
+  assert.equal(query('.checkout-hero').hidden,true);
+  assert.equal(query('#login-title').textContent,'Sign in to TiCash');
+  assert.equal(query('#login-form button[type=submit]').textContent,'Sign in');
+  assert.equal(query('.auth-choices').children.length,2);
+  assert.equal(query('#choose-login').getAttribute('aria-pressed'),'true');
+  assert.ok(query('#continue-guest').classList.contains('secondary'));
+  assert.equal(dom.window.document.querySelectorAll('[id=header-language]').length,1);
+  query('#choose-register').click();assert.equal(query('#choose-register').getAttribute('aria-pressed'),'true');
+}));
+
+test('auth tabs show registration-specific intro in every language and restore sign-in copy', async () => page(async ({ query, input }) => {
+  const registrationIntros = {
+    en: 'Create an account to continue your mobile recharge.',
+    ht: 'Kreye yon kont pou kontinye rechaj mobil ou a.',
+    fr: 'Créez un compte pour continuer votre recharge mobile.',
+    es: 'Crea una cuenta para continuar con tu recarga móvil.',
+    pt: 'Crie uma conta para continuar sua recarga de celular.',
+  };
+  for (const [language, intro] of Object.entries(registrationIntros)) {
+    input('#header-language', language, 'change');
+    assert.equal(query('.auth-intro').textContent, translations[language].authLoginIntro);
+    query('#choose-register').click();
+    assert.equal(query('.auth-intro').textContent, intro);
+    query('#choose-login').click();
+    assert.equal(query('.auth-intro').textContent, translations[language].authLoginIntro);
+  }
+}));
+
+test('forgot password calls the public backend contract and shows only generic confirmation',async()=>{
+  const api=fixtureApi();const calls=[];api.forgotPassword=async(email)=>{calls.push(email);return {message:'ignored provider detail'};};
+  await page(async({query,input,dom})=>{
+    query('#forgot-password').click();input('#forgot-email','recover@example.com');
+    query('#forgot-form').dispatchEvent(new dom.window.Event('submit',{cancelable:true,bubbles:true}));await tick();
+    assert.deepEqual(calls,['recover@example.com']);
+    assert.equal(query('#recovery-status').textContent,'If an account exists for this email, we sent password reset instructions.');
+    assert.equal(dom.window.localStorage.length,0);assert.equal(dom.window.sessionStorage.length,0);
+  },{api});
+});
+
+test('reset captures a transient token, sanitizes URL, validates confirmation and returns to sign in',async()=>{
+  const api=fixtureApi();const calls=[];api.resetPassword=async(token,newPassword)=>{calls.push({token,newPassword});};const token='a'.repeat(43);
+  await page(async({query,input,dom,root})=>{
+    assert.equal(dom.window.location.search,'');assert.equal(query('#reset-form').hidden,false);
+    assert.doesNotMatch(root.textContent,new RegExp(token));
+    input('#new-password','new-password');input('#confirm-password','wrong-password');
+    const submit=()=>query('#reset-form').dispatchEvent(new dom.window.Event('submit',{cancelable:true,bubbles:true}));
+    submit();await tick();assert.equal(calls.length,0);assert.match(root.textContent,/Passwords do not match/);
+    input('#confirm-password','new-password');submit();await tick();
+    assert.deepEqual(calls,[{token,newPassword:'new-password'}]);assert.equal(query('#login-form').hidden,false);
+    assert.equal(query('#new-password').value,'');assert.equal(dom.window.location.pathname,'/recharge');
+    assert.equal(dom.window.localStorage.length,0);assert.equal(dom.window.sessionStorage.length,0);
+  },{api,url:`https://website.example/recharge/reset-password?token=${token}`});
+});
+
+test('reset rejects invalid tokens and preserves a valid token after same-password rejection',async()=>{
+  const api=fixtureApi();let attempts=0;api.resetPassword=async()=>{attempts++;throw new ApiError('INVALID_PASSWORD','provider detail',400);};
+  await page(async({query,input,dom,root})=>{
+    input('#new-password','old-password');input('#confirm-password','old-password');
+    query('#reset-form').dispatchEvent(new dom.window.Event('submit',{cancelable:true,bubbles:true}));await tick();
+    assert.match(root.textContent,/different from the current/);assert.equal(query('#reset-form button[type=submit]').disabled,false);
+  },{api,url:'https://website.example/recharge/reset-password?token='+ 'a'.repeat(43)});
+  await page(async({query,root})=>{
+    assert.equal(query('#reset-form button[type=submit]').disabled,true);assert.match(root.textContent,/invalid or expired/);
+  },{api,url:'https://website.example/recharge/reset-password?token=invalid'});assert.equal(attempts,1);
+});

@@ -157,3 +157,16 @@ test('registration conflict and unsafe guest errors leave requests unauthenticat
     await assert.rejects(api.request('/mobile-topups/status'), { code: 'UNAUTHENTICATED' });
   }
 });
+
+
+test('password recovery uses public POST endpoints without auth headers or token persistence', async()=>{
+  const calls=[];const api=createApiClient({baseUrl:'https://test.example/api',fetchImpl:async(url,options)=>{
+    calls.push({url,options});return url.endsWith('/reset-password')?new Response(null,{status:204}):json({message:'generic'});
+  }});
+  await api.forgotPassword('recover@example.com');await api.resetPassword('fixture-token','new-password');
+  assert.deepEqual(calls.map(({url,options})=>[url,options.method,JSON.parse(options.body)]),[
+    ['https://test.example/api/auth/forgot-password','POST',{email:'recover@example.com'}],
+    ['https://test.example/api/auth/reset-password','POST',{token:'fixture-token',newPassword:'new-password'}]
+  ]);
+  for(const {options} of calls){assert.equal(options.headers.Authorization,undefined);assert.equal(options.referrerPolicy,'no-referrer');}
+});

@@ -6,7 +6,7 @@ const root = process.cwd();
 const pages = [
   'index.html',
   'send/index.html',
-  'recharge/index.html',
+  'recharge/index.html', 'recharge/reset-password/index.html',
   'get-ticash/index.html',
   'login/index.html',
   'support/index.html',

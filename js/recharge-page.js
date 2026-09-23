@@ -53,12 +53,22 @@ function details(data) {
 
 // Shared by /login and /recharge. In-page sign-in preserves memory-only tokens.
 export function mountRecharge(root, config, dependencies = {}) {
+  const pageWindow = root.ownerDocument.defaultView;
+  const resetLocation = new URL(pageWindow.location.href);
+  const isResetRoute = /^\/recharge\/reset-password\/?$/.test(resetLocation.pathname);
+  let resetToken = isResetRoute ? resetLocation.searchParams.get('token') || '' : '';
+  if (resetLocation.searchParams.has('token')) {
+    resetLocation.searchParams.delete('token');
+    pageWindow.history.replaceState(null, '', resetLocation.pathname + resetLocation.search + resetLocation.hash);
+  }
+  const validResetToken = () => /^[A-Za-z0-9_-]{43,512}$/.test(resetToken);
   const removeLanguageHeader = mountLanguageHeader(root.ownerDocument);
   let client;
   let model;
   let signedIn = false;
   let guestSession = false;
-  let authMode = 'login';
+  let authMode = isResetRoute ? 'reset' : 'login';
+  let recoveryMessage = '';
   let signingIn = false;
   let disposed = false;
   let configured = true;
@@ -94,7 +104,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     input.value = ''; input.type = 'password'; toggle.textContent = t('Show');
     toggle.setAttribute('aria-label', t(`Show ${label.toLowerCase()}`)); toggle.setAttribute('aria-pressed', 'false');
   });
-  const loginButton = el('button', { className: 'button', type: 'submit' }, 'Sign in for test recharge');
+  const loginButton = el('button', { className: 'button', type: 'submit' }, 'Sign in');
   const loginError = el('p', { role: 'alert', className: 'message error', hidden: '' });
   const setLoginError = (message) => { loginErrorMessage = message; loginError.textContent = t(message); loginError.hidden = false; };
   const loginForm = el('form', { id: 'login-form' }, field('Email address', email), passwordField('Password', password), loginButton);
@@ -106,17 +116,34 @@ export function mountRecharge(root, config, dependencies = {}) {
   const registerForm = el('form', { id: 'register-form', hidden: '' }, field('First name', firstName), field('Last name', lastName),
     field('Email address', registerEmail), passwordField('Account password', registerPassword),
     el('p', { className: 'small muted' }, ui('Create a permanent account to access your saved recipients and history when you sign in again.')), registerButton);
-  const chooseAuth = (mode) => { if (signingIn) return; authMode = mode; clearPasswords(); loginError.hidden = true; render(); };
+  const chooseAuth = (mode) => {
+    if (signingIn) return;
+    authMode = mode; resetToken = ''; recoveryMessage = ''; clearPasswords(); loginError.hidden = true; render();
+    (mode === 'forgot' ? forgotEmail : mode === 'register' ? firstName : email).focus();
+  };
   const signInChoice = button('Sign in', () => chooseAuth('login'), true); signInChoice.id = 'choose-login';
   const registerChoice = button('Create account', () => chooseAuth('register'), true); registerChoice.id = 'choose-register';
   const guestButton = button('Continue as guest', () => authenticate('guest'), true); guestButton.id = 'continue-guest';
-  const authChoices = el('div', { className: 'auth-choices', 'aria-label': t('Account options'), 'data-i18n-aria-label': 'Account options' }, signInChoice, registerChoice, guestButton);
+  const authChoices = el('div', { className: 'auth-choices', role: 'group', 'aria-label': t('Account options'), 'data-i18n-aria-label': 'Account options' }, signInChoice, registerChoice);
+  const forgotLink = button('Forgot password?', () => chooseAuth('forgot'), true);
+  forgotLink.id = 'forgot-password'; forgotLink.classList.add('text-action');
+  loginForm.insertBefore(forgotLink, loginButton);
+  const forgotEmail = el('input', { id: 'forgot-email', type: 'email', autocomplete: 'email', required: '', maxlength: '254' });
+  const forgotSubmit = el('button', { className: 'button', type: 'submit' }, t('Send reset instructions'));
+  const forgotForm = el('form', { id: 'forgot-form', hidden: '' }, field('Email address', forgotEmail), forgotSubmit);
+  const newPassword = el('input', { id: 'new-password', type: 'password', autocomplete: 'new-password', required: '', minlength: '8', maxlength: '128' });
+  const confirmPassword = el('input', { id: 'confirm-password', type: 'password', autocomplete: 'new-password', required: '', minlength: '8', maxlength: '128' });
+  const resetSubmit = el('button', { className: 'button', type: 'submit' }, t('Reset password'));
+  const resetForm = el('form', { id: 'reset-form', hidden: '' }, passwordField('New password', newPassword), passwordField('Confirm new password', confirmPassword), resetSubmit);
+  const recoveryStatus = el('p', { id: 'recovery-status', role: 'status', className: 'message', hidden: '' });
+  const backToLogin = button('Back to Sign in', () => chooseAuth('login'), true); backToLogin.id = 'back-to-login';
+  const loginTitle = el('h1', { id: 'login-title' });
+  const loginIntro = el('p', { className: 'muted auth-intro' });
   const loginPanel = el('section', { className: 'panel login-panel', 'aria-labelledby': 'login-title' },
-    el('div', {}, el('span', { className: 'step' }, ui('YOUR TICASH ACCOUNT')), el('h2', { id: 'login-title' }, ui('Sign in to stay connected.')),
-      el('p', { className: 'muted' }, ui('Sign in, create an account, or explore recharge as a guest. This test checkout does not move real money or deliver real airtime.')),
-      el('p', { className: 'small muted' }, ui('Your session lasts only while this page stays open. Reloading or leaving the page signs you out.')),
-      el('a', { href: '/support' }, ui('Need help with your account?'))),
-    el('div', {}, authChoices, loginError, loginForm, registerForm));
+    el('span', { className: 'step' }, ui('YOUR TICASH ACCOUNT')), loginTitle, loginIntro,
+    authChoices, loginError, recoveryStatus, loginForm, registerForm, forgotForm, resetForm, backToLogin,
+    el('div', { className: 'auth-secondary' }, guestButton),
+    el('a', { className: 'auth-help', href: '/support' }, ui('Need help signing in?')));
   const logout = button('Sign out', async () => {
     signedIn = false; guestSession = false; clearPasswords(); model.reset(); render();
     try { await client.logout(); }
@@ -190,10 +217,11 @@ export function mountRecharge(root, config, dependencies = {}) {
   const checkout = el('div', { id: 'checkout', hidden: '' },
     el('div', { className: 'checkout-grid' }, el('section', { className: 'panel selection-panel' }, countriesRetry, selectionFields), reviewPanel),
     receipt, historyPanel);
+  const hero = el('section', { className: 'checkout-hero', hidden: '' }, el('span', { className: 'eyebrow' }, ui('MOBILE RECHARGE')),
+    el('h1', {}, ui('Closer, with every call.')), el('p', {}, ui('Explore available destinations and recharge products, with a clear quote before you confirm.')));
   root.replaceChildren(
-    el('div', { className: 'test-banner', role: 'note' }, el('strong', {}, ui('TEST MODE')), el('span', {}, ui('No real money. No live recharge.'))),
-    el('section', { className: 'checkout-hero' }, el('span', { className: 'eyebrow' }, ui('MOBILE RECHARGE')),
-      el('h1', {}, ui('Closer, with every call.')), el('p', {}, ui('Explore available destinations and recharge products, with a clear quote before you confirm.'))),
+    el('div', { className: 'test-banner', role: 'note' }, el('strong', {}, ui('TEST MODE')), el('span', {}, ui('No real money · No live recharge'))),
+    hero,
     accountBar, error, notice, loginPanel, checkout);
 
   function render() {
@@ -207,6 +235,18 @@ export function mountRecharge(root, config, dependencies = {}) {
       toggle.setAttribute('aria-label', t(`${verb} ${label.toLowerCase()}`));
     }
     const s = model.state; const busy = model.busy;
+    hero.hidden = !signedIn;
+    const recovering = ['forgot', 'reset'].includes(authMode);
+    loginTitle.textContent = t(authMode === 'forgot' ? 'Forgot your password?' : authMode === 'reset' ? 'Reset your password' : authMode === 'register' ? 'Create TiCash account' : 'Sign in to TiCash');
+    loginIntro.textContent = t(authMode === 'forgot' ? 'Enter your email to request reset instructions.' : authMode === 'reset' ? 'Choose a new password for your TiCash account.' : authMode === 'register' ? 'authRegisterIntro' : 'Sign in to continue your mobile recharge.');
+    authChoices.hidden = recovering; guestButton.hidden = recovering; backToLogin.hidden = !recovering;
+    forgotForm.hidden = authMode !== 'forgot'; resetForm.hidden = authMode !== 'reset';
+    recoveryStatus.textContent = t(recoveryMessage); recoveryStatus.hidden = !recoveryMessage;
+    forgotSubmit.textContent = t(signingIn ? 'Sending…' : 'Send reset instructions');
+    resetSubmit.textContent = t(signingIn ? 'Resetting…' : 'Reset password');
+    forgotSubmit.disabled = !configured || signingIn; resetSubmit.disabled = !configured || signingIn || !validResetToken();
+    backToLogin.disabled = signingIn; forgotLink.disabled = signingIn;
+    for (const control of [forgotEmail, newPassword, confirmPassword]) control.disabled = signingIn;
     loginPanel.hidden = signedIn; accountBar.hidden = !signedIn; checkout.hidden = !signedIn;
     loginForm.hidden = authMode !== 'login'; registerForm.hidden = authMode !== 'register';
     accountLabel.textContent = t(guestSession ? 'Guest · private test session' : 'Signed in · private test session');
@@ -219,7 +259,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     guestButton.textContent = t(signingIn && authMode === 'guest' ? 'Starting guest session…' : 'Continue as guest');
     registerButton.textContent = t(signingIn && authMode === 'register' ? 'Creating account…' : 'Create TiCash account');
     loginButton.disabled = !configured || signingIn;
-    loginButton.textContent = t(signingIn ? 'Signing in…' : 'Sign in for test recharge');
+    loginButton.textContent = t(signingIn ? 'Signing in…' : 'Sign in');
     error.textContent = t(s.error); error.hidden = !s.error;
     notice.textContent = t(s.notice); notice.hidden = !s.notice;
     const locked = s.submitting || Boolean(s.attempt);
@@ -379,6 +419,32 @@ export function mountRecharge(root, config, dependencies = {}) {
   }
   loginForm.addEventListener('submit', (event) => { event.preventDefault(); void authenticate('login'); });
   registerForm.addEventListener('submit', (event) => { event.preventDefault(); void authenticate('register'); });
+  forgotForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!configured || signingIn || !forgotForm.reportValidity()) return;
+    signingIn = true; loginError.hidden = true; recoveryMessage = ''; render();
+    try {
+      await client.forgotPassword(forgotEmail.value.trim());
+      recoveryMessage = 'If an account exists for this email, we sent password reset instructions.';
+    } catch { setLoginError('Unable to request reset instructions. Please try again later.'); }
+    finally { signingIn = false; render(); }
+  });
+  resetForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!configured || signingIn || !validResetToken() || !resetForm.reportValidity()) return;
+    if (newPassword.value !== confirmPassword.value) { setLoginError('Passwords do not match.'); return; }
+    signingIn = true; loginError.hidden = true; render();
+    try {
+      await client.resetPassword(resetToken, newPassword.value);
+      resetToken = ''; clearPasswords(); authMode = 'login';
+      recoveryMessage = 'Password updated. Sign in with your new password.';
+      pageWindow.history.replaceState(null, '', '/recharge'); email.focus();
+    } catch (error) {
+      setLoginError(error.code === 'INVALID_PASSWORD' ? 'New password must be different from the current password' :
+        error.code === 'INVALID_RESET_TOKEN' ? 'This reset link is invalid or expired. Request a new link.' : 'Unable to reset your password. Please try again.');
+    } finally { signingIn = false; render(); if (authMode === 'login') email.focus(); }
+  });
+  if (isResetRoute && !validResetToken()) setLoginError('This reset link is invalid or expired. Request a new link.');
   countrySearchInput.addEventListener('input', () => {
     countrySearch = countrySearchInput.value;
     countryMenuOpen = true;
@@ -431,12 +497,12 @@ export function mountRecharge(root, config, dependencies = {}) {
   amount.addEventListener('input', action(() => model.setAmount(amount.value)));
   reviewed.addEventListener('change', () => model.review(reviewed.checked));
   recipientsSelect.addEventListener('change', action(() => model.useRecipient(recipientsSelect.value)));
-  const pageHide = () => { client?.clear(); signedIn = false; guestSession = false; clearPasswords(); model.reset(); render(); };
+  const pageHide = () => { resetToken = ''; client?.clear(); signedIn = false; guestSession = false; clearPasswords(); model.reset(); render(); };
   globalThis.addEventListener?.('pagehide', pageHide);
   const timer = setInterval(() => { if (signedIn && model.state.quote) render(); }, 1000);
   const removeLanguageListener = onLanguageChange(render);
   render();
-  return { model, dispose() { disposed = true; removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
+  return { model, dispose() { resetToken = ''; disposed = true; removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
 }
 
 const root = typeof document === 'undefined' ? null : document.querySelector('[data-recharge-root]');

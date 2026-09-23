@@ -80,6 +80,13 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
   }
 
   return {
+    forgotPassword(email) {
+      return send('/auth/forgot-password', { method: 'POST', body: { email } });
+    },
+    resetPassword(token, newPassword) {
+      clear();
+      return send('/auth/reset-password', { method: 'POST', body: { token, newPassword } });
+    },
     async login(email, password) {
       clear();
       const version = sessionVersion;
