@@ -192,7 +192,6 @@ export function mountRecharge(root, config, dependencies = {}) {
     receipt, historyPanel);
   root.replaceChildren(
     el('div', { className: 'test-banner', role: 'note' }, el('strong', {}, ui('TEST MODE')), el('span', {}, ui('No real money. No live recharge.'))),
-    el('div', { className: 'language-toolbar' }, languageSelector(root.ownerDocument, 'recharge-language')),
     el('section', { className: 'checkout-hero' }, el('span', { className: 'eyebrow' }, ui('MOBILE RECHARGE')),
       el('h1', {}, ui('Closer, with every call.')), el('p', {}, ui('Explore available destinations and recharge products, with a clear quote before you confirm.'))),
     accountBar, error, notice, loginPanel, checkout);
