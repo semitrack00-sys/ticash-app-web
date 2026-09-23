@@ -1,6 +1,6 @@
 import { apiBaseUrl, createApiClient } from './api-client.js';
 import { Recharge, countryFlag, searchCountries } from './recharge.js';
-import { t, getLanguage, languageLocale, localizeCountry, onLanguageChange, languageSelector, translateElements, syncLanguageSelectors } from './i18n.js';
+import { t, getLanguage, languageLocale, localizeCountry, onLanguageChange, translateElements, syncLanguageSelectors } from './i18n.js';
 import { mountLanguageHeader } from './language-page.js';
 
 function el(tag, attributes = {}, ...children) {
@@ -152,25 +152,26 @@ export function mountRecharge(root, config, dependencies = {}) {
   }, true);
   logout.id = 'sign-out';
   const accountLabel = el('span', {}, 'Signed in · private test session');
-  const guestNote = el('p', { className: 'small muted', id: 'guest-note', hidden: '' }, ui('Closing or reloading this page ends your guest session. Guest history is temporary and will not transfer to a new account.'));
+  const guestNote = el('p', { className: 'small muted', id: 'guest-note', hidden: '' }, ui('Guest history is temporary.'));
   const createFromGuest = button('Create account', async () => {
     if (model.state.submitting || model.state.attempt) return;
     signedIn = false; guestSession = false; authMode = 'register'; clearPasswords(); model.reset(); render();
     try { await client.logout(); } catch { /* Local tokens are already cleared. */ }
     firstName.focus();
   }, true); createFromGuest.id = 'guest-create-account';
-  const accountBar = el('div', { className: 'account-bar', hidden: '' }, el('div', {}, accountLabel, guestNote),
+  const accountBar = el('div', { className: 'account-bar', hidden: '' }, el('div', { className: 'account-summary' }, accountLabel, el('span', { className: 'test-pill' }, ui('Test mode'))),
     el('div', { className: 'compact-actions' }, createFromGuest, logout));
-  const countrySearchInput = el('input', { id: 'country-search', type: 'search', placeholder: t('Country, ISO code, or calling code'), 'data-i18n-placeholder': 'Country, ISO code, or calling code', autocomplete: 'off' });
+  const countrySearchInput = el('input', { id: 'country-search', type: 'search', 'aria-label': t('Search countries'), 'data-i18n-aria-label': 'Search countries', placeholder: t('Country, ISO code, or calling code'), 'data-i18n-placeholder': 'Country, ISO code, or calling code', autocomplete: 'off' });
   const country = el('select', { id: 'country', required: '', className: 'country-native-select', tabindex: '-1', 'aria-hidden': 'true' });
   const countryPickerButton = el('button', {
     id: 'country-picker-button', type: 'button', className: 'country-picker-button',
     'aria-haspopup': 'listbox', 'aria-expanded': 'false', 'aria-controls': 'country-picker-list',
   }, t('Choose a country'));
   const countryPickerList = el('div', {
-    id: 'country-picker-list', className: 'country-picker-list', role: 'listbox', hidden: '',
+    id: 'country-picker-list', role: 'listbox', 'aria-labelledby': 'country-picker-button',
   });
-  const countryPicker = el('div', { className: 'country-picker' }, countryPickerButton, countryPickerList, country);
+  const countryPickerMenu = el('div', { id: 'country-picker-menu', className: 'country-picker-list', hidden: '' }, el('div', { className: 'country-picker-search-row' }, countrySearchInput), countryPickerList);
+  const countryPicker = el('div', { className: 'country-picker' }, countryPickerButton, countryPickerMenu, country);
   const phone = el('input', { id: 'phone', type: 'tel', autocomplete: 'tel', maxlength: '40', 'aria-describedby': 'phone-hint', placeholder: t('+ country code and mobile number'), 'data-i18n-placeholder': '+ country code and mobile number' });
   const operator = el('select', { id: 'operator' });
   const product = el('select', { id: 'product' });
@@ -188,14 +189,13 @@ export function mountRecharge(root, config, dependencies = {}) {
     field('Saved recipient', recipientsSelect), recipientNote);
   const selectionFields = el('fieldset', { id: 'selection-fields' },
     el('legend', {}, ui('Recharge details')),
-    el('section', { className: 'checkout-step' }, el('span', { className: 'step' }, ui('01 / DESTINATION')), el('h2', {}, ui('Who are you recharging?')),
-      recipientsPanel, field('Search countries', countrySearchInput),
+    el('section', { className: 'panel checkout-step' }, el('span', { className: 'step' }, ui('1. DESTINATION')), el('h2', {}, ui('Who are you recharging?')),
       el('div', { className: 'field' }, el('label', { for: 'country-picker-button' }, ui('Destination country')), countryPicker),
-      field('International mobile number', phone, 'Include the international country code. Check the number carefully before confirming.')),
-    el('section', { className: 'checkout-step' }, el('span', { className: 'step' }, ui('02 / OPERATOR & PRODUCT')), el('h2', {}, ui('Choose their recharge.')),
+      field('Mobile number', phone, 'Include the international country code. Check the number carefully before confirming.'), recipientsPanel),
+    el('section', { className: 'panel checkout-step' }, el('span', { className: 'step' }, ui('2. OPERATOR & PRODUCT')), el('h2', {}, ui('Choose their recharge.')),
       el('div', { className: 'compact-actions' }, detectButton, operatorsRetry),
       field('Mobile operator', operator, 'If detection is unavailable, select the operator manually.'),
-      field('Available recharge products', product), amountField, catalogNote, quoteButton));
+      field('Recharge product', product), amountField, catalogNote, quoteButton));
   const reviewContent = el('div', { id: 'quote-details' });
   const expiry = el('p', { className: 'small', role: 'status', id: 'quote-expiry' });
   const reviewed = el('input', { type: 'checkbox', id: 'reviewed' });
@@ -203,26 +203,31 @@ export function mountRecharge(root, config, dependencies = {}) {
   const confirmButton = button('Confirm test recharge', action(() => model.confirm())); confirmButton.id = 'confirm-recharge';
   const recoveryNote = el('p', { className: 'message', hidden: '', role: 'status', id: 'recovery-note' }, ui('Confirmation is unresolved. Keep this page open. Retry uses the same request so it cannot create a second recharge; you can also refresh history to find the receipt.'));
   const reviewPanel = el('aside', { className: 'panel review-panel', 'aria-labelledby': 'review-title' },
-    el('span', { className: 'step' }, ui('03 / REVIEW & CONFIRM')), el('h2', { id: 'review-title' }, ui('A little connection. A lot of care.')),
-    reviewContent, expiry, reviewCheck, confirmButton, recoveryNote,
-    el('p', { className: 'small muted' }, ui('TEST MODE · No real payment is collected. Prices, fees, and availability are supplied by TiCash.')));
+    el('span', { className: 'step' }, ui('3. REVIEW & CONFIRM')), el('h2', { id: 'review-title' }, ui('Review your recharge')),
+    reviewContent, expiry, reviewCheck, confirmButton, recoveryNote);
   const receipt = el('section', { className: 'panel receipt', id: 'receipt', 'aria-live': 'polite', hidden: '' });
   const refreshReceipt = button('Refresh transaction status', action(() => model.refreshTransaction()), true); refreshReceipt.id = 'refresh-status';
   const historyList = el('div', { className: 'history-list', id: 'history-list' });
   const historyError = el('p', { role: 'status', className: 'message error', hidden: '' });
   const historyRefresh = button('Refresh history', action(() => model.loadHistory()), true); historyRefresh.id = 'refresh-history';
+  const historyIntro = el('p', { className: 'small muted' });
+  historyRefresh.setAttribute('aria-label', t('Refresh history')); historyRefresh.setAttribute('data-i18n-aria-label', 'Refresh history');
+  historyRefresh.dataset.i18n = 'Refresh';
   const historyPanel = el('section', { className: 'panel history-panel' },
-    el('div', { className: 'section-heading' }, el('div', {}, el('span', { className: 'step' }, ui('YOUR ACTIVITY')), el('h2', {}, ui('Test recharge history'))), historyRefresh),
-    el('p', { className: 'small muted' }, ui('Test transactions for this account or guest session. Repeat always requests a new quote.')), historyError, historyList);
-  const checkout = el('div', { id: 'checkout', hidden: '' },
-    el('div', { className: 'checkout-grid' }, el('section', { className: 'panel selection-panel' }, countriesRetry, selectionFields), reviewPanel),
+    el('div', { className: 'section-heading' }, el('div', {}, el('h2', {}, ui('Recharge history'))), historyRefresh),
+    historyIntro, guestNote, historyError, historyList);
+  const progressItems = ['Destination', 'Operator & Product', 'Review & Confirm'].map((label, index) =>
+    el('li', { 'data-step': String(index + 1) }, el('span', { className: 'progress-number', 'aria-hidden': 'true' }, String(index + 1)), ui(label)));
+  const progress = el('ol', { className: 'checkout-progress', 'aria-label': t('Recharge progress'), 'data-i18n-aria-label': 'Recharge progress' }, progressItems);
+  const checkout = el('div', { id: 'checkout', hidden: '' }, progress,
+    el('div', { className: 'checkout-grid' }, el('section', { className: 'selection-panel' }, countriesRetry, selectionFields), reviewPanel),
     receipt, historyPanel);
-  const hero = el('section', { className: 'checkout-hero', hidden: '' }, el('span', { className: 'eyebrow' }, ui('MOBILE RECHARGE')),
-    el('h1', {}, ui('Closer, with every call.')), el('p', {}, ui('Explore available destinations and recharge products, with a clear quote before you confirm.')));
-  root.replaceChildren(
-    el('div', { className: 'test-banner', role: 'note' }, el('strong', {}, ui('TEST MODE')), el('span', {}, ui('No real money · No live recharge'))),
-    hero,
-    accountBar, error, notice, loginPanel, checkout);
+  const hero = el('section', { className: 'checkout-hero', hidden: '' },
+    el('h1', {}, ui('Mobile Recharge')), el('p', {}, ui('Stay connected, wherever they are.')));
+  const testTitle = el('strong'); const testText = el('span');
+  root.replaceChildren(hero, accountBar,
+    el('div', { className: 'test-banner', role: 'note' }, testTitle, testText),
+    error, notice, loginPanel, checkout);
 
   function render() {
     if (disposed || !model) return;
@@ -236,6 +241,16 @@ export function mountRecharge(root, config, dependencies = {}) {
     }
     const s = model.state; const busy = model.busy;
     hero.hidden = !signedIn;
+    testTitle.textContent = t(signedIn ? 'You’re in test mode' : 'TEST MODE');
+    testText.textContent = t(signedIn ? 'No real payment is collected.' : 'No real money · No live recharge');
+    let destinationComplete = false;
+    try { model.normalizedPhone(); destinationComplete = Boolean(s.country); } catch { /* A prefix alone is not a complete destination. */ }
+    const currentStep = s.quote || s.attempt || s.transaction ? 3 : destinationComplete ? 2 : 1;
+    progressItems.forEach((item, index) => {
+      if (index + 1 === currentStep) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current');
+      item.dataset.complete = String(index + 1 < currentStep);
+    });
+    historyIntro.textContent = t('Your recent test recharges.'); historyIntro.hidden = guestSession;
     const recovering = ['forgot', 'reset'].includes(authMode);
     loginTitle.textContent = t(authMode === 'forgot' ? 'Forgot your password?' : authMode === 'reset' ? 'Reset your password' : authMode === 'register' ? 'Create TiCash account' : 'Sign in to TiCash');
     loginIntro.textContent = t(authMode === 'forgot' ? 'Enter your email to request reset instructions.' : authMode === 'reset' ? 'Choose a new password for your TiCash account.' : 'Sign in to continue your mobile recharge.');
@@ -249,7 +264,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     for (const control of [forgotEmail, newPassword, confirmPassword]) control.disabled = signingIn;
     loginPanel.hidden = signedIn; accountBar.hidden = !signedIn; checkout.hidden = !signedIn;
     loginForm.hidden = authMode !== 'login'; registerForm.hidden = authMode !== 'register';
-    accountLabel.textContent = t(guestSession ? 'Guest · private test session' : 'Signed in · private test session');
+    accountLabel.textContent = t(guestSession ? 'Guest' : 'Signed in');
     guestNote.hidden = !guestSession; createFromGuest.hidden = !guestSession;
     createFromGuest.disabled = s.submitting || Boolean(s.attempt);
     for (const control of [registerButton, signInChoice, registerChoice, guestButton]) control.disabled = !configured || signingIn;
@@ -309,7 +324,7 @@ export function mountRecharge(root, config, dependencies = {}) {
       return option;
     });
     countryPickerList.replaceChildren(...visualCountryOptions);
-    countryPickerList.hidden = !countryMenuOpen;
+    countryPickerMenu.hidden = !countryMenuOpen;
 
     root.querySelector('#phone-hint').textContent = selectedCountry
       ? t('phoneHint', { flag: countryFlag(selectedCountry.code), country: localizeCountry(selectedCountry), code: selectedCountry.callingCode }).trim()
@@ -344,11 +359,10 @@ export function mountRecharge(root, config, dependencies = {}) {
     if (quoteSignature !== nextQuoteSignature) {
       quoteSignature = nextQuoteSignature;
       reviewContent.replaceChildren(s.quote ? details([
-        ['Destination', `${countryFlag(s.quote.countryCode)} ${s.quote.countryCode}`.trim()], ['Phone number', s.quote.recipientPhone], ['Operator', s.quote.operatorName],
-        ['Product', s.quote.productName], ['Recharge', money(s.quote.providerAmount, s.quote.providerCurrency)],
-        ['Recipient value', s.quote.deliveredValue === undefined ? t('Confirmed when processed') : money(s.quote.deliveredValue, s.quote.deliveredCurrency)],
-        ['TiCash fee', money(s.quote.feeUsd, 'USD')], ['Quoted total', money(s.quote.totalChargeUsd, 'USD')],
-      ]) : el('div', { className: 'review-empty' }, el('span', { 'aria-hidden': 'true' }, '↗'), el('p', {}, ui('Your quote will appear here.')), el('p', { className: 'small muted' }, ui('Choose a destination, number, operator, and product to see the exact total.'))));
+        ['Recipient', s.quote.recipientPhone], ['Country', `${localizeCountry(s.countries.find(c => c.code === s.quote.countryCode) || {code:s.quote.countryCode,name:s.quote.countryCode})} (${s.quote.countryCode})`], ['Operator', s.quote.operatorName],
+        ['Product', s.quote.productName], ['Recharge amount', money(s.quote.providerAmount, s.quote.providerCurrency)],
+        ['TiCash fee', money(s.quote.feeUsd, 'USD')], ['Total', money(s.quote.totalChargeUsd, 'USD')],
+      ]) : el('div', { className: 'review-empty' }, el('span', { 'aria-hidden': 'true' }, '↗'), el('p', {}, ui('Your quote will appear here.')), el('p', { className: 'small muted' }, ui('Choose a destination, number, operator, and product.'))));
     }
     expiry.textContent = s.quote ? (model.quoteValid() ? t('quoteUntil', { date: date(s.quote.expiresAt) }) : t('This quote expired. Get a new quote before confirming.')) : '';
     reviewCheck.hidden = !s.quote || Boolean(s.attempt); reviewed.checked = s.reviewed;
@@ -384,7 +398,7 @@ export function mountRecharge(root, config, dependencies = {}) {
           el('div', {}, el('strong', {}, txn.productName), el('p', {}, `${txn.recipientPhone} · ${txn.countryCode}`), el('small', {}, date(txn.createdAt))),
           el('div', {}, el('span', { className: 'status-pill' }, String(txn.status)), el('p', {}, money(txn.totalChargeUsd, 'USD'))),
           el('div', { className: 'compact-actions' }, view, repeat));
-      }) : [el('p', { className: 'muted' }, t(busy.has('history') ? 'Loading your history…' : 'No test recharges yet. Your receipts will appear here.'))]));
+      }) : [el('p', { className: 'muted' }, t(busy.has('history') ? 'Loading your history…' : 'No test recharges yet. Your receipts will appear here after your first recharge.'))]));
     }
   }
   const expired = () => {
@@ -455,7 +469,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     countryMenuOpen = !countryMenuOpen;
     render();
     if (countryMenuOpen) queueMicrotask(() => {
-      countryPickerList.querySelector('[aria-selected="true"], .country-picker-option')?.focus();
+      countrySearchInput.focus();
     });
   });
   countryPickerButton.addEventListener('keydown', (event) => {
@@ -465,7 +479,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     render();
     queueMicrotask(() => countryPickerList.querySelector('[aria-selected="true"], .country-picker-option')?.focus());
   });
-  countryPickerList.addEventListener('keydown', (event) => {
+  countryPickerMenu.addEventListener('keydown', (event) => {
     const options = [...countryPickerList.querySelectorAll('.country-picker-option')];
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -474,6 +488,7 @@ export function mountRecharge(root, config, dependencies = {}) {
       countryPickerButton.focus();
       return;
     }
+    if (event.target === countrySearchInput && ['Home', 'End'].includes(event.key)) return;
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || !options.length) return;
     event.preventDefault();
     const current = options.indexOf(root.ownerDocument.activeElement);
@@ -485,7 +500,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     options[next]?.focus();
   });
   const closeCountryPicker = (event) => {
-    if (!countryMenuOpen || countryPicker.contains(event.target)) return;
+    if (!countryMenuOpen || event.composedPath().includes(countryPicker)) return;
     countryMenuOpen = false;
     render();
   };

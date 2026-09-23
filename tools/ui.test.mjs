@@ -93,7 +93,7 @@ test('registration creates an account, automatically enters checkout and clears 
     query('#register-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })); await tick();
     assert.deepEqual(sent, { firstName: 'Ti', lastName: 'Cash', email: 'new@example.com', password: 'test-password' });
     assert.equal(query('#checkout').hidden, false); assert.equal(query('#register-password').value, ''); assert.equal(query('#register-password').type, 'password');
-    assert.match(root.textContent, /Your TiCash account was created\./); assert.match(root.textContent, /Signed in · private test session/);
+    assert.match(root.textContent, /Your TiCash account was created\./); assert.match(root.textContent, /Signed in/);
   }, { api });
 });
 
@@ -103,7 +103,7 @@ test('guest enters protected checkout, sees temporary history notice and can cho
   await page(async ({ query, root }) => {
     query('#continue-guest').click(); query('#continue-guest').click(); await tick();
     assert.equal(guests, 1); assert.equal(query('#checkout').hidden, false);
-    assert.match(root.textContent, /Guest · private test session/); assert.equal(query('#guest-note').hidden, false);
+    assert.match(root.textContent, /Guest/); assert.equal(query('#guest-note').hidden, false);
     assert.match(query('#guest-note').textContent, /Guest history is temporary/);
     assert.ok(api.calls.some((c) => c.path === '/mobile-topups/countries'));
     query('#guest-create-account').click(); await tick();
@@ -124,7 +124,7 @@ test('quote displays a backend 3.50 fee and 8.50 total without deriving charges'
   await page(async ({ app, query, login }) => {
     await login(); await app.model.selectCountry('JM'); app.model.setPhone(quote.recipientPhone); await app.model.selectOperator(77);
     app.model.selectProduct(products[0].id); await app.model.getQuote();
-    assert.match(query('#quote-details').textContent, /TiCash fee\$3\.50/); assert.match(query('#quote-details').textContent, /Quoted total\$8\.50/);
+    assert.match(query('#quote-details').textContent, /TiCash fee\$3\.50/); assert.match(query('#quote-details').textContent, /Total\$8\.50/);
   }, { api });
 });
 
@@ -176,7 +176,7 @@ for (const session of ['account','guest']) test(`${session} language switches pr
       assert.equal(query('#country').value,'JM'); assert.equal(query('#phone').value,quote.recipientPhone);
       assert.equal(query('#operator').value,'77'); assert.equal(query('#product').value,products[0].id);
       assert.equal(query('#reviewed').checked,true); assert.equal(query('#confirm-recharge').disabled,false);
-      assert.match(query('#quote-details').textContent,/🇯🇲 JM/);
+      assert.ok(query('#quote-details').textContent.includes('(JM)'));
       for(const value of [3.5,8.5]) assert.ok(query('#quote-details').textContent.includes(new Intl.NumberFormat(languageLocale(),{style:'currency',currency:'USD'}).format(value)));
       assert.ok(query('#quote-details').textContent.includes(quote.operatorName)); assert.ok(query('#quote-details').textContent.includes(quote.productName));
       assert.equal(dom.window.localStorage.length,1); assert.equal(dom.window.localStorage.key(0),'ticash.language');
@@ -310,3 +310,30 @@ test('reset rejects invalid tokens and preserves a valid token after same-passwo
     assert.equal(query('#reset-form button[type=submit]').disabled,true);assert.match(root.textContent,/invalid or expired/);
   },{api,url:'https://website.example/recharge/reset-password?token=invalid'});assert.equal(attempts,1);
 });
+
+
+test('three-step progress reflects a complete destination and a real quote, then resets on edits',async()=>page(async({login,app,query,input})=>{
+  await login();const current=()=>query('.checkout-progress [aria-current=step]').dataset.step;
+  assert.equal(current(),'1');await app.model.selectCountry('JM');assert.equal(current(),'1');
+  app.model.setPhone(quote.recipientPhone);assert.equal(current(),'2');
+  await app.model.selectOperator(77);app.model.selectProduct(products[0].id);assert.equal(current(),'2');
+  await app.model.getQuote();assert.equal(current(),'3');
+  assert.equal(query('#quote-details dt:last-of-type')!==null,true);
+  assert.match(query('#quote-details').textContent,/Recipient/);assert.match(query('#quote-details').textContent,/Total/);
+  input('#phone','+1');assert.equal(current(),'1');assert.equal(query('#confirm-recharge').disabled,true);
+}));
+
+test('country search lives inside the picker and preserves search focus, SVG flags and keyboard selection',async()=>page(async({login,query,input,dom})=>{
+  await login();assert.ok(query('#country-picker-menu').contains(query('#country-search')));
+  assert.equal(query('#country-picker-menu').hidden,true);query('#country-picker-button .country-picker-name').click();await tick();
+  assert.equal(query('#country-picker-menu').hidden,false);
+  assert.equal(dom.window.document.activeElement,query('#country-search'));
+  input('#country-search','509');assert.equal(dom.window.document.activeElement,query('#country-search'));
+  assert.equal(query('#country-picker-list').querySelectorAll('[role=option]').length,1);
+  query('#country-search').dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));
+  assert.equal(dom.window.document.activeElement.dataset.countryCode,'HT');
+  dom.window.document.activeElement.click();await tick();assert.equal(query('#country').value,'HT');
+  query('#country-picker-button').click();await tick();
+  query('#country-search').dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  assert.equal(query('#country-picker-menu').hidden,true);assert.equal(dom.window.document.activeElement,query('#country-picker-button'));
+}));

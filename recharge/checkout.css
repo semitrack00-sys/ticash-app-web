@@ -81,3 +81,18 @@ button:disabled{opacity:.5;cursor:not-allowed}
 #back-to-login{width:100%;margin-top:12px}.password-control input{min-width:0}
 .test-banner{padding:9px 14px;font-size:12px}
 @media(max-width:600px){.login-panel{padding:22px 18px;margin:20px auto 28px}.checkout-main{padding:0 12px}.login-panel .field{margin-bottom:16px}.auth-choices .button{padding:10px 6px}}
+
+/* Three-step recharge checkout; existing controls keep their model bindings. */
+.checkout-hero{padding:16px 0 12px}.checkout-hero h1{font-size:clamp(25px,4vw,34px);margin:0 0 7px}.checkout-hero p{font-size:14px;line-height:1.4}
+.account-bar{margin-bottom:12px}.account-summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.test-pill{font-size:11px;color:#705413;background:#fbf4df;padding:4px 8px;border-radius:20px}#guest-note{flex-basis:100%;margin:0}
+.checkout-progress{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;list-style:none;padding:0;margin:20px 0 16px}
+.checkout-progress li{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#657386;border-bottom:2px solid #dce2e6;padding:0 0 12px;min-width:0}
+.progress-number{display:grid;place-items:center;flex-shrink:0;width:28px;height:28px;border-radius:50%;background:#e9edf1;color:#657386}
+.checkout-progress [aria-current=step]{color:var(--navy);border-color:var(--gold)}.checkout-progress [aria-current=step] .progress-number,.checkout-progress [data-complete=true] .progress-number{background:var(--navy);color:white}
+.checkout-grid{gap:16px}.checkout-step,.review-panel{padding:22px;border-radius:16px}.checkout-step+.checkout-step{margin-top:14px;padding-top:22px;border-top:1px solid #e0e5e4}
+.checkout-step h2,.review-panel h2{font-size:21px;margin:9px 0 20px}.checkout-step .field{margin-bottom:16px}.saved-recipients{margin:0;padding:0;border:0}.saved-recipients summary{min-height:44px;display:flex;align-items:center;margin:0;text-decoration:underline}
+.saved-recipients[open] summary{margin-bottom:12px}.saved-recipients summary:before{content:'+';margin-right:8px}.saved-recipients[open] summary:before{content:'−'}
+.review-empty{margin:12px 0;padding:18px 12px}.review-empty>span{display:none}.details>div{padding:9px 0}.review-panel .details>div:last-child{margin-top:8px;padding:14px 12px;background:#f3f5f7;border-radius:10px;color:var(--navy);font-size:18px;font-weight:800}
+.review-check{min-height:44px;align-items:center}.review-check input{margin:0}.history-panel{padding:20px 22px;border-radius:16px;margin-top:16px}.history-panel h2{font-size:20px;margin:0}.history-panel .section-heading{align-items:center}.history-panel>p{margin:8px 0 12px}.history-item{padding:14px 0}
+.country-picker-search-row{position:sticky;top:-6px;z-index:1;padding:4px 2px 8px;background:white}.country-picker-option{min-height:44px}.country-picker-list{max-height:300px}
+@media(max-width:600px){.checkout-progress{gap:6px;margin-top:16px}.checkout-progress li{flex-direction:column;align-items:flex-start;gap:6px;font-size:11px}.checkout-step,.review-panel,.history-panel{padding:18px 16px}.checkout-step+.checkout-step{padding-top:18px}.checkout-grid{gap:14px}.checkout-hero{padding-top:16px}.account-bar{gap:8px}.account-bar .compact-actions{gap:6px}.account-bar .button{padding:8px 10px}.checkout-step h2,.review-panel h2{font-size:20px;margin-bottom:16px}.test-banner{flex-wrap:wrap;gap:4px 8px}.country-picker-name{white-space:normal}.history-panel .section-heading{gap:8px}.site-footer{overflow-wrap:anywhere}}
