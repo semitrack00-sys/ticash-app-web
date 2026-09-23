@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { mountRecharge } from '../js/recharge-page.js';
+import { t, translations, languageLocale } from '../js/i18n.js';
+import { ApiError } from '../js/api-client.js';
 import { fixtureApi, operator, products, quote, transaction } from './fixtures.mjs';
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 async function page(callback, { api = fixtureApi(), config = { mobileRechargeLive: false } } = {}) {
-  const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
+  const dom = new JSDOM('<header><nav><a data-i18n="mobileRecharge">Mobile Recharge</a></nav></header><main id="root"></main>', { url: 'https://website.example/recharge' });
   globalThis.document = dom.window.document;
   const root = document.getElementById('root'); const app = mountRecharge(root, config, { api });
   const query = (selector) => root.querySelector(selector);
@@ -110,7 +112,7 @@ test('guest enters protected checkout, sees temporary history notice and can cho
 });
 
 test('destination labels, search and phone hints show backend calling codes and replace previous prefixes', async () => page(async ({ login, query, input }) => {
-  await login(); assert.ok([...query('#country').options].some((o) => o.textContent === 'Haiti (+509)'));
+  await login(); assert.ok([...query('#country').options].some((o) => o.textContent === '🇭🇹 Haiti (+509)'));
   input('#country-search', '509'); assert.equal(query('#country').options.length, 2); assert.equal(query('#country').options[1].value, 'HT');
   input('#country', 'HT', 'change'); await tick(); assert.equal(query('#phone').value, '+509'); assert.match(query('#phone-hint').textContent, /calling code: \+509/);
   input('#phone', '+50937050210'); input('#country-search', ''); input('#country', 'FR', 'change'); await tick();
@@ -125,3 +127,111 @@ test('quote displays a backend 3.50 fee and 8.50 total without deriving charges'
     assert.match(query('#quote-details').textContent, /TiCash fee\$3\.50/); assert.match(query('#quote-details').textContent, /Quoted total\$8\.50/);
   }, { api });
 });
+
+test('all language selectors synchronize translated UI, ISO labels, search, hints and keyboard focus', async () => page(async ({ login, query, input, dom, api }) => {
+  await login(); input('#country','HT','change'); await tick(); input('#country-search','Ayiti');
+  const calls = structuredClone(api.calls); const url = dom.window.location.href;
+  const names = { en:'Haiti',ht:'Ayiti',fr:'Haïti',es:'Haití',pt:'Haiti' };
+  for (const code of ['ht','fr','es','pt','en']) {
+    const picker = query('#recharge-language'); picker.focus(); input('#recharge-language',code,'change');
+    assert.equal(dom.window.document.activeElement,picker);
+    assert.equal(dom.window.document.documentElement.lang,code);
+    assert.equal(dom.window.document.querySelector('#header-language').value,code);
+    assert.equal(dom.window.document.querySelector('header a').textContent,t('mobileRecharge'));
+    assert.equal(query('#get-quote').textContent,t('getQuote'));
+    assert.equal(query('#country').value,'HT'); assert.equal(query('#country').options.length,2);
+    assert.equal(query('#country').selectedOptions[0].textContent,`🇭🇹 ${names[code]} (+509)`);
+    assert.match(query('#phone-hint').textContent,/🇭🇹/); assert.match(query('#phone-hint').textContent,/\+509/);
+    assert.equal(query('#country-search').value,'Ayiti'); assert.equal(query('#phone').value,'+509');
+    assert.deepEqual(api.calls,calls); assert.equal(dom.window.location.href,url);
+    assert.equal(dom.window.localStorage.length,1); assert.equal(dom.window.localStorage.key(0),'ticash.language');
+    assert.equal(dom.window.localStorage.getItem('ticash.language'),code);
+    assert.equal(dom.window.sessionStorage.length,0);
+  }
+  const headerPicker=dom.window.document.querySelector('#header-language'); headerPicker.value='fr'; headerPicker.dispatchEvent(new dom.window.Event('change'));
+  assert.equal(query('#recharge-language').value,'fr');
+  for (const picker of dom.window.document.querySelectorAll('[data-language-selector]')) {
+    assert.equal(picker.options.length,5); assert.ok(picker.labels.length); assert.equal(picker.tabIndex,0);
+    assert.doesNotMatch(picker.textContent,/\p{Regional_Indicator}/u);
+  }
+}));
+
+for (const session of ['account','guest']) test(`${session} language switches preserve exact quote, selections, reviewed state and authentication without requests`, async () => {
+  const api=fixtureApi(); let authCalls=0;
+  api.login=api.guest=async()=>{authCalls++;return {id:'fixture-customer'};};
+  api.overrides.set('POST /mobile-topups/quotes',()=>({quote:{...quote,providerAmount:5,feeUsd:3.5,totalChargeUsd:8.5}}));
+  await page(async ({login,app,query,input,dom})=>{
+    if(session==='guest'){query('#continue-guest').click();await tick();} else await login();
+    await app.model.selectCountry('JM'); app.model.setPhone(quote.recipientPhone); await app.model.selectOperator(77);
+    app.model.selectProduct(products[0].id); await app.model.getQuote(); app.model.review(true);
+    const state=structuredClone(app.model.state); const quoteObject=app.model.state.quote; const calls=structuredClone(api.calls);
+    for(const code of ['ht','fr','es','pt','en']) {
+      input('#recharge-language',code,'change');
+      assert.deepEqual(app.model.state,state); assert.equal(app.model.state.quote,quoteObject); assert.deepEqual(api.calls,calls); assert.equal(authCalls,1);
+      assert.equal(query('#checkout').hidden,false); assert.equal(query('#guest-note').hidden,session!=='guest');
+      assert.equal(query('#country').value,'JM'); assert.equal(query('#phone').value,quote.recipientPhone);
+      assert.equal(query('#operator').value,'77'); assert.equal(query('#product').value,products[0].id);
+      assert.equal(query('#reviewed').checked,true); assert.equal(query('#confirm-recharge').disabled,false);
+      assert.match(query('#quote-details').textContent,/🇯🇲 JM/);
+      for(const value of [3.5,8.5]) assert.ok(query('#quote-details').textContent.includes(new Intl.NumberFormat(languageLocale(),{style:'currency',currency:'USD'}).format(value)));
+      assert.ok(query('#quote-details').textContent.includes(quote.operatorName)); assert.ok(query('#quote-details').textContent.includes(quote.productName));
+      assert.equal(dom.window.localStorage.length,1); assert.equal(dom.window.localStorage.key(0),'ticash.language');
+    }
+  },{api});
+});
+
+test('language change preserves registration fields, password visibility, validation and auth errors', async () => page(async ({query,input,dom,app,api})=>{
+  query('#choose-register').click();
+  input('#first-name','Élodie');input('#last-name','Jean');input('#register-email','test@example.com');input('#register-password','secret-password');
+  query('#register-password-visibility').click(); input('#recharge-language','fr','change');
+  assert.equal(query('#first-name').value,'Élodie');assert.equal(query('#last-name').value,'Jean');assert.equal(query('#register-email').value,'test@example.com');
+  assert.equal(query('#register-password').value,'secret-password');assert.equal(query('#register-password').type,'text');
+  assert.equal(query('#register-password-visibility').getAttribute('aria-label'),t('hideAccountPassword'));assert.equal(query('#register-form').hidden,false);
+  api.register=async()=>{throw new Error(translations.en.networkError);};
+  query('#register-form').dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));await tick();
+  assert.equal(query('.login-panel [role=alert]').textContent,t('networkError'));
+  app.model.state.error=translations.en.fullPhone;app.model.emit();
+  input('#recharge-language','ht','change');assert.equal(query('#recharge-error').textContent,t('fullPhone'));
+  assert.equal(query('.login-panel [role=alert]').textContent,t('networkError'));
+  assert.equal(dom.window.localStorage.length,1);
+}));
+
+test('switching during unresolved confirmation preserves attempt and exact idempotency payload', async () => {
+  const api=fixtureApi();api.overrides.set('POST /mobile-topups/transactions',()=>{throw new ApiError('NETWORK_ERROR','Could not reach TiCash. Check your connection and try again.');});
+  await page(async ({login,app,query,input})=>{
+    await login();await app.model.selectCountry('JM');app.model.setPhone(quote.recipientPhone);await app.model.selectOperator(77);app.model.selectProduct(products[0].id);
+    await app.model.getQuote();app.model.review(true);await app.model.confirm();
+    assert.ok(app.model.state.attempt);const state=structuredClone(app.model.state);const calls=structuredClone(api.calls);
+    input('#recharge-language','pt','change');assert.deepEqual(app.model.state,state);assert.deepEqual(api.calls,calls);
+    assert.equal(query('#recovery-note').hidden,false);assert.equal(query('#confirm-recharge').textContent,t('retryConfirmation'));
+    await app.model.confirm();const submissions=api.calls.filter(c=>c.path==='/mobile-topups/transactions'&&c.method==='POST');
+    assert.equal(submissions.length,2);assert.deepEqual(submissions[0],submissions[1]);
+  },{api});
+});
+
+test('fallback provider names remain literal text and ISO values cannot become HTML', async () => {
+  const api=fixtureApi();const attack='<img src=x onerror=alert(1)>';
+  api.overrides.set('GET /mobile-topups/countries',()=>({countries:[{code:'JM',name:attack,callingCode:'+1'}]}));
+  const original=Intl.DisplayNames;Intl.DisplayNames=undefined;
+  try { await page(async ({login,query,input,root})=>{
+    await login();input('#recharge-language','es','change');
+    assert.equal(query('#country').options[1].textContent,`🇯🇲 ${attack} (+1)`);assert.equal(query('#country').options[1].value,'JM');
+    input('#country','JM','change');await tick();assert.ok(query('#phone-hint').textContent.includes(attack));
+    assert.equal(root.querySelector('img,[onerror]'),null);
+  },{api}); } finally {Intl.DisplayNames=original;}
+});
+
+test('receipt and history localize labels and dates while keeping provider values and IDs intact', async () => page(async ({login,app,query,input})=>{
+  await login();await app.model.selectCountry('JM');app.model.setPhone(quote.recipientPhone);await app.model.selectOperator(77);app.model.selectProduct(products[0].id);
+  await app.model.getQuote();app.model.review(true);await app.model.confirm();
+  const state=structuredClone(app.model.state);
+  for (const code of ['ht','fr','es','pt','en']) {
+    input('#recharge-language',code,'change');assert.deepEqual(app.model.state,state);
+    const text=query('#receipt').textContent;
+    assert.ok(text.includes(t('testReceipt')));assert.ok(text.includes(t('reference')));assert.ok(text.includes(t('receiptHeading',{status:t('processing')})));
+    for (const raw of [transaction.id,transaction.recipientPhone,transaction.operatorName,transaction.productName,'PROCESSING','AUTHORIZED','🇯🇲 JM']) assert.ok(text.includes(raw),raw);
+    const date=new Intl.DateTimeFormat(languageLocale(),{dateStyle:'medium',timeStyle:'short'}).format(new Date(transaction.createdAt));
+    assert.ok(text.includes(date));assert.ok(query('#history-list').textContent.includes(date));
+    assert.ok(query('#history-list').textContent.includes(t('repeat')));
+  }
+}));
