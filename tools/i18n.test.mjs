@@ -86,3 +86,13 @@ test('all local model and API validation/error literals have canonical translati
     for (const [,message] of messages) assert.ok(english.has(message), message);
   }
 });
+
+
+test('all recovery copy and password controls have translations in all five languages',()=>{
+  for(const lang of ['en','ht','fr','es','pt']){
+    for(const key of ['forgotPassword','forgotTitle','forgotIntro','sendReset','resetTitle','resetIntro','newPassword','confirmNewPassword','resetPassword','backToSignIn','resetGeneric','resetMismatch','resetSuccess','resetSamePassword','resetInvalid','resetFailed']){
+      assert.ok(translations[lang][key],`${lang}.${key}`);
+      if(lang!=='en')assert.notEqual(translations[lang][key],translations.en[key]);
+    }
+  }
+});
