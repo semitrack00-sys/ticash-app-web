@@ -180,6 +180,7 @@ export default Object.freeze({
   "homeLabel": "Início do TiCash",
   "authLoginTitle": "Entrar no TiCash",
   "authLoginIntro": "Entre para continuar sua recarga de celular.",
+  "authRegisterIntro": "Crie uma conta para continuar sua recarga de celular.",
   "authHelp": "Precisa de ajuda para entrar?",
   "compactTest": "Sem dinheiro real · Sem recarga real",
   "forgotPassword": "Esqueceu a senha?",

@@ -238,7 +238,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     hero.hidden = !signedIn;
     const recovering = ['forgot', 'reset'].includes(authMode);
     loginTitle.textContent = t(authMode === 'forgot' ? 'Forgot your password?' : authMode === 'reset' ? 'Reset your password' : authMode === 'register' ? 'Create TiCash account' : 'Sign in to TiCash');
-    loginIntro.textContent = t(authMode === 'forgot' ? 'Enter your email to request reset instructions.' : authMode === 'reset' ? 'Choose a new password for your TiCash account.' : 'Sign in to continue your mobile recharge.');
+    loginIntro.textContent = t(authMode === 'forgot' ? 'Enter your email to request reset instructions.' : authMode === 'reset' ? 'Choose a new password for your TiCash account.' : authMode === 'register' ? 'authRegisterIntro' : 'Sign in to continue your mobile recharge.');
     authChoices.hidden = recovering; guestButton.hidden = recovering; backToLogin.hidden = !recovering;
     forgotForm.hidden = authMode !== 'forgot'; resetForm.hidden = authMode !== 'reset';
     recoveryStatus.textContent = t(recoveryMessage); recoveryStatus.hidden = !recoveryMessage;
