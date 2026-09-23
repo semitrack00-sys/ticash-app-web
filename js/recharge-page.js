@@ -24,6 +24,30 @@ function date(value) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? t('Not supplied') : new Intl.DateTimeFormat(languageLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(parsed);
 }
+// Small local line icons: decorative only; controls retain translated text labels.
+function icon(name, className = '') {
+  const paths = {
+    menu: 'M4 6h16M4 12h16M4 18h16',
+    user: 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21v-2a8 8 0 0 1 16 0v2',
+    globe: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18',
+    phone: 'M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2M10 18h4',
+    receipt: 'M6 3h12v18l-3-2-3 2-3-2-3 2V3M9 7h6M9 11h6M9 15h3',
+    clock: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M12 7v5l3 2',
+    search: 'M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0M15 15l6 6',
+    refresh: 'M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5M4 16a8 8 0 0 0 14 3l3-3m0 5v-5h-5',
+    antenna: 'M12 12v9M8 21h8M8 8a6 6 0 0 0 0 8M16 8a6 6 0 0 1 0 8M5 4a11 11 0 0 0 0 16M19 4a11 11 0 0 1 0 16',
+    gift: 'M3 8h18v4H3V8M5 12v9h14v-9M12 8v13M12 8H8a3 3 0 1 1 3-3l1 3 1-3a3 3 0 1 1 3 3h-4',
+    flask: 'M9 3h6M10 3v6L4 19a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2L14 9V3M7 15h10',
+    chart: 'M4 19h16M7 15v-4M12 15V6M17 15V9',
+    info: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M12 11v6M12 7v1',
+    recipient: 'M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M2 21v-2a7 7 0 0 1 12-5M19 13v8M15 17h8',
+    chevron: 'm8 10 4 4 4-4',
+  };
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  for (const [key, value] of Object.entries({ viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.6', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false', class: `recharge-icon ${className}` })) svg.setAttribute(key, value);
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', paths[name]); svg.append(path); return svg;
+}
 function ui(key) { return el('span', { 'data-i18n': key }, t(key)); }
 function flagAssetUrl(code) {
   return typeof code === 'string' && /^[A-Z]{2}$/.test(code) ? `/flags/${code.toLowerCase()}.svg` : '';
@@ -159,8 +183,9 @@ export function mountRecharge(root, config, dependencies = {}) {
     try { await client.logout(); } catch { /* Local tokens are already cleared. */ }
     firstName.focus();
   }, true); createFromGuest.id = 'guest-create-account';
-  const accountBar = el('div', { className: 'account-bar', hidden: '' }, el('div', { className: 'account-summary' }, accountLabel, el('span', { className: 'test-pill' }, ui('Test mode'))),
-    el('div', { className: 'compact-actions' }, createFromGuest, logout));
+  const accountBar = el('details', { className: 'account-bar', hidden: '' },
+    el('summary', { className: 'account-summary' }, icon('user'), el('span', {}, accountLabel, el('small', {}, ui('Test mode'))), icon('chevron')),
+    el('div', { className: 'account-dropdown' }, logout));
   const countrySearchInput = el('input', { id: 'country-search', type: 'search', 'aria-label': t('Search countries'), 'data-i18n-aria-label': 'Search countries', placeholder: t('Country, ISO code, or calling code'), 'data-i18n-placeholder': 'Country, ISO code, or calling code', autocomplete: 'off' });
   const country = el('select', { id: 'country', required: '', className: 'country-native-select', tabindex: '-1', 'aria-hidden': 'true' });
   const countryPickerButton = el('button', {
@@ -172,7 +197,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   });
   const countryPickerMenu = el('div', { id: 'country-picker-menu', className: 'country-picker-list', hidden: '' }, el('div', { className: 'country-picker-search-row' }, countrySearchInput), countryPickerList);
   const countryPicker = el('div', { className: 'country-picker' }, countryPickerButton, countryPickerMenu, country);
-  const phone = el('input', { id: 'phone', type: 'tel', autocomplete: 'tel', maxlength: '40', 'aria-describedby': 'phone-hint', placeholder: t('+ country code and mobile number'), 'data-i18n-placeholder': '+ country code and mobile number' });
+  const phone = el('input', { id: 'phone', type: 'tel', autocomplete: 'tel', maxlength: '40', 'aria-describedby': 'phone-hint', placeholder: t('mobileNumberPlaceholder'), 'data-i18n-placeholder': 'mobileNumberPlaceholder' });
   const operator = el('select', { id: 'operator' });
   const product = el('select', { id: 'product' });
   const amount = el('input', { id: 'amount', type: 'number', inputmode: 'decimal', step: '0.01', 'aria-describedby': 'amount-hint' });
@@ -185,26 +210,38 @@ export function mountRecharge(root, config, dependencies = {}) {
   const countriesRetry = button('Retry connection', action(() => model.start()), true);
   const recipientsSelect = el('select', { id: 'saved-recipient' });
   const recipientNote = el('small', { role: 'status' });
-  const recipientsPanel = el('details', { className: 'saved-recipients' }, el('summary', {}, ui('Use a saved recipient')),
+  const recipientsPanel = el('details', { className: 'saved-recipients' }, el('summary', {}, icon('recipient'), ui('Use a saved recipient'), icon('chevron')),
     field('Saved recipient', recipientsSelect), recipientNote);
-  const selectionFields = el('fieldset', { id: 'selection-fields' },
-    el('legend', {}, ui('Recharge details')),
-    el('section', { className: 'panel checkout-step' }, el('span', { className: 'step' }, ui('1. DESTINATION')), el('h2', {}, ui('Who are you recharging?')),
-      el('div', { className: 'field' }, el('label', { for: 'country-picker-button' }, ui('Destination country')), countryPicker),
-      field('Mobile number', phone, 'Include the international country code. Check the number carefully before confirming.'), recipientsPanel),
-    el('section', { className: 'panel checkout-step' }, el('span', { className: 'step' }, ui('2. OPERATOR & PRODUCT')), el('h2', {}, ui('Choose their recharge.')),
-      el('div', { className: 'compact-actions' }, detectButton, operatorsRetry),
-      field('Mobile operator', operator, 'If detection is unavailable, select the operator manually.'),
-      field('Recharge product', product), amountField, catalogNote, quoteButton));
+  const controlField = (label, control, symbol, hint) => {
+    const wrapper = field(label, control, hint);
+    const frame = el('div', { className: 'icon-input' }, icon(symbol));
+    control.replaceWith(frame); frame.append(control); return wrapper;
+  };
+  const cardHeading = (symbol, label, title, id) => el('summary', { className: 'step-heading' },
+    el('span', { className: 'card-icon' }, icon(symbol)),
+    el('div', {}, el('span', { className: 'step' }, ui(label)), el('h2', id ? { id } : {}, ui(title))), icon('chevron', 'collapse-icon'));
+  const destinationControls = el('fieldset', {}, el('legend', {}, ui('Destination')),
+    el('div', { className: 'field' }, el('label', { for: 'country-picker-button' }, ui('Destination country')), countryPicker),
+    controlField('Mobile number', phone, 'phone', 'Include the international country code. Check the number carefully before confirming.'), recipientsPanel);
+  const operatorControls = el('fieldset', {}, el('legend', {}, ui('Operator & Product')),
+    el('div', { className: 'operator-actions' }, detectButton, operatorsRetry),
+    controlField('Mobile operator', operator, 'antenna', 'If detection is unavailable, select the operator manually.'),
+    controlField('Recharge product', product, 'gift'), amountField, catalogNote, quoteButton);
+  const destinationPanel = el('details', { className: 'panel checkout-step', open: '', 'data-checkout-step': '1' },
+    cardHeading('globe', '1. DESTINATION', 'Who are you recharging?'), destinationControls);
+  const operatorPanel = el('details', { className: 'panel checkout-step', open: '', 'data-checkout-step': '2' },
+    cardHeading('phone', '2. OPERATOR & PRODUCT', 'Choose their recharge.'), operatorControls);
   const reviewContent = el('div', { id: 'quote-details' });
   const expiry = el('p', { className: 'small', role: 'status', id: 'quote-expiry' });
   const reviewed = el('input', { type: 'checkbox', id: 'reviewed' });
   const reviewCheck = el('label', { className: 'review-check', for: 'reviewed' }, reviewed, el('span', {}, ui('I checked the phone number, operator, product, and quoted total.')));
   const confirmButton = button('Confirm test recharge', action(() => model.confirm())); confirmButton.id = 'confirm-recharge';
   const recoveryNote = el('p', { className: 'message', hidden: '', role: 'status', id: 'recovery-note' }, ui('Confirmation is unresolved. Keep this page open. Retry uses the same request so it cannot create a second recharge; you can also refresh history to find the receipt.'));
-  const reviewPanel = el('aside', { className: 'panel review-panel', 'aria-labelledby': 'review-title' },
-    el('span', { className: 'step' }, ui('3. REVIEW & CONFIRM')), el('h2', { id: 'review-title' }, ui('Review your recharge')),
-    reviewContent, expiry, reviewCheck, confirmButton, recoveryNote);
+  const reviewPanel = el('details', { className: 'panel checkout-step review-panel', open: '', 'data-checkout-step': '3', 'aria-labelledby': 'review-title' },
+    cardHeading('receipt', '3. REVIEW & CONFIRM', 'A little connection. A lot of care.', 'review-title'),
+    reviewContent, expiry, reviewCheck, confirmButton, recoveryNote,
+    el('p', { className: 'review-helper small muted' }, icon('info'), ui('TEST MODE · No real payment is collected. Prices, fees, and availability are supplied by TiCash.')));
+  const selectionFields = el('div', { id: 'selection-fields', className: 'checkout-stack' }, destinationPanel, operatorPanel, reviewPanel);
   const receipt = el('section', { className: 'panel receipt', id: 'receipt', 'aria-live': 'polite', hidden: '' });
   const refreshReceipt = button('Refresh transaction status', action(() => model.refreshTransaction()), true); refreshReceipt.id = 'refresh-status';
   const historyList = el('div', { className: 'history-list', id: 'history-list' });
@@ -212,22 +249,40 @@ export function mountRecharge(root, config, dependencies = {}) {
   const historyRefresh = button('Refresh history', action(() => model.loadHistory()), true); historyRefresh.id = 'refresh-history';
   const historyIntro = el('p', { className: 'small muted' });
   historyRefresh.setAttribute('aria-label', t('Refresh history')); historyRefresh.setAttribute('data-i18n-aria-label', 'Refresh history');
-  historyRefresh.dataset.i18n = 'Refresh';
+  historyRefresh.removeAttribute('data-i18n');
+  historyRefresh.replaceChildren(icon('refresh'), ui('Refresh'));
+  operatorsRetry.removeAttribute('data-i18n');
+  operatorsRetry.replaceChildren(icon('refresh'), ui('Reload operators'));
   const historyPanel = el('section', { className: 'panel history-panel' },
-    el('div', { className: 'section-heading' }, el('div', {}, el('h2', {}, ui('Recharge history'))), historyRefresh),
+    el('div', { className: 'section-heading' }, el('div', { className: 'history-heading' }, el('span', { className: 'card-icon' }, icon('clock')), el('div', {}, el('span', { className: 'step' }, ui('YOUR ACTIVITY')), el('h2', {}, ui('Test recharge history')))), historyRefresh),
     historyIntro, guestNote, historyError, historyList);
   const progressItems = ['Destination', 'Operator & Product', 'Review & Confirm'].map((label, index) =>
     el('li', { 'data-step': String(index + 1) }, el('span', { className: 'progress-number', 'aria-hidden': 'true' }, String(index + 1)), ui(label)));
   const progress = el('ol', { className: 'checkout-progress', 'aria-label': t('Recharge progress'), 'data-i18n-aria-label': 'Recharge progress' }, progressItems);
-  const checkout = el('div', { id: 'checkout', hidden: '' }, progress,
-    el('div', { className: 'checkout-grid' }, el('section', { className: 'selection-panel' }, countriesRetry, selectionFields), reviewPanel),
-    receipt, historyPanel);
+  const checkout = el('div', { id: 'checkout', hidden: '' }, progress, countriesRetry, selectionFields, receipt, historyPanel);
+  const menu = el('nav', { id: 'recharge-navigation', className: 'recharge-navigation', hidden: '', 'aria-label': t('navigation'), 'data-i18n-aria-label': 'navigation' },
+    el('a', { href: '/' }, ui('homeLabel')), el('a', { href: '/send' }, ui('sendMoney')), el('a', { href: '/recharge', 'aria-current': 'page' }, ui('mobileRecharge')), el('a', { href: '/support' }, ui('support')));
+  const menuButton = el('button', { id: 'recharge-menu-toggle', type: 'button', className: 'menu-toggle', 'aria-label': t('navigation'), 'data-i18n-aria-label': 'navigation', 'aria-expanded': 'false', 'aria-controls': 'recharge-navigation', onclick: () => {
+    menu.hidden = !menu.hidden; menuButton.setAttribute('aria-expanded', String(!menu.hidden));
+  } }, icon('menu'));
+  const closeMenus = (event) => {
+    if (event.key !== 'Escape') return;
+    if (accountBar.open) { accountBar.open = false; accountBar.querySelector('summary').focus(); }
+    else if (!menu.hidden) { menu.hidden = true; menuButton.setAttribute('aria-expanded', 'false'); menuButton.focus(); }
+  };
   const hero = el('section', { className: 'checkout-hero', hidden: '' },
-    el('h1', {}, ui('Mobile Recharge')), el('p', {}, ui('Stay connected, wherever they are.')));
+    el('div', { className: 'recharge-topbar' }, el('div', { className: 'recharge-brand-group' }, menuButton,
+      el('a', { className: 'brand', href: '/', 'aria-label': t('homeLabel'), 'data-i18n-aria-label': 'homeLabel' }, el('img', { src: '/ticash-logo.png', alt: '' }), el('span', {}, 'TiCash'))), accountBar),
+    menu, el('h1', {}, ui('Mobile Recharge')), el('p', {}, ui('Stay connected, wherever they are.')));
+  hero.addEventListener('keydown', closeMenus);
+  const siteHeader = root.ownerDocument.querySelector('header');
+  const headerLanguage = root.ownerDocument.getElementById('header-language')?.closest('label');
+  const originalHeaderHidden = siteHeader?.hidden;
   const testTitle = el('strong'); const testText = el('span');
-  root.replaceChildren(hero, accountBar,
-    el('div', { className: 'test-banner', role: 'note' }, testTitle, testText),
-    error, notice, loginPanel, checkout);
+  const testIcon = el('span', { className: 'test-icon' }, icon('flask'));
+  const testBanner = el('div', { className: 'test-banner', role: 'note' }, testIcon,
+    el('div', { className: 'test-copy' }, testTitle, testText), createFromGuest);
+  root.replaceChildren(hero, testBanner, error, notice, loginPanel, checkout);
 
   function render() {
     if (disposed || !model) return;
@@ -241,6 +296,14 @@ export function mountRecharge(root, config, dependencies = {}) {
     }
     const s = model.state; const busy = model.busy;
     hero.hidden = !signedIn;
+    root.classList.toggle('recharge-active', signedIn);
+    testIcon.hidden = !signedIn;
+    if (siteHeader) siteHeader.hidden = signedIn || originalHeaderHidden;
+    if (headerLanguage) {
+      const languageParent = signedIn ? menu : siteHeader;
+      if (headerLanguage.parentElement !== languageParent) languageParent.append(headerLanguage);
+    }
+    if (!signedIn) { menu.hidden = true; menuButton.setAttribute('aria-expanded', 'false'); accountBar.open = false; }
     testTitle.textContent = t(signedIn ? 'You’re in test mode' : 'TEST MODE');
     testText.textContent = t(signedIn ? 'No real payment is collected.' : 'No real money · No live recharge');
     let destinationComplete = false;
@@ -278,7 +341,8 @@ export function mountRecharge(root, config, dependencies = {}) {
     error.textContent = t(s.error); error.hidden = !s.error;
     notice.textContent = t(s.notice); notice.hidden = !s.notice;
     const locked = s.submitting || Boolean(s.attempt);
-    selectionFields.disabled = !s.ready || locked;
+    destinationControls.disabled = !s.ready || locked;
+    operatorControls.disabled = !s.ready || locked;
     countriesRetry.hidden = s.ready; countriesRetry.disabled = busy.has('catalog');
     countriesRetry.textContent = t(busy.has('catalog') ? 'Connecting…' : 'Retry connection');
     const matches = searchCountries(s.countries, countrySearch);
@@ -334,7 +398,8 @@ export function mountRecharge(root, config, dependencies = {}) {
     options(operator, s.operators, s.operator?.id, t(busy.has(`operators:${s.country}`) ? 'Loading operators…' : 'Choose an operator'), (op) => op.name, (op) => op.id);
     operator.disabled = !s.country || !s.phone;
     detectButton.disabled = !s.country || !s.phone || busy.has('detect');
-    detectButton.textContent = t(busy.has('detect') ? 'Finding operator…' : 'Find my operator');
+    detectButton.removeAttribute('data-i18n');
+    detectButton.replaceChildren(icon('search'), el('span', {}, t(busy.has('detect') ? 'Finding operator…' : 'Find my operator')));
     operatorsRetry.disabled = !s.country || busy.has(`operators:${s.country}`);
     options(product, s.products, s.product?.id, t('Choose a product'), (p) => p.amountType === 'RANGE'
       ? `${p.name} · ${money(p.minimumAmount, p.priceCurrency)}–${money(p.maximumAmount, p.priceCurrency)}`
@@ -362,7 +427,7 @@ export function mountRecharge(root, config, dependencies = {}) {
         ['Recipient', s.quote.recipientPhone], ['Country', `${localizeCountry(s.countries.find(c => c.code === s.quote.countryCode) || {code:s.quote.countryCode,name:s.quote.countryCode})} (${s.quote.countryCode})`], ['Operator', s.quote.operatorName],
         ['Product', s.quote.productName], ['Recharge amount', money(s.quote.providerAmount, s.quote.providerCurrency)],
         ['TiCash fee', money(s.quote.feeUsd, 'USD')], ['Total', money(s.quote.totalChargeUsd, 'USD')],
-      ]) : el('div', { className: 'review-empty' }, el('span', { 'aria-hidden': 'true' }, '↗'), el('p', {}, ui('Your quote will appear here.')), el('p', { className: 'small muted' }, ui('Choose a destination, number, operator, and product.'))));
+      ]) : el('div', { className: 'review-empty' }, icon('chart'), el('strong', {}, ui('Your quote will appear here.')), el('p', { className: 'small muted' }, ui('quoteEmptyInstruction'))));
     }
     expiry.textContent = s.quote ? (model.quoteValid() ? t('quoteUntil', { date: date(s.quote.expiresAt) }) : t('This quote expired. Get a new quote before confirming.')) : '';
     reviewCheck.hidden = !s.quote || Boolean(s.attempt); reviewed.checked = s.reviewed;
@@ -398,7 +463,7 @@ export function mountRecharge(root, config, dependencies = {}) {
           el('div', {}, el('strong', {}, txn.productName), el('p', {}, `${txn.recipientPhone} · ${txn.countryCode}`), el('small', {}, date(txn.createdAt))),
           el('div', {}, el('span', { className: 'status-pill' }, String(txn.status)), el('p', {}, money(txn.totalChargeUsd, 'USD'))),
           el('div', { className: 'compact-actions' }, view, repeat));
-      }) : [el('p', { className: 'muted' }, t(busy.has('history') ? 'Loading your history…' : 'No test recharges yet. Your receipts will appear here after your first recharge.'))]));
+      }) : [busy.has('history') ? el('p', { className: 'muted' }, t('Loading your history…')) : el('div', { className: 'history-empty' }, icon('receipt'), el('strong', {}, ui('historyEmptyTitle')), el('p', { className: 'small muted' }, ui('historyEmptyInstruction')))]));
     }
   }
   const expired = () => {
@@ -517,7 +582,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const timer = setInterval(() => { if (signedIn && model.state.quote) render(); }, 1000);
   const removeLanguageListener = onLanguageChange(render);
   render();
-  return { model, dispose() { resetToken = ''; disposed = true; removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
+  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
 }
 
 const root = typeof document === 'undefined' ? null : document.querySelector('[data-recharge-root]');

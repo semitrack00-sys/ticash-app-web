@@ -1,4 +1,9 @@
 export default Object.freeze({
+  "mobileNumberPlaceholder": "Introduce el número de móvil",
+  "quoteEmptyInstruction": "Elige un destino, número, operador y producto para ver el total exacto.",
+  "historyEmptyTitle": "Aún no hay recargas de prueba.",
+  "historyEmptyInstruction": "Tus recibos aparecerán aquí cuando completes una recarga de prueba.",
+
   "language": "Idioma",
   "notSupplied": "No disponible",
   "show": "Mostrar",

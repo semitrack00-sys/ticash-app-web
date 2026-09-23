@@ -16,7 +16,7 @@ assert.deepEqual([...preferences.matchAll(/preferenceStorage\?\.([^(]+)\(([^)]*)
 ], 'Only the non-sensitive language preference may be persisted');
 assert.doesNotMatch(sources, /console\.(log|debug|info|warn|error)\(/, 'No sensitive browser logging');
 assert.doesNotMatch(sources, /https?:\/\/[^\s'"<>]*reloadly\./i, 'Browser must not contact provider');
-assert.doesNotMatch(sources, /RELOADLY_CLIENT_SECRET|JWT_ACCESS_SECRET|DATABASE_URL|DWOLLA_CLIENT_SECRET|DIDIT_API_KEY|BEGIN (RSA |EC )?PRIVATE KEY|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/, 'Potential browser secret');
+assert.doesNotMatch(sources, /CHECKOUT_COM_SECRET_KEY|CHECKOUT_COM_PUBLIC_KEY|RELOADLY_CLIENT_SECRET|JWT_ACCESS_SECRET|DATABASE_URL|DWOLLA_CLIENT_SECRET|DIDIT_API_KEY|BEGIN (RSA |EC )?PRIVATE KEY|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/, 'Potential browser secret');
 assert.doesNotMatch(sources, /\+509|countryCode:\s*['"]HT['"]/, 'No hardcoded destination');
 for (const file of ['login/index.html', 'recharge/index.html', 'recharge/reset-password/index.html']) {
   const html = readFileSync(file, 'utf8');
@@ -25,4 +25,5 @@ for (const file of ['login/index.html', 'recharge/index.html', 'recharge/reset-p
   assert.doesNotMatch(html, /COMING SOON|No recharge purchases are accepted/);
 }
 assert.match(readFileSync('public-config.js', 'utf8'), /mobileRechargeLive: false/);
+assert.match(readFileSync('public-config.js', 'utf8'), /sendMoneyLive: false/);
 console.log('Browser security and test-mode checks passed.');

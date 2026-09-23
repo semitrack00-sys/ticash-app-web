@@ -1,4 +1,9 @@
 export default Object.freeze({
+  "mobileNumberPlaceholder": "Enter mobile number",
+  "quoteEmptyInstruction": "Choose a destination, number, operator, and product to see the exact total.",
+  "historyEmptyTitle": "No test recharges yet.",
+  "historyEmptyInstruction": "Your receipts will appear here once you complete a test recharge.",
+
   "language": "Language",
   "notSupplied": "Not supplied",
   "show": "Show",

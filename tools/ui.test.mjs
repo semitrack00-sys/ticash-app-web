@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
+import { readFileSync } from 'node:fs';
 import { mountRecharge } from '../js/recharge-page.js';
 import { t, translations, languageLocale } from '../js/i18n.js';
 import { ApiError } from '../js/api-client.js';
@@ -223,6 +224,7 @@ test('fallback provider names remain literal text and ISO values cannot become H
     input('#country','JM','change');await tick();assert.ok(query('#phone-hint').textContent.includes(attack));
     assert.equal(root.querySelector('[onerror]'), null);
     for (const img of root.querySelectorAll('img')) {
+      if (img.closest('.recharge-topbar .brand')) { assert.equal(img.getAttribute('src'), '/ticash-logo.png'); continue; }
       assert.equal(img.classList.contains('country-picker-flag'), true);
       assert.match(img.getAttribute('src') || '', /^\/flags\/[a-z]{2}\.svg$/);
     }
@@ -354,4 +356,66 @@ test('country search lives inside the picker and preserves search focus, SVG fla
   query('#country-picker-button').click();await tick();
   query('#country-search').dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
   assert.equal(query('#country-picker-menu').hidden,true);assert.equal(dom.window.document.activeElement,query('#country-picker-button'));
+}));
+
+
+test('checkout keeps three sibling stacked cards, required controls and safe empty states', async () => page(async ({ login, root, query }) => {
+  await login();
+  assert.deepEqual([...query('#selection-fields').children].map(card => card.dataset.checkoutStep), ['1', '2', '3']);
+  assert.equal(root.querySelector('.checkout-grid'), null);
+  const css = readFileSync(new URL('../recharge/checkout.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(css, /\.checkout-grid|\.review-panel\s*\{[^}]*position:\s*sticky/);
+  for (const id of ['country', 'country-picker-button', 'country-picker-menu', 'country-search', 'phone', 'operator', 'product', 'get-quote', 'quote-details', 'reviewed', 'confirm-recharge', 'history-list', 'refresh-history']) {
+    assert.equal(root.querySelectorAll(`#${id}`).length, 1, id);
+  }
+  assert.equal(query('#confirm-recharge').disabled, true);
+  assert.match(query('.review-empty').textContent, /to see the exact total/);
+  assert.match(query('.history-empty').textContent, /once you complete a test recharge/);
+  assert.ok(query('#country-picker-menu').contains(query('#country-search')));
+}));
+
+test('recharge navigation restores focus and shared language header after signout', async () => page(async ({ login, query, dom }) => {
+  const header = query('header');
+  assert.equal(header.hidden, false);
+  await login();
+  assert.equal(header.hidden, true);
+  assert.ok(query('#recharge-navigation').contains(query('#header-language')));
+  query('#recharge-menu-toggle').click();
+  assert.equal(query('#recharge-navigation').hidden, false);
+  assert.equal(query('#recharge-menu-toggle').getAttribute('aria-expanded'), 'true');
+  query('#header-language').dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(query('#recharge-navigation').hidden, true);
+  assert.equal(dom.window.document.activeElement, query('#recharge-menu-toggle'));
+  query('.account-bar summary').click(); assert.equal(query('.account-bar').open, true);
+  query('#sign-out').click(); await tick();
+  assert.equal(header.hidden, false);
+  assert.ok(header.contains(query('#header-language')));
+  assert.equal(dom.window.document.querySelectorAll('#header-language').length, 1);
+  assert.equal(query('#forgot-password').hidden, false);
+}));
+
+test('stacked selection fieldsets stay locked during unresolved confirmation while retry remains available', async () => page(async ({ login, app, query }) => {
+  await login(); await app.model.selectCountry('JM'); app.model.setPhone(quote.recipientPhone);
+  await app.model.selectOperator(77); app.model.selectProduct(products[0].id); await app.model.getQuote();
+  app.model.state.attempt = { body: { quoteId: quote.id }, key: 'test-idempotency-key' }; app.model.emit();
+  for (const id of ['country-picker-button', 'country-search', 'phone', 'operator', 'product', 'get-quote', 'saved-recipient']) {
+    assert.equal(query(`#${id}`).matches(':disabled'), true, id);
+  }
+  assert.equal(query('#confirm-recharge').matches(':disabled'), false);
+  assert.equal(query('#confirm-recharge').textContent, 'Retry same confirmation');
+  assert.equal(query('#recovery-note').hidden, false);
+  app.model.state.submitting = true; app.model.emit();
+  assert.equal(query('#confirm-recharge').disabled, true);
+}));
+
+test('new visual empty states and phone placeholder translate in all five languages', async () => page(async ({ login, query, input }) => {
+  await login();
+  for (const language of ['en', 'ht', 'fr', 'es', 'pt']) {
+    input('#header-language', language, 'change');
+    assert.equal(query('#phone').placeholder, translations[language].mobileNumberPlaceholder);
+    assert.equal(query('.review-empty p').textContent, translations[language].quoteEmptyInstruction);
+    assert.equal(query('.history-empty strong').textContent, translations[language].historyEmptyTitle);
+    assert.equal(query('.history-empty p').textContent, translations[language].historyEmptyInstruction);
+    assert.ok(query('#refresh-history svg'));
+  }
 }));

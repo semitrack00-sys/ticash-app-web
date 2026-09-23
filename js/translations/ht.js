@@ -1,4 +1,9 @@
 export default Object.freeze({
+  "mobileNumberPlaceholder": "Antre nimewo mobil la",
+  "quoteEmptyInstruction": "Chwazi yon destinasyon, nimewo, operatè ak pwodwi pou wè montan total egzak la.",
+  "historyEmptyTitle": "Pa gen rechaj tès ankò.",
+  "historyEmptyInstruction": "Resi ou yo ap parèt isit la lè ou fin fè yon rechaj tès.",
+
   "language": "Lang",
   "notSupplied": "Pa disponib",
   "show": "Montre",
