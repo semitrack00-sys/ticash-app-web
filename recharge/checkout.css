@@ -56,7 +56,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 /* Local SVG country picker */
 .country-picker{position:relative}
 .country-native-select{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
-.country-picker-button{width:100%;min-height:48px;display:grid;grid-template-columns:28px minmax(0,1fr) auto 14px;align-items:center;gap:10px;padding:12px 14px;border:1px solid #ccd5dc;border-radius:10px;background:#fff;color:var(--ink);font:inherit;font-size:14px;text-align:left;cursor:pointer}
+.country-picker-button{width:100%;min-height:48px;display:grid;grid-template-columns:28px minmax(0,1fr) 14px;align-items:center;gap:10px;padding:12px 14px;border:1px solid #ccd5dc;border-radius:10px;background:#fff;color:var(--ink);font:inherit;font-size:14px;text-align:left;cursor:pointer}
+.country-picker-button .country-picker-code{display:none}
 .country-picker-button:after{content:"▾";font-size:14px;color:#657386;margin-left:2px}
 .country-picker-button[aria-expanded=true]:after{content:"▴"}
 .country-picker-button:disabled{background:#f2f4f5;color:#6b7680;cursor:not-allowed}
@@ -143,6 +144,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .checkout-step:not([open]) .step-heading{margin-bottom:0}.checkout-step:not([open]) .collapse-icon{transform:none}
 .recharge-active .field{margin-bottom:18px;gap:9px}.recharge-active .field label{font-size:12px}
 .recharge-active .field small{font-size:11px;color:#718094;line-height:1.5}
+.recharge-active #phone-hint,.recharge-active .catalog-note{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 .icon-input{position:relative}.icon-input>.recharge-icon{position:absolute;left:13px;top:14px;width:19px;height:19px;color:#8898a9;pointer-events:none}.icon-input input,.icon-input select{padding-left:40px}
 .recharge-active input,.recharge-active select,.recharge-active .country-picker-button{border-color:#d6dfe7;border-radius:10px;min-height:48px;font-size:13px}
 .recharge-active .country-picker-button{gap:9px}.recharge-active .country-picker-name{white-space:normal}.recharge-active .country-picker-code{font-size:13px}

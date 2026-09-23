@@ -203,7 +203,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const amount = el('input', { id: 'amount', type: 'number', inputmode: 'decimal', step: '0.01', 'aria-describedby': 'amount-hint' });
   const amountHint = el('small', { id: 'amount-hint' });
   const amountField = el('div', { className: 'field', hidden: '' }, el('label', { for: 'amount' }, ui('Recharge amount')), amount, amountHint);
-  const catalogNote = el('p', { className: 'small muted', role: 'status' });
+  const catalogNote = el('p', { className: 'small muted catalog-note', role: 'status' });
   const detectButton = button('Find my operator', action(() => model.detect()), true); detectButton.id = 'detect-operator';
   const operatorsRetry = button('Reload operators', action(() => model.loadOperators()), true);
   const quoteButton = button('Get quote →', action(() => model.getQuote())); quoteButton.id = 'get-quote';
@@ -225,7 +225,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     controlField('Mobile number', phone, 'phone', 'Include the international country code. Check the number carefully before confirming.'), recipientsPanel);
   const operatorControls = el('fieldset', {}, el('legend', {}, ui('Operator & Product')),
     el('div', { className: 'operator-actions' }, detectButton, operatorsRetry),
-    controlField('Mobile operator', operator, 'antenna', 'If detection is unavailable, select the operator manually.'),
+    controlField('Mobile operator', operator, 'antenna'),
     controlField('Recharge product', product, 'gift'), amountField, catalogNote, quoteButton);
   const destinationPanel = el('details', { className: 'panel checkout-step', open: '', 'data-checkout-step': '1' },
     cardHeading('globe', '1. DESTINATION', 'Who are you recharging?'), destinationControls);
@@ -359,7 +359,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     if (selectedCountry) {
       countryPickerButton.replaceChildren(
         countryFlagImage(selectedCountry),
-        el('span', { className: 'country-picker-name' }, localizeCountry(selectedCountry)),
+        el('span', { className: 'country-picker-name' }, `${localizeCountry(selectedCountry)} (${selectedCountry.callingCode})`),
         el('span', { className: 'country-picker-code' }, selectedCountry.callingCode),
       );
     } else {

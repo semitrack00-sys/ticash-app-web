@@ -262,6 +262,7 @@ test('visible country picker uses local SVG flags instead of platform emoji glyp
   await tick();
   assert.equal(query('#country').value, 'HT');
   assert.equal(query('#country-picker-button img').getAttribute('src'), '/flags/ht.svg');
+  assert.match(query('#country-picker-button').textContent, /Haiti \(\+509\)/);
   assert.doesNotMatch(query('#country-picker-button').textContent, /\p{Regional_Indicator}/u);
 }));
 
@@ -370,6 +371,8 @@ test('checkout keeps three sibling stacked cards, required controls and safe emp
   assert.match(css, /\.recharge-active \.checkout-progress li\{[^}]*flex-direction:row/);
   assert.match(css, /\.review-empty\{[^}]*grid-template-columns:46px/);
   assert.match(css, /\.history-empty\{[^}]*grid-template-columns:44px/);
+  assert.match(css, /\.country-picker-button \.country-picker-code\{display:none\}/);
+  assert.match(css, /#phone-hint,\.recharge-active \.catalog-note\{position:absolute!important/);
   for (const id of ['country', 'country-picker-button', 'country-picker-menu', 'country-search', 'phone', 'operator', 'product', 'get-quote', 'quote-details', 'reviewed', 'confirm-recharge', 'history-list', 'refresh-history']) {
     assert.equal(root.querySelectorAll(`#${id}`).length, 1, id);
   }
