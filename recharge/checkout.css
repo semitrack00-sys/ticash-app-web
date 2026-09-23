@@ -106,7 +106,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .recharge-active .checkout-hero>p{font-size:14px;color:#d4dfeb;line-height:1.5}
 .recharge-topbar,.recharge-brand-group{display:flex;align-items:center;gap:12px}
 .recharge-topbar{justify-content:space-between;gap:8px}
-.recharge-topbar .brand{font-size:23px;gap:8px;color:white}.recharge-topbar .brand img{width:30px;height:30px;border-radius:8px;box-shadow:none}
+.recharge-topbar .brand{font-size:23px;gap:0;color:white;font-family:Manrope,sans-serif;font-weight:800;letter-spacing:-.05em;text-decoration:none}
+.recharge-wordmark{display:inline-flex;align-items:center}.wordmark-ti{color:var(--gold)}.wordmark-cash{color:#fff}
 .menu-toggle{display:grid;place-items:center;min-width:44px;min-height:44px;border:0;border-radius:9px;background:transparent;color:white;cursor:pointer;padding:0}
 .recharge-navigation{display:flex;flex-direction:column;gap:4px;padding:12px;margin:14px 0;background:#112d4a;border:1px solid #ffffff20;border-radius:12px}
 .recharge-navigation a{display:flex;align-items:center;min-height:44px;text-decoration:none;padding:0 8px;font-size:14px;color:white}
@@ -114,19 +115,21 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .recharge-active .account-bar{position:relative;margin:0;color:white;font-size:12px}
 .account-summary{display:flex;align-items:center;gap:9px;min-height:44px;cursor:pointer;list-style:none}
 .account-summary::-webkit-details-marker{display:none}.account-summary>span{display:grid;gap:3px;font-weight:700}.account-summary small{font-size:10px;color:#c6d5e5;font-weight:400}
-.account-summary>.recharge-icon:first-child{width:18px}.account-summary>.recharge-icon:last-child{width:14px}
+.account-summary>.recharge-icon:first-child{width:34px;height:34px;padding:7px;border:1px solid #ffffff2e;border-radius:50%;box-sizing:border-box}.account-summary>.recharge-icon:last-child{width:14px}
 .account-dropdown{position:absolute;right:0;top:calc(100% + 8px);z-index:70;min-width:150px;padding:8px;background:white;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px #07182f26}
 .account-dropdown .button{width:100%}
 .recharge-active .test-banner{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:10px;background:#edf4fa;border:1px solid #dbe6f1;border-radius:15px;padding:15px;color:var(--navy);text-align:left}
 .test-icon{display:grid;place-items:center;background:#dfeaf6;border-radius:50%;width:36px;height:36px;color:#4c739c}
 .test-copy{display:grid;gap:5px}.test-copy strong{letter-spacing:0;font-size:13px}.test-copy>span{font-size:11px;color:#576a80;line-height:1.4}
 .recharge-active #guest-create-account{font-size:11px;padding:8px 10px;min-height:44px;background:transparent;border-color:#b9cadc;white-space:normal}
-.recharge-active .checkout-progress{display:flex;justify-content:space-between;gap:0;margin:24px 0}
-.recharge-active .checkout-progress li{display:flex;flex-direction:column;align-items:center;position:relative;flex:1;gap:8px;padding:0;border:0;text-align:center;font-size:11px;color:#586a7e}
-.recharge-active .checkout-progress li:not(:last-child):after{content:'';position:absolute;left:calc(50% + 22px);right:calc(-50% + 22px);height:1px;background:#cbd5de;top:16px}
+.recharge-active .checkout-progress{display:flex;align-items:center;justify-content:space-between;gap:0;margin:24px 0}
+.recharge-active .checkout-progress li{display:flex;flex-direction:row;align-items:center;position:relative;flex:1 1 0;gap:8px;padding:0;border:0;text-align:left;font-size:11px;color:#586a7e;min-width:0}
+.recharge-active .checkout-progress li:not(:last-child):after{content:'';position:static;flex:1 1 18px;min-width:12px;height:1px;background:#cbd5de}
+.recharge-active .checkout-progress li>span:last-child{line-height:1.15}
 .recharge-active .progress-number{width:32px;height:32px;background:#e3e8ed;color:#58697c;font-size:13px;border:1px solid #d6dfe6}
 .recharge-active .checkout-progress [aria-current=step] .progress-number{background:var(--gold);border-color:var(--gold);color:var(--navy)}
 .recharge-active .checkout-progress [aria-current=step]{color:var(--navy)}
+.recharge-active .checkout-progress [aria-current=step]:not(:last-child):after,.recharge-active .checkout-progress [data-complete=true]:not(:last-child):after{background:var(--gold)}
 .recharge-active .checkout-progress [data-complete=true] .progress-number{background:#e6edf4;border-color:#bccddd;color:var(--navy)}
 .checkout-stack{display:flex;flex-direction:column;gap:16px}
 .recharge-active .checkout-step,.recharge-active .history-panel{padding:20px;border:1px solid #e1e6ec;border-radius:20px;box-shadow:0 4px 18px #07182f05;margin:0}
@@ -150,18 +153,18 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .operator-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}.operator-actions .button{gap:7px;padding:10px 6px;font-size:11px;background:#f8fafc}.operator-actions .recharge-icon{width:17px;height:17px}
 .recharge-active #get-quote,.recharge-active #confirm-recharge{min-height:48px;border-radius:11px;font-size:13px}
 .recharge-active #confirm-recharge:disabled{opacity:1;background:#e3e7ec;color:#6c798b;border-color:#dce2e8;cursor:not-allowed}
-.recharge-active .review-empty{margin:0 0 18px;padding:24px 18px;background:#fcfaf5;border:1px dashed #e2d7bc;border-radius:14px;text-align:center}
-.review-empty>.recharge-icon{color:#b89336;margin:0 auto 12px;width:28px;height:28px}.review-empty strong{display:block;font-size:14px}.review-empty p{margin:10px auto 0;max-width:330px;font-size:12px;line-height:1.6}
+.recharge-active .review-empty{display:grid;grid-template-columns:46px minmax(0,1fr);column-gap:14px;row-gap:4px;align-items:center;margin:0 0 18px;padding:20px 18px;background:#fcfaf5;border:1px dashed #e2d7bc;border-radius:14px;text-align:left}
+.review-empty>.recharge-icon{grid-row:1/3;width:46px;height:46px;padding:10px;border-radius:50%;box-sizing:border-box;background:#fbf3de;color:#b89336;margin:0}.review-empty strong{display:block;align-self:end;font-size:14px}.review-empty p{align-self:start;margin:0;max-width:330px;font-size:12px;line-height:1.5}
 .review-helper{display:flex;align-items:flex-start;gap:8px;margin:14px 0 0;font-size:10px;line-height:1.6}.review-helper>.recharge-icon{width:15px;height:15px;margin-top:1px}
 #quote-expiry:empty{display:none}.recharge-active .review-check{margin:14px 0}
 .recharge-active .history-panel{margin-top:16px}.history-heading{display:flex;align-items:center;gap:12px;min-width:0}
 .recharge-active .history-heading h2{font-size:18px}.recharge-active .section-heading{gap:8px;margin-bottom:16px;align-items:center}
 .recharge-active #refresh-history{display:flex;gap:6px;padding:8px 10px;font-size:11px;min-height:44px;flex:none}.recharge-active #refresh-history .recharge-icon{width:15px;height:15px}
-.history-empty{padding:24px 18px;text-align:center;border:1px solid #e7edf3;border-radius:12px;background:#f3f6f9}.history-empty>.recharge-icon{margin:0 auto 12px;width:28px;height:28px;color:#8198af}.history-empty strong{font-size:14px}.history-empty p{max-width:340px;margin:8px auto 0;font-size:12px;line-height:1.6}
+.history-empty{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:13px;row-gap:4px;align-items:center;padding:16px 18px;text-align:left;border:1px solid #e7edf3;border-radius:12px;background:#f3f6f9}.history-empty>.recharge-icon{grid-row:1/3;width:44px;height:44px;padding:9px;border-radius:50%;box-sizing:border-box;background:#e8eef5;margin:0;color:#8198af}.history-empty strong{align-self:end;font-size:14px}.history-empty p{align-self:start;max-width:340px;margin:0;font-size:12px;line-height:1.5}
 @media(max-width:600px){
   .checkout-main.recharge-active{padding:0 14px}.recharge-active .checkout-hero{margin:0 -14px 18px;padding:14px 16px 24px;border-radius:0}
   .recharge-active .checkout-hero h1{font-size:28px;margin-top:23px}.recharge-active .checkout-hero>p{font-size:13px}
-  .recharge-topbar .brand{font-size:21px}.recharge-topbar .brand img{width:26px;height:26px}.recharge-brand-group{gap:5px}.menu-toggle{min-width:44px}
+  .recharge-topbar .brand{font-size:21px}.recharge-brand-group{gap:5px}.menu-toggle{min-width:44px}
   .recharge-active .test-banner{padding:12px;gap:8px;grid-template-columns:30px minmax(0,1fr) auto}.test-icon{width:30px;height:30px}.test-icon>.recharge-icon{width:18px;height:18px}.test-copy strong{font-size:12px}.test-copy>span{font-size:10px}
   .recharge-active #guest-create-account{max-width:84px;padding:7px 8px;font-size:10px}.recharge-active .checkout-progress{margin:21px 0}.recharge-active .checkout-progress li{font-size:10px;gap:8px}
   .recharge-active .checkout-step,.recharge-active .history-panel{padding:18px 16px}.step-heading{gap:10px;margin-bottom:20px}.card-icon{width:36px;height:36px}.card-icon>.recharge-icon{width:20px;height:20px}

@@ -223,8 +223,10 @@ test('fallback provider names remain literal text and ISO values cannot become H
     assert.equal(query('#country').options[1].textContent,`🇯🇲 ${attack} (+1)`);assert.equal(query('#country').options[1].value,'JM');
     input('#country','JM','change');await tick();assert.ok(query('#phone-hint').textContent.includes(attack));
     assert.equal(root.querySelector('[onerror]'), null);
+    assert.equal(root.querySelector('.recharge-topbar .brand img'), null);
+    assert.equal(query('.wordmark-ti').textContent, 'Ti');
+    assert.equal(query('.wordmark-cash').textContent, 'Cash');
     for (const img of root.querySelectorAll('img')) {
-      if (img.closest('.recharge-topbar .brand')) { assert.equal(img.getAttribute('src'), '/ticash-logo.png'); continue; }
       assert.equal(img.classList.contains('country-picker-flag'), true);
       assert.match(img.getAttribute('src') || '', /^\/flags\/[a-z]{2}\.svg$/);
     }
@@ -365,6 +367,9 @@ test('checkout keeps three sibling stacked cards, required controls and safe emp
   assert.equal(root.querySelector('.checkout-grid'), null);
   const css = readFileSync(new URL('../recharge/checkout.css', import.meta.url), 'utf8');
   assert.doesNotMatch(css, /\.checkout-grid|\.review-panel\s*\{[^}]*position:\s*sticky/);
+  assert.match(css, /\.recharge-active \.checkout-progress li\{[^}]*flex-direction:row/);
+  assert.match(css, /\.review-empty\{[^}]*grid-template-columns:46px/);
+  assert.match(css, /\.history-empty\{[^}]*grid-template-columns:44px/);
   for (const id of ['country', 'country-picker-button', 'country-picker-menu', 'country-search', 'phone', 'operator', 'product', 'get-quote', 'quote-details', 'reviewed', 'confirm-recharge', 'history-list', 'refresh-history']) {
     assert.equal(root.querySelectorAll(`#${id}`).length, 1, id);
   }
