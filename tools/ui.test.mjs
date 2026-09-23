@@ -273,6 +273,24 @@ test('signed-out account screen is compact with one language selector and segmen
   query('#choose-register').click();assert.equal(query('#choose-register').getAttribute('aria-pressed'),'true');
 }));
 
+test('auth tabs show registration-specific intro in every language and restore sign-in copy', async () => page(async ({ query, input }) => {
+  const registrationIntros = {
+    en: 'Create an account to continue your mobile recharge.',
+    ht: 'Kreye yon kont pou kontinye rechaj mobil ou a.',
+    fr: 'Créez un compte pour continuer votre recharge mobile.',
+    es: 'Crea una cuenta para continuar con tu recarga móvil.',
+    pt: 'Crie uma conta para continuar sua recarga de celular.',
+  };
+  for (const [language, intro] of Object.entries(registrationIntros)) {
+    input('#header-language', language, 'change');
+    assert.equal(query('.auth-intro').textContent, translations[language].authLoginIntro);
+    query('#choose-register').click();
+    assert.equal(query('.auth-intro').textContent, intro);
+    query('#choose-login').click();
+    assert.equal(query('.auth-intro').textContent, translations[language].authLoginIntro);
+  }
+}));
+
 test('forgot password calls the public backend contract and shows only generic confirmation',async()=>{
   const api=fixtureApi();const calls=[];api.forgotPassword=async(email)=>{calls.push(email);return {message:'ignored provider detail'};};
   await page(async({query,input,dom})=>{

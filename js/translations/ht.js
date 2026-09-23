@@ -180,6 +180,7 @@ export default Object.freeze({
   "homeLabel": "Akèy TiCash",
   "authLoginTitle": "Konekte sou TiCash",
   "authLoginIntro": "Konekte pou kontinye rechaj mobil ou a.",
+  "authRegisterIntro": "Kreye yon kont pou kontinye rechaj mobil ou a.",
   "authHelp": "Ou bezwen èd pou konekte?",
   "compactTest": "Pa gen lajan reyèl · Pa gen rechaj reyèl",
   "forgotPassword": "Ou bliye modpas ou?",
