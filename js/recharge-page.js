@@ -272,7 +272,8 @@ export function mountRecharge(root, config, dependencies = {}) {
   };
   const hero = el('section', { className: 'checkout-hero', hidden: '' },
     el('div', { className: 'recharge-topbar' }, el('div', { className: 'recharge-brand-group' }, menuButton,
-      el('a', { className: 'brand', href: '/', 'aria-label': t('homeLabel'), 'data-i18n-aria-label': 'homeLabel' }, el('img', { src: '/ticash-logo.png', alt: '' }), el('span', {}, 'TiCash'))), accountBar),
+      el('a', { className: 'brand recharge-wordmark', href: '/', 'aria-label': t('homeLabel'), 'data-i18n-aria-label': 'homeLabel' },
+        el('span', { className: 'wordmark-ti' }, 'Ti'), el('span', { className: 'wordmark-cash' }, 'Cash'))), accountBar),
     menu, el('h1', {}, ui('Mobile Recharge')), el('p', {}, ui('Stay connected, wherever they are.')));
   hero.addEventListener('keydown', closeMenus);
   const siteHeader = root.ownerDocument.querySelector('header');
