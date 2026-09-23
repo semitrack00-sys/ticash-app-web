@@ -25,6 +25,17 @@ function date(value) {
   return Number.isNaN(parsed.getTime()) ? t('Not supplied') : new Intl.DateTimeFormat(languageLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(parsed);
 }
 function ui(key) { return el('span', { 'data-i18n': key }, t(key)); }
+function flagAssetUrl(code) {
+  return typeof code === 'string' && /^[A-Z]{2}$/.test(code) ? `/flags/${code.toLowerCase()}.svg` : '';
+}
+function countryFlagImage(country, className = 'country-picker-flag') {
+  const image = el('img', {
+    className, src: flagAssetUrl(country?.code), alt: '', 'aria-hidden': 'true',
+    width: '24', height: '18', loading: 'lazy', decoding: 'async',
+  });
+  image.addEventListener('error', () => { image.hidden = true; });
+  return image;
+}
 function field(label, input, hint) {
   return el('div', { className: 'field' }, el('label', { for: input.id }, ui(label)), input,
     hint ? el('small', { id: `${input.id}-hint` }, ui(hint)) : null);
@@ -55,6 +66,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   let receiptSignature;
   let quoteSignature;
   let countrySearch = '';
+  let countryMenuOpen = false;
   let loginErrorMessage = '';
   const button = (label, action, secondary = false) => el('button', { type: 'button', 'data-i18n': label, className: secondary ? 'button secondary' : 'button', onclick: action }, t(label));
   const action = (fn) => async () => {
@@ -123,7 +135,15 @@ export function mountRecharge(root, config, dependencies = {}) {
   const accountBar = el('div', { className: 'account-bar', hidden: '' }, el('div', {}, accountLabel, guestNote),
     el('div', { className: 'compact-actions' }, createFromGuest, logout));
   const countrySearchInput = el('input', { id: 'country-search', type: 'search', placeholder: t('Country, ISO code, or calling code'), 'data-i18n-placeholder': 'Country, ISO code, or calling code', autocomplete: 'off' });
-  const country = el('select', { id: 'country', required: '' });
+  const country = el('select', { id: 'country', required: '', className: 'country-native-select', tabindex: '-1', 'aria-hidden': 'true' });
+  const countryPickerButton = el('button', {
+    id: 'country-picker-button', type: 'button', className: 'country-picker-button',
+    'aria-haspopup': 'listbox', 'aria-expanded': 'false', 'aria-controls': 'country-picker-list',
+  }, t('Choose a country'));
+  const countryPickerList = el('div', {
+    id: 'country-picker-list', className: 'country-picker-list', role: 'listbox', hidden: '',
+  });
+  const countryPicker = el('div', { className: 'country-picker' }, countryPickerButton, countryPickerList, country);
   const phone = el('input', { id: 'phone', type: 'tel', autocomplete: 'tel', maxlength: '40', 'aria-describedby': 'phone-hint', placeholder: t('+ country code and mobile number'), 'data-i18n-placeholder': '+ country code and mobile number' });
   const operator = el('select', { id: 'operator' });
   const product = el('select', { id: 'product' });
@@ -142,7 +162,8 @@ export function mountRecharge(root, config, dependencies = {}) {
   const selectionFields = el('fieldset', { id: 'selection-fields' },
     el('legend', {}, ui('Recharge details')),
     el('section', { className: 'checkout-step' }, el('span', { className: 'step' }, ui('01 / DESTINATION')), el('h2', {}, ui('Who are you recharging?')),
-      recipientsPanel, field('Search countries', countrySearchInput), field('Destination country', country),
+      recipientsPanel, field('Search countries', countrySearchInput),
+      el('div', { className: 'field' }, el('label', { for: 'country-picker-button' }, ui('Destination country')), countryPicker),
       field('International mobile number', phone, 'Include the international country code. Check the number carefully before confirming.')),
     el('section', { className: 'checkout-step' }, el('span', { className: 'step' }, ui('02 / OPERATOR & PRODUCT')), el('h2', {}, ui('Choose their recharge.')),
       el('div', { className: 'compact-actions' }, detectButton, operatorsRetry),
@@ -210,7 +231,47 @@ export function mountRecharge(root, config, dependencies = {}) {
     // Keep a selected country visible even while the search is being refined.
     const selectedCountry = s.countries.find((c) => c.code === s.country);
     if (selectedCountry && !matches.includes(selectedCountry)) matches.unshift(selectedCountry);
+    // Keep the hidden native select synchronized for model/test compatibility,
+    // while the visible picker uses local SVG assets. This avoids Windows/Chrome
+    // rendering Unicode regional indicators as two-letter country codes.
     options(country, matches, s.country, t(matches.length ? 'Choose a country' : 'No matching countries'), (c) => `${countryFlag(c.code)} ${localizeCountry(c)} (${c.callingCode})`.trim(), (c) => c.code);
+    countryPickerButton.disabled = !s.ready || locked;
+    countryPickerButton.setAttribute('aria-expanded', String(countryMenuOpen));
+    if (selectedCountry) {
+      countryPickerButton.replaceChildren(
+        countryFlagImage(selectedCountry),
+        el('span', { className: 'country-picker-name' }, localizeCountry(selectedCountry)),
+        el('span', { className: 'country-picker-code' }, selectedCountry.callingCode),
+      );
+    } else {
+      countryPickerButton.replaceChildren(
+        el('span', { className: 'country-picker-flag country-picker-flag-placeholder', 'aria-hidden': 'true' }),
+        el('span', { className: 'country-picker-name' }, t(matches.length ? 'Choose a country' : 'No matching countries')),
+        el('span', { className: 'country-picker-code' }, ''),
+      );
+    }
+
+    const visualCountryOptions = matches.map((candidate) => {
+      const option = el('button', {
+        type: 'button', className: 'country-picker-option', role: 'option',
+        'aria-selected': String(candidate.code === s.country), 'data-country-code': candidate.code,
+      },
+        countryFlagImage(candidate),
+        el('span', { className: 'country-picker-name' }, localizeCountry(candidate)),
+        el('span', { className: 'country-picker-code' }, `${candidate.code} · ${candidate.callingCode}`),
+      );
+      option.addEventListener('click', action(async () => {
+        countryMenuOpen = false;
+        countrySearch = '';
+        countrySearchInput.value = '';
+        await model.selectCountry(candidate.code);
+        countryPickerButton.focus();
+      }));
+      return option;
+    });
+    countryPickerList.replaceChildren(...visualCountryOptions);
+    countryPickerList.hidden = !countryMenuOpen;
+
     root.querySelector('#phone-hint').textContent = selectedCountry
       ? t('phoneHint', { flag: countryFlag(selectedCountry.code), country: localizeCountry(selectedCountry), code: selectedCountry.callingCode }).trim()
       : t('Choose a country to prepare its international calling code. Check the full number before confirming.');
@@ -319,7 +380,51 @@ export function mountRecharge(root, config, dependencies = {}) {
   }
   loginForm.addEventListener('submit', (event) => { event.preventDefault(); void authenticate('login'); });
   registerForm.addEventListener('submit', (event) => { event.preventDefault(); void authenticate('register'); });
-  countrySearchInput.addEventListener('input', () => { countrySearch = countrySearchInput.value; render(); });
+  countrySearchInput.addEventListener('input', () => {
+    countrySearch = countrySearchInput.value;
+    countryMenuOpen = true;
+    render();
+  });
+  countryPickerButton.addEventListener('click', () => {
+    if (countryPickerButton.disabled) return;
+    countryMenuOpen = !countryMenuOpen;
+    render();
+    if (countryMenuOpen) queueMicrotask(() => {
+      countryPickerList.querySelector('[aria-selected="true"], .country-picker-option')?.focus();
+    });
+  });
+  countryPickerButton.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    countryMenuOpen = true;
+    render();
+    queueMicrotask(() => countryPickerList.querySelector('[aria-selected="true"], .country-picker-option')?.focus());
+  });
+  countryPickerList.addEventListener('keydown', (event) => {
+    const options = [...countryPickerList.querySelectorAll('.country-picker-option')];
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      countryMenuOpen = false;
+      render();
+      countryPickerButton.focus();
+      return;
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || !options.length) return;
+    event.preventDefault();
+    const current = options.indexOf(root.ownerDocument.activeElement);
+    let next = current;
+    if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = options.length - 1;
+    else if (event.key === 'ArrowDown') next = Math.min(options.length - 1, current < 0 ? 0 : current + 1);
+    else next = Math.max(0, current < 0 ? options.length - 1 : current - 1);
+    options[next]?.focus();
+  });
+  const closeCountryPicker = (event) => {
+    if (!countryMenuOpen || countryPicker.contains(event.target)) return;
+    countryMenuOpen = false;
+    render();
+  };
+  root.ownerDocument.addEventListener('click', closeCountryPicker);
   country.addEventListener('change', action(() => model.selectCountry(country.value)));
   phone.addEventListener('input', action(() => model.setPhone(phone.value)));
   operator.addEventListener('change', action(() => model.selectOperator(operator.value)));
@@ -332,7 +437,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const timer = setInterval(() => { if (signedIn && model.state.quote) render(); }, 1000);
   const removeLanguageListener = onLanguageChange(render);
   render();
-  return { model, dispose() { disposed = true; removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
+  return { model, dispose() { disposed = true; removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
 }
 
 const root = typeof document === 'undefined' ? null : document.querySelector('[data-recharge-root]');

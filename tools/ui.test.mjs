@@ -217,7 +217,11 @@ test('fallback provider names remain literal text and ISO values cannot become H
     await login();input('#recharge-language','es','change');
     assert.equal(query('#country').options[1].textContent,`🇯🇲 ${attack} (+1)`);assert.equal(query('#country').options[1].value,'JM');
     input('#country','JM','change');await tick();assert.ok(query('#phone-hint').textContent.includes(attack));
-    assert.equal(root.querySelector('img,[onerror]'),null);
+    assert.equal(root.querySelector('[onerror]'), null);
+    for (const img of root.querySelectorAll('img')) {
+      assert.equal(img.classList.contains('country-picker-flag'), true);
+      assert.match(img.getAttribute('src') || '', /^\/flags\/[a-z]{2}\.svg$/);
+    }
   },{api}); } finally {Intl.DisplayNames=original;}
 });
 
@@ -234,4 +238,21 @@ test('receipt and history localize labels and dates while keeping provider value
     assert.ok(text.includes(date));assert.ok(query('#history-list').textContent.includes(date));
     assert.ok(query('#history-list').textContent.includes(t('repeat')));
   }
+}));
+
+
+test('visible country picker uses local SVG flags instead of platform emoji glyphs', async () => page(async ({ login, query, input }) => {
+  await login();
+  input('#country-search', 'Haiti');
+  query('#country-picker-button').click();
+  const haiti = query('[data-country-code="HT"]');
+  assert.ok(haiti);
+  assert.equal(haiti.querySelector('img').getAttribute('src'), '/flags/ht.svg');
+  assert.equal(haiti.querySelector('.country-picker-name').textContent, 'Haiti');
+  assert.match(haiti.querySelector('.country-picker-code').textContent, /HT.*\+509/);
+  haiti.click();
+  await tick();
+  assert.equal(query('#country').value, 'HT');
+  assert.equal(query('#country-picker-button img').getAttribute('src'), '/flags/ht.svg');
+  assert.doesNotMatch(query('#country-picker-button').textContent, /\p{Regional_Indicator}/u);
 }));
