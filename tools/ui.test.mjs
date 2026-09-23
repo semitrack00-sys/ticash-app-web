@@ -128,12 +128,12 @@ test('quote displays a backend 3.50 fee and 8.50 total without deriving charges'
   }, { api });
 });
 
-test('all language selectors synchronize translated UI, ISO labels, search, hints and keyboard focus', async () => page(async ({ login, query, input, dom, api }) => {
+test('shared header language selector synchronizes translated UI, ISO labels, search, hints and keyboard focus', async () => page(async ({ login, query, input, dom, api }) => {
   await login(); input('#country','HT','change'); await tick(); input('#country-search','Ayiti');
   const calls = structuredClone(api.calls); const url = dom.window.location.href;
   const names = { en:'Haiti',ht:'Ayiti',fr:'Haïti',es:'Haití',pt:'Haiti' };
   for (const code of ['ht','fr','es','pt','en']) {
-    const picker = query('#recharge-language'); picker.focus(); input('#recharge-language',code,'change');
+    const picker = dom.window.document.querySelector('#header-language'); picker.focus(); input('#header-language',code,'change');
     assert.equal(dom.window.document.activeElement,picker);
     assert.equal(dom.window.document.documentElement.lang,code);
     assert.equal(dom.window.document.querySelector('#header-language').value,code);
@@ -149,8 +149,12 @@ test('all language selectors synchronize translated UI, ISO labels, search, hint
     assert.equal(dom.window.sessionStorage.length,0);
   }
   const headerPicker=dom.window.document.querySelector('#header-language'); headerPicker.value='fr'; headerPicker.dispatchEvent(new dom.window.Event('change'));
-  assert.equal(query('#recharge-language').value,'fr');
-  for (const picker of dom.window.document.querySelectorAll('[data-language-selector]')) {
+  assert.equal(dom.window.document.querySelector('#header-language').value,'fr');
+  const languagePickers = [...dom.window.document.querySelectorAll('[data-language-selector]')];
+  assert.equal(languagePickers.length,1);
+  assert.equal(languagePickers[0].id,'header-language');
+  assert.equal(languagePickers[0].hidden,false);
+  for (const picker of languagePickers) {
     assert.equal(picker.options.length,5); assert.ok(picker.labels.length); assert.equal(picker.tabIndex,0);
     assert.doesNotMatch(picker.textContent,/\p{Regional_Indicator}/u);
   }
@@ -166,7 +170,7 @@ for (const session of ['account','guest']) test(`${session} language switches pr
     app.model.selectProduct(products[0].id); await app.model.getQuote(); app.model.review(true);
     const state=structuredClone(app.model.state); const quoteObject=app.model.state.quote; const calls=structuredClone(api.calls);
     for(const code of ['ht','fr','es','pt','en']) {
-      input('#recharge-language',code,'change');
+      input('#header-language',code,'change');
       assert.deepEqual(app.model.state,state); assert.equal(app.model.state.quote,quoteObject); assert.deepEqual(api.calls,calls); assert.equal(authCalls,1);
       assert.equal(query('#checkout').hidden,false); assert.equal(query('#guest-note').hidden,session!=='guest');
       assert.equal(query('#country').value,'JM'); assert.equal(query('#phone').value,quote.recipientPhone);
@@ -183,7 +187,7 @@ for (const session of ['account','guest']) test(`${session} language switches pr
 test('language change preserves registration fields, password visibility, validation and auth errors', async () => page(async ({query,input,dom,app,api})=>{
   query('#choose-register').click();
   input('#first-name','Élodie');input('#last-name','Jean');input('#register-email','test@example.com');input('#register-password','secret-password');
-  query('#register-password-visibility').click(); input('#recharge-language','fr','change');
+  query('#register-password-visibility').click(); input('#header-language','fr','change');
   assert.equal(query('#first-name').value,'Élodie');assert.equal(query('#last-name').value,'Jean');assert.equal(query('#register-email').value,'test@example.com');
   assert.equal(query('#register-password').value,'secret-password');assert.equal(query('#register-password').type,'text');
   assert.equal(query('#register-password-visibility').getAttribute('aria-label'),t('hideAccountPassword'));assert.equal(query('#register-form').hidden,false);
@@ -191,7 +195,7 @@ test('language change preserves registration fields, password visibility, valida
   query('#register-form').dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));await tick();
   assert.equal(query('.login-panel [role=alert]').textContent,t('networkError'));
   app.model.state.error=translations.en.fullPhone;app.model.emit();
-  input('#recharge-language','ht','change');assert.equal(query('#recharge-error').textContent,t('fullPhone'));
+  input('#header-language','ht','change');assert.equal(query('#recharge-error').textContent,t('fullPhone'));
   assert.equal(query('.login-panel [role=alert]').textContent,t('networkError'));
   assert.equal(dom.window.localStorage.length,1);
 }));
@@ -202,7 +206,7 @@ test('switching during unresolved confirmation preserves attempt and exact idemp
     await login();await app.model.selectCountry('JM');app.model.setPhone(quote.recipientPhone);await app.model.selectOperator(77);app.model.selectProduct(products[0].id);
     await app.model.getQuote();app.model.review(true);await app.model.confirm();
     assert.ok(app.model.state.attempt);const state=structuredClone(app.model.state);const calls=structuredClone(api.calls);
-    input('#recharge-language','pt','change');assert.deepEqual(app.model.state,state);assert.deepEqual(api.calls,calls);
+    input('#header-language','pt','change');assert.deepEqual(app.model.state,state);assert.deepEqual(api.calls,calls);
     assert.equal(query('#recovery-note').hidden,false);assert.equal(query('#confirm-recharge').textContent,t('retryConfirmation'));
     await app.model.confirm();const submissions=api.calls.filter(c=>c.path==='/mobile-topups/transactions'&&c.method==='POST');
     assert.equal(submissions.length,2);assert.deepEqual(submissions[0],submissions[1]);
@@ -214,10 +218,14 @@ test('fallback provider names remain literal text and ISO values cannot become H
   api.overrides.set('GET /mobile-topups/countries',()=>({countries:[{code:'JM',name:attack,callingCode:'+1'}]}));
   const original=Intl.DisplayNames;Intl.DisplayNames=undefined;
   try { await page(async ({login,query,input,root})=>{
-    await login();input('#recharge-language','es','change');
+    await login();input('#header-language','es','change');
     assert.equal(query('#country').options[1].textContent,`🇯🇲 ${attack} (+1)`);assert.equal(query('#country').options[1].value,'JM');
     input('#country','JM','change');await tick();assert.ok(query('#phone-hint').textContent.includes(attack));
-    assert.equal(root.querySelector('img,[onerror]'),null);
+    assert.equal(root.querySelector('[onerror]'), null);
+    for (const img of root.querySelectorAll('img')) {
+      assert.equal(img.classList.contains('country-picker-flag'), true);
+      assert.match(img.getAttribute('src') || '', /^\/flags\/[a-z]{2}\.svg$/);
+    }
   },{api}); } finally {Intl.DisplayNames=original;}
 });
 
@@ -226,7 +234,7 @@ test('receipt and history localize labels and dates while keeping provider value
   await app.model.getQuote();app.model.review(true);await app.model.confirm();
   const state=structuredClone(app.model.state);
   for (const code of ['ht','fr','es','pt','en']) {
-    input('#recharge-language',code,'change');assert.deepEqual(app.model.state,state);
+    input('#header-language',code,'change');assert.deepEqual(app.model.state,state);
     const text=query('#receipt').textContent;
     assert.ok(text.includes(t('testReceipt')));assert.ok(text.includes(t('reference')));assert.ok(text.includes(t('receiptHeading',{status:t('processing')})));
     for (const raw of [transaction.id,transaction.recipientPhone,transaction.operatorName,transaction.productName,'PROCESSING','AUTHORIZED','🇯🇲 JM']) assert.ok(text.includes(raw),raw);
@@ -234,4 +242,21 @@ test('receipt and history localize labels and dates while keeping provider value
     assert.ok(text.includes(date));assert.ok(query('#history-list').textContent.includes(date));
     assert.ok(query('#history-list').textContent.includes(t('repeat')));
   }
+}));
+
+
+test('visible country picker uses local SVG flags instead of platform emoji glyphs', async () => page(async ({ login, query, input }) => {
+  await login();
+  input('#country-search', 'Haiti');
+  query('#country-picker-button').click();
+  const haiti = query('[data-country-code="HT"]');
+  assert.ok(haiti);
+  assert.equal(haiti.querySelector('img').getAttribute('src'), '/flags/ht.svg');
+  assert.equal(haiti.querySelector('.country-picker-name').textContent, 'Haiti');
+  assert.match(haiti.querySelector('.country-picker-code').textContent, /HT.*\+509/);
+  haiti.click();
+  await tick();
+  assert.equal(query('#country').value, 'HT');
+  assert.equal(query('#country-picker-button img').getAttribute('src'), '/flags/ht.svg');
+  assert.doesNotMatch(query('#country-picker-button').textContent, /\p{Regional_Indicator}/u);
 }));
