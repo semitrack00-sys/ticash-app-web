@@ -1,0 +1,6 @@
+.language-picker{display:flex;align-items:center;gap:8px;flex-shrink:0;font:600 12px/1.3 sans-serif;color:inherit}
+header:not(.site-header):not(.nav) .language-picker{color:#fff}
+.language-picker select{width:auto;max-width:180px;min-height:42px;border:1px solid #ccd5dc;border-radius:9px;background:#fff;color:#07182f;padding:8px;font:inherit}
+.language-picker select:focus-visible{outline:3px solid #d9b34a;outline-offset:3px}
+.language-toolbar{display:flex;justify-content:flex-end;margin:18px 0 0}
+@media(max-width:760px){header:has(.language-picker){height:auto;min-height:70px;flex-wrap:wrap;gap:12px;padding-top:14px;padding-bottom:14px}.language-picker{gap:6px}.language-picker select{max-width:150px}}

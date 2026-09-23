@@ -1,4 +1,5 @@
 import { ApiError } from './api-client.js';
+import { getLanguage, localizeCountry, supportedLanguages } from './i18n.js';
 
 const root = '/mobile-topups';
 const invalid = (message) => new ApiError('INVALID_RESPONSE', message);
@@ -8,9 +9,17 @@ export function internationalPhone(value, callingCode) {
   if (callingCode && !compact.startsWith(callingCode)) throw new ApiError('INVALID_TOPUP_PHONE', 'The phone number must begin with the selected country’s calling code.');
   return compact;
 }
-export function searchCountries(countries, search) {
-  const term = search.trim().toLocaleLowerCase();
-  return countries.filter((country) => `${country.name} ${country.code} ${country.callingCode || ''}`.toLocaleLowerCase().includes(term));
+export function countryFlag(code) {
+  if (typeof code !== 'string' || !/^[A-Za-z]{2}$/.test(code)) return '';
+  return String.fromCodePoint(...[...code.toUpperCase()].map((letter) => 0x1F1E6 + letter.charCodeAt(0) - 65));
+}
+export function searchCountries(countries, search, language = getLanguage()) {
+  const normalize = (value) => value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase();
+  const term = normalize(search.trim());
+  return countries.filter((country) => normalize([
+    country.name, country.code, country.callingCode || '', countryFlag(country.code), localizeCountry(country, language),
+    ...supportedLanguages().map(({ code }) => localizeCountry(country, code)),
+  ].join(' ')).includes(term));
 }
 export function secureId(crypto = globalThis.crypto) {
   if (crypto?.randomUUID) return crypto.randomUUID();

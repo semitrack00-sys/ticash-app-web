@@ -7,14 +7,15 @@
   <meta name="description" content="TiCash test mobile recharge: available destinations, provider-backed products, and a clear quote before confirmation.">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src https: http://localhost:* http://127.0.0.1:* http://[::1]:*; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>Sign in | TiCash Test Recharge</title><meta name="robots" content="noindex">
+  <title data-i18n="loginPageTitle">Sign in | TiCash Test Recharge</title><meta name="robots" content="noindex">
   <link rel="stylesheet" href="/recharge/checkout.css">
   <link rel="icon" href="/ticash-logo.png">
+<link rel="stylesheet" href="/language.css">
 </head>
 <body>
   <header class="site-header">
     <a class="brand" href="/"><img src="/ticash-logo.png" alt=""><span>TiCash</span></a>
-    <nav aria-label="Main navigation"><a href="/send">Send Money</a><a href="/recharge">Mobile Recharge</a><a href="/support">Support</a></nav>
+    <nav aria-label="Main navigation" data-i18n-aria-label="navigation"><a href="/send" data-i18n="sendMoney">Send Money</a><a href="/recharge" data-i18n="mobileRecharge">Mobile Recharge</a><a href="/support" data-i18n="support">Support</a></nav>
   </header>
   <main class="checkout-main" data-recharge-root>
     <p class="test-banner"><strong>TEST MODE</strong> No real money. No live recharge.</p>
@@ -22,7 +23,7 @@
     <p>Loading secure test checkout…</p>
     <noscript>Enable JavaScript to sign in and use test recharge. No payment details are collected.</noscript>
   </main>
-  <footer class="site-footer"><span>© 2026 TiCash · contact@ticash-app.com</span><span><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a></span></footer>
+  <footer class="site-footer"><span>© 2026 TiCash · contact@ticash-app.com</span><span><a href="/legal/privacy" data-i18n="privacy">Privacy</a><a href="/legal/terms" data-i18n="terms">Terms</a></span></footer>
   <script src="/public-config.js"></script>
   <script type="module" src="/js/recharge-page.js"></script>
 </body>

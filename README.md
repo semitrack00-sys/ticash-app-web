@@ -64,6 +64,8 @@ Both association files must be served directly over HTTPS from `ticash-app.com` 
 
 See [RECHARGE_CONTRACT.md](RECHARGE_CONTRACT.md) for the audited backend contract, setup, authentication lifecycle, safety gates, and validation limitations. This change is for review only: do not merge or deploy it as part of implementation.
 
+See [LOCALIZATION.md](LOCALIZATION.md) for locally generated country flags, the five-language recharge/account interface, country-name search, and the non-sensitive language preference. Authentication remains memory-only.
+
 Website action analytics use `data-analytics` and the `ticash_web_action` event. Events include only an action name and the public page path; do not add amounts, phone numbers, names, account IDs, KYC status, transaction references, or other sensitive data.
 
 Run the website integrity, browser security, authentication, state, and DOM tests (Node.js 24) with:

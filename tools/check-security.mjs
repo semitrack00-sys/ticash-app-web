@@ -1,9 +1,19 @@
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-const browserFiles = [...readdirSync('js').map((f) => `js/${f}`), 'public-config.js', 'login/index.html', 'recharge/index.html'];
+function scripts(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? scripts(`${dir}/${entry.name}`) : [`${dir}/${entry.name}`]);
+}
+const browserFiles = [...scripts('js'), 'public-config.js', 'login/index.html', 'recharge/index.html'];
 const sources = browserFiles.map((path) => readFileSync(path, 'utf8')).join('\n');
 assert.doesNotMatch(sources, /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\s*\(/, 'Unsafe DOM execution sink');
-assert.doesNotMatch(sources, /localStorage|sessionStorage|document\.cookie|indexedDB/, 'Credentials must remain in memory');
+for (const file of browserFiles.filter((file) => file !== 'js/i18n.js')) {
+  assert.doesNotMatch(readFileSync(file, 'utf8'), /localStorage|sessionStorage|document\.cookie|indexedDB/, 'Credentials must remain in memory');
+}
+const preferences = readFileSync('js/i18n.js', 'utf8');
+assert.doesNotMatch(preferences, /sessionStorage|document\.cookie|indexedDB/);
+assert.deepEqual([...preferences.matchAll(/preferenceStorage\?\.([^(]+)\(([^)]*)\)/g)].map((match) => match.slice(1)), [
+  ['getItem', "'ticash.language'"], ['setItem', "'ticash.language', language"],
+], 'Only the non-sensitive language preference may be persisted');
 assert.doesNotMatch(sources, /console\.(log|debug|info|warn|error)\(/, 'No sensitive browser logging');
 assert.doesNotMatch(sources, /https?:\/\/[^\s'"<>]*reloadly\./i, 'Browser must not contact provider');
 assert.doesNotMatch(sources, /RELOADLY_CLIENT_SECRET|JWT_ACCESS_SECRET|DATABASE_URL|DWOLLA_CLIENT_SECRET|DIDIT_API_KEY|BEGIN (RSA |EC )?PRIVATE KEY|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/, 'Potential browser secret');
