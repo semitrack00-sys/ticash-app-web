@@ -1,4 +1,4 @@
-import { ApiError } from './api-client.js';
+﻿import { ApiError } from './api-client.js';
 import { getLanguage, localizeCountry, supportedLanguages } from './i18n.js';
 
 const root = '/mobile-topups';
@@ -12,6 +12,18 @@ export function internationalPhone(value, callingCode) {
 export function countryFlag(code) {
   if (typeof code !== 'string' || !/^[A-Za-z]{2}$/.test(code)) return '';
   return String.fromCodePoint(...[...code.toUpperCase()].map((letter) => 0x1F1E6 + letter.charCodeAt(0) - 65));
+}
+
+export function operatorLogoUrl(value) {
+  if (typeof value !== 'string' || value !== value.trim() || /\s/.test(value) || !/^https:\/\/[^/]/i.test(value)) return '';
+  try {
+    decodeURI(value);
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) return '';
+    return value;
+  } catch {
+    return '';
+  }
 }
 export function searchCountries(countries, search, language = getLanguage()) {
   const normalize = (value) => value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase();

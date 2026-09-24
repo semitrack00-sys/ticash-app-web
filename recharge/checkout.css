@@ -55,7 +55,25 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
 /* Local SVG country picker */
 .country-picker{position:relative}
-.country-native-select{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.country-native-select,.operator-native-select{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+
+.operator-picker{position:relative}
+.operator-picker-button{width:100%;min-height:48px;display:grid;grid-template-columns:36px minmax(0,1fr) 14px;align-items:center;gap:10px;padding:7px 14px 7px 10px;border:1px solid #ccd5dc;border-radius:10px;background:#fff;color:var(--ink);font:inherit;font-size:14px;text-align:left;cursor:pointer}
+.operator-picker-button:after{content:"▾";font-size:14px;color:#657386}
+.operator-picker-button[aria-expanded=true]:after{content:"▴"}
+.operator-picker-button:disabled{background:#f2f4f5;color:#6b7680;cursor:not-allowed}
+.operator-picker-list{position:absolute;z-index:65;left:0;right:0;top:calc(100% + 6px);max-height:320px;overflow:auto;background:#fff;border:1px solid #ccd5dc;border-radius:12px;box-shadow:0 16px 36px #07182f24;padding:6px}
+.operator-picker-option{width:100%;display:grid;grid-template-columns:36px minmax(0,1fr);align-items:center;gap:10px;padding:8px 10px;border:0;border-radius:8px;background:#fff;color:var(--ink);font:inherit;font-size:14px;text-align:left;cursor:pointer}
+.operator-picker-option:hover,.operator-picker-option:focus-visible{background:#f0f5fc}
+.operator-picker-option[aria-selected=true]{background:#e8f0fb;font-weight:700}
+.operator-picker-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.operator-picker-empty{padding:12px;color:#657386;font-size:13px}
+.operator-logo{display:grid;place-items:center;width:36px;height:36px;overflow:hidden;border-radius:8px;background:#f5f6f8;color:#718094;flex:none}
+.operator-logo-image{display:block;width:100%;height:100%;object-fit:contain}
+.operator-logo-fallback{display:grid;place-items:center;width:100%;height:100%}
+.operator-logo-fallback>.recharge-icon{width:20px;height:20px}
+.operator-detail{display:inline-flex;align-items:center;justify-content:flex-end;gap:8px;max-width:100%}
+.operator-logo-small{width:28px;height:28px;border-radius:6px}
 .country-picker-button{width:100%;min-height:48px;display:grid;grid-template-columns:28px minmax(0,1fr) 14px;align-items:center;gap:10px;padding:12px 14px;border:1px solid #ccd5dc;border-radius:10px;background:#fff;color:var(--ink);font:inherit;font-size:14px;text-align:left;cursor:pointer}
 .country-picker-button .country-picker-code{display:none}
 .country-picker-button:after{content:"▾";font-size:14px;color:#657386;margin-left:2px}

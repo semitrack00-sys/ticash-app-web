@@ -226,9 +226,11 @@ test('fallback provider names remain literal text and ISO values cannot become H
     assert.equal(root.querySelector('.recharge-topbar .brand img'), null);
     assert.equal(query('.wordmark-ti').textContent, 'Ti');
     assert.equal(query('.wordmark-cash').textContent, 'Cash');
-    for (const img of root.querySelectorAll('img')) {
-      assert.equal(img.classList.contains('country-picker-flag'), true);
+    for (const img of root.querySelectorAll('img.country-picker-flag')) {
       assert.match(img.getAttribute('src') || '', /^\/flags\/[a-z]{2}\.svg$/);
+    }
+    for (const img of root.querySelectorAll('img.operator-logo-image')) {
+      assert.match(img.getAttribute('src') || '', /^https:\/\//);
     }
   },{api}); } finally {Intl.DisplayNames=original;}
 });
@@ -426,4 +428,106 @@ test('new visual empty states and phone placeholder translate in all five langua
     assert.equal(query('.history-empty p').textContent, translations[language].historyEmptyInstruction);
     assert.ok(query('#refresh-history svg'));
   }
+}));
+
+test('website operator picker renders provider logo with keyboard access and fallback', async () => page(async ({ login, app, query, dom }) => {
+  await login();
+  await app.model.selectCountry('JM');
+  app.model.setPhone(quote.recipientPhone);
+
+  const picker = query('#operator-picker-button');
+
+  picker.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+    key: 'ArrowDown',
+    bubbles: true,
+    cancelable: true,
+  }));
+
+  await tick();
+
+  const option = query('[data-operator-id="77"]');
+  assert.ok(option);
+  assert.equal(option.getAttribute('role'), 'option');
+  assert.equal(dom.window.document.activeElement, option);
+
+  const image = option.querySelector('img.operator-logo-image');
+  assert.ok(image);
+  assert.equal(image.getAttribute('src'), operator.logoUrl);
+
+  image.dispatchEvent(new dom.window.Event('error'));
+
+  assert.equal(image.hidden, true);
+  assert.equal(
+    option.querySelector('.operator-logo-fallback').hidden,
+    false,
+  );
+
+  option.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+    key: 'Escape',
+    bubbles: true,
+    cancelable: true,
+  }));
+
+  assert.equal(query('#operator-picker-menu').hidden, true);
+  assert.equal(dom.window.document.activeElement, picker);
+}));
+
+test('manual operator selection keeps logo through quote and receipt', async () => page(async ({ login, app, query }) => {
+  await login();
+  await app.model.selectCountry('JM');
+  app.model.setPhone(quote.recipientPhone);
+
+  query('#operator-picker-button').click();
+  await tick();
+
+  query('[data-operator-id="77"]').click();
+  await tick();
+
+  assert.equal(app.model.state.operator.id, 77);
+  assert.equal(
+    query('#operator-picker-button img.operator-logo-image')
+      .getAttribute('src'),
+    operator.logoUrl,
+  );
+
+  app.model.selectProduct(products[0].id);
+  await app.model.getQuote();
+
+  assert.equal(
+    query('#quote-details img.operator-logo-image')
+      .getAttribute('src'),
+    operator.logoUrl,
+  );
+
+  app.model.review(true);
+  await app.model.confirm();
+
+  assert.equal(
+    query('#receipt img.operator-logo-image')
+      .getAttribute('src'),
+    operator.logoUrl,
+  );
+
+  await app.model.selectCountry('CA');
+
+  assert.equal(app.model.state.operator, null);
+  assert.equal(
+    query('#operator-picker-button img.operator-logo-image'),
+    null,
+  );
+}));
+
+test('auto detected operator keeps its provider logo', async () => page(async ({ login, app, query }) => {
+  await login();
+  await app.model.selectCountry('JM');
+  app.model.setPhone(quote.recipientPhone);
+
+  await app.model.detect();
+
+  assert.equal(app.model.state.operator.id, operator.id);
+  assert.equal(
+    query('#operator-picker-button img.operator-logo-image')
+      .getAttribute('src'),
+    operator.logoUrl,
+  );
 }));
