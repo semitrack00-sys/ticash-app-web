@@ -1,5 +1,5 @@
-import { apiBaseUrl, createApiClient } from './api-client.js';
-import { Recharge, countryFlag, searchCountries } from './recharge.js';
+﻿import { apiBaseUrl, createApiClient } from './api-client.js';
+import { Recharge, countryFlag, operatorLogoUrl, searchCountries } from './recharge.js';
 import { t, getLanguage, languageLocale, localizeCountry, onLanguageChange, translateElements, syncLanguageSelectors } from './i18n.js';
 import { mountLanguageHeader } from './language-page.js';
 
@@ -60,6 +60,48 @@ function countryFlagImage(country, className = 'country-picker-flag') {
   image.addEventListener('error', () => { image.hidden = true; });
   return image;
 }
+function operatorLogo(operator, className = '') {
+  const frame = el('span', {
+    className: ['operator-logo', className].filter(Boolean).join(' '),
+    'aria-hidden': 'true',
+  });
+
+  const fallback = el('span', { className: 'operator-logo-fallback' }, icon('antenna'));
+  const url = operatorLogoUrl(operator?.logoUrl);
+
+  if (!url) {
+    frame.append(fallback);
+    return frame;
+  }
+
+  const image = el('img', {
+    className: 'operator-logo-image',
+    src: url,
+    alt: '',
+    loading: 'lazy',
+    decoding: 'async',
+    referrerpolicy: 'no-referrer',
+  });
+
+  fallback.hidden = true;
+  image.addEventListener('error', () => {
+    image.hidden = true;
+    fallback.hidden = false;
+  });
+
+  frame.append(image, fallback);
+  return frame;
+}
+
+function operatorDetail(name, operator) {
+  return el(
+    'span',
+    { className: 'operator-detail' },
+    operatorLogo(operator, 'operator-logo-small'),
+    el('span', {}, name),
+  );
+}
+
 function field(label, input, hint) {
   return el('div', { className: 'field' }, el('label', { for: input.id }, ui(label)), input,
     hint ? el('small', { id: `${input.id}-hint` }, ui(hint)) : null);
@@ -72,7 +114,13 @@ function options(select, items, selected, placeholder, label, value) {
   select.value = selected == null ? '' : String(selected);
 }
 function details(data) {
-  return el('dl', { className: 'details' }, data.map(([label, value]) => el('div', {}, el('dt', {}, t(label)), el('dd', {}, String(value ?? t('Not supplied'))))));
+  return el('dl', { className: 'details' }, data.map(([label, value]) => {
+    const rendered =
+      value && typeof value === 'object' && 'nodeType' in value
+        ? value
+        : String(value ?? t('Not supplied'));
+    return el('div', {}, el('dt', {}, t(label)), el('dd', {}, rendered));
+  }));
 }
 
 // Shared by /login and /recharge. In-page sign-in preserves memory-only tokens.
@@ -101,6 +149,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   let quoteSignature;
   let countrySearch = '';
   let countryMenuOpen = false;
+  let operatorMenuOpen = false;
   let loginErrorMessage = '';
   const button = (label, action, secondary = false) => el('button', { type: 'button', 'data-i18n': label, className: secondary ? 'button secondary' : 'button', onclick: action }, t(label));
   const action = (fn) => async () => {
@@ -198,7 +247,46 @@ export function mountRecharge(root, config, dependencies = {}) {
   const countryPickerMenu = el('div', { id: 'country-picker-menu', className: 'country-picker-list', hidden: '' }, el('div', { className: 'country-picker-search-row' }, countrySearchInput), countryPickerList);
   const countryPicker = el('div', { className: 'country-picker' }, countryPickerButton, countryPickerMenu, country);
   const phone = el('input', { id: 'phone', type: 'tel', autocomplete: 'tel', maxlength: '40', 'aria-describedby': 'phone-hint', placeholder: t('mobileNumberPlaceholder'), 'data-i18n-placeholder': 'mobileNumberPlaceholder' });
-  const operator = el('select', { id: 'operator' });
+  const operator = el('select', {
+    id: 'operator',
+    className: 'operator-native-select',
+    tabindex: '-1',
+    'aria-hidden': 'true',
+  });
+
+  const operatorPickerButton = el('button', {
+    id: 'operator-picker-button',
+    type: 'button',
+    className: 'operator-picker-button',
+    'aria-haspopup': 'listbox',
+    'aria-expanded': 'false',
+    'aria-controls': 'operator-picker-list',
+  }, t('Choose an operator'));
+
+  const operatorPickerList = el('div', {
+    id: 'operator-picker-list',
+    role: 'listbox',
+    'aria-labelledby': 'operator-picker-button',
+  });
+
+  const operatorPickerMenu = el(
+    'div',
+    {
+      id: 'operator-picker-menu',
+      className: 'operator-picker-list',
+      hidden: '',
+    },
+    operatorPickerList,
+  );
+
+  const operatorPicker = el(
+    'div',
+    { className: 'operator-picker' },
+    operatorPickerButton,
+    operatorPickerMenu,
+    operator,
+  );
+
   const product = el('select', { id: 'product' });
   const amount = el('input', { id: 'amount', type: 'number', inputmode: 'decimal', step: '0.01', 'aria-describedby': 'amount-hint' });
   const amountHint = el('small', { id: 'amount-hint' });
@@ -225,7 +313,12 @@ export function mountRecharge(root, config, dependencies = {}) {
     controlField('Mobile number', phone, 'phone', 'Include the international country code. Check the number carefully before confirming.'), recipientsPanel);
   const operatorControls = el('fieldset', {}, el('legend', {}, ui('Operator & Product')),
     el('div', { className: 'operator-actions' }, detectButton, operatorsRetry),
-    controlField('Mobile operator', operator, 'antenna'),
+    el(
+      'div',
+      { className: 'field' },
+      el('label', { for: 'operator-picker-button' }, ui('Mobile operator')),
+      operatorPicker,
+    ),
     controlField('Recharge product', product, 'gift'), amountField, catalogNote, quoteButton);
   const destinationPanel = el('details', { className: 'panel checkout-step', open: '', 'data-checkout-step': '1' },
     cardHeading('globe', '1. DESTINATION', 'Who are you recharging?'), destinationControls);
@@ -381,6 +474,7 @@ export function mountRecharge(root, config, dependencies = {}) {
       );
       option.addEventListener('click', action(async () => {
         countryMenuOpen = false;
+        operatorMenuOpen = false;
         countrySearch = '';
         countrySearchInput.value = '';
         await model.selectCountry(candidate.code);
@@ -396,8 +490,73 @@ export function mountRecharge(root, config, dependencies = {}) {
       : t('Choose a country to prepare its international calling code. Check the full number before confirming.');
     if (phone.value !== s.phone) phone.value = s.phone;
     phone.disabled = !s.country;
-    options(operator, s.operators, s.operator?.id, t(busy.has(`operators:${s.country}`) ? 'Loading operators…' : 'Choose an operator'), (op) => op.name, (op) => op.id);
+    const operatorPlaceholder = t(
+      busy.has(`operators:${s.country}`)
+        ? 'Loading operators…'
+        : 'Choose an operator'
+    );
+
+    options(
+      operator,
+      s.operators,
+      s.operator?.id,
+      operatorPlaceholder,
+      (op) => op.name,
+      (op) => op.id,
+    );
+
     operator.disabled = !s.country || !s.phone;
+    operatorPickerButton.disabled = operator.disabled;
+
+    if (operatorPickerButton.disabled) operatorMenuOpen = false;
+
+    operatorPickerButton.setAttribute(
+      'aria-expanded',
+      String(operatorMenuOpen),
+    );
+
+    operatorPickerButton.replaceChildren(
+      operatorLogo(s.operator),
+      el(
+        'span',
+        { className: 'operator-picker-name' },
+        s.operator?.name || operatorPlaceholder,
+      ),
+    );
+
+    const visualOperatorOptions = s.operators.map((candidate) => {
+      const option = el(
+        'button',
+        {
+          type: 'button',
+          className: 'operator-picker-option',
+          role: 'option',
+          'aria-selected': String(candidate.id === s.operator?.id),
+          'data-operator-id': String(candidate.id),
+        },
+        operatorLogo(candidate),
+        el('span', { className: 'operator-picker-name' }, candidate.name),
+      );
+
+      option.addEventListener(
+        'click',
+        action(async () => {
+          operatorMenuOpen = false;
+          await model.selectOperator(candidate.id);
+          operatorPickerButton.focus();
+        }),
+      );
+
+      return option;
+    });
+
+    operatorPickerList.replaceChildren(
+      ...(visualOperatorOptions.length
+        ? visualOperatorOptions
+        : [el('div', { className: 'operator-picker-empty' }, operatorPlaceholder)])
+    );
+
+    operatorPickerMenu.hidden = !operatorMenuOpen;
     detectButton.disabled = !s.country || !s.phone || busy.has('detect');
     detectButton.removeAttribute('data-i18n');
     detectButton.replaceChildren(icon('search'), el('span', {}, t(busy.has('detect') ? 'Finding operator…' : 'Find my operator')));
@@ -425,7 +584,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     if (quoteSignature !== nextQuoteSignature) {
       quoteSignature = nextQuoteSignature;
       reviewContent.replaceChildren(s.quote ? details([
-        ['Recipient', s.quote.recipientPhone], ['Country', `${localizeCountry(s.countries.find(c => c.code === s.quote.countryCode) || {code:s.quote.countryCode,name:s.quote.countryCode})} (${s.quote.countryCode})`], ['Operator', s.quote.operatorName],
+        ['Recipient', s.quote.recipientPhone], ['Country', `${localizeCountry(s.countries.find(c => c.code === s.quote.countryCode) || {code:s.quote.countryCode,name:s.quote.countryCode})} (${s.quote.countryCode})`], ['Operator', operatorDetail(s.quote.operatorName, s.operator?.id === s.quote.operatorId ? s.operator : s.operators.find((op) => op.id === s.quote.operatorId))],
         ['Product', s.quote.productName], ['Recharge amount', money(s.quote.providerAmount, s.quote.providerCurrency)],
         ['TiCash fee', money(s.quote.feeUsd, 'USD')], ['Total', money(s.quote.totalChargeUsd, 'USD')],
       ]) : el('div', { className: 'review-empty' }, icon('chart'), el('strong', {}, ui('Your quote will appear here.')), el('p', { className: 'small muted' }, ui('quoteEmptyInstruction'))));
@@ -444,7 +603,7 @@ export function mountRecharge(root, config, dependencies = {}) {
         receipt.replaceChildren(el('span', { className: 'eyebrow' }, ui('TEST RECEIPT')), el('h2', {}, t('receiptHeading', { status: t(String(txn.status || 'pending').toLowerCase()) })),
           el('p', { className: 'muted' }, ui('This is a test transaction. No real money or airtime was transferred.')),
           details([['Reference', txn.id], ['Status', txn.status], ['Test payment status', txn.paymentStatus], ['Phone number', txn.recipientPhone],
-            ['Destination', `${countryFlag(txn.countryCode)} ${txn.countryCode}`.trim()], ['Operator', txn.operatorName], ['Product', txn.productName],
+            ['Destination', `${countryFlag(txn.countryCode)} ${txn.countryCode}`.trim()], ['Operator', operatorDetail(txn.operatorName, s.operator?.id === txn.operatorId ? s.operator : s.operators.find((op) => op.id === txn.operatorId))], ['Product', txn.productName],
             ['Recharge', money(txn.providerAmount, txn.providerCurrency)], ['Fee', money(txn.feeUsd, 'USD')], ['Total', money(txn.totalChargeUsd, 'USD')],
             ['Recipient value', txn.deliveredValue === undefined ? t('Awaiting confirmation') : money(txn.deliveredValue, txn.deliveredCurrency)],
             ['Updated', date(txn.updatedAt)], ...(txn.failureCode ? [['Failure reason', txn.failureCode]] : [])]), refreshReceipt);
@@ -565,14 +724,72 @@ export function mountRecharge(root, config, dependencies = {}) {
     else next = Math.max(0, current < 0 ? options.length - 1 : current - 1);
     options[next]?.focus();
   });
+  operatorPickerButton.addEventListener('click', () => {
+    if (operatorPickerButton.disabled) return;
+    operatorMenuOpen = !operatorMenuOpen;
+    render();
+  });
+
+  operatorPickerButton.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    operatorMenuOpen = true;
+    render();
+    queueMicrotask(() =>
+      operatorPickerList
+        .querySelector('[aria-selected="true"], .operator-picker-option')
+        ?.focus(),
+    );
+  });
+
+  operatorPickerMenu.addEventListener('keydown', (event) => {
+    const items = [
+      ...operatorPickerList.querySelectorAll('.operator-picker-option'),
+    ];
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      operatorMenuOpen = false;
+      render();
+      operatorPickerButton.focus();
+      return;
+    }
+
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || !items.length) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const current = items.indexOf(root.ownerDocument.activeElement);
+    let next = current;
+
+    if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = items.length - 1;
+    else if (event.key === 'ArrowDown') {
+      next = Math.min(items.length - 1, current < 0 ? 0 : current + 1);
+    } else {
+      next = Math.max(0, current < 0 ? items.length - 1 : current - 1);
+    }
+
+    items[next]?.focus();
+  });
+
+  const closeOperatorPicker = (event) => {
+    if (!operatorMenuOpen || event.composedPath().includes(operatorPicker)) return;
+    operatorMenuOpen = false;
+    render();
+  };
+
   const closeCountryPicker = (event) => {
     if (!countryMenuOpen || event.composedPath().includes(countryPicker)) return;
     countryMenuOpen = false;
     render();
   };
   root.ownerDocument.addEventListener('click', closeCountryPicker);
-  country.addEventListener('change', action(() => model.selectCountry(country.value)));
-  phone.addEventListener('input', action(() => model.setPhone(phone.value)));
+  root.ownerDocument.addEventListener('click', closeOperatorPicker);
+  country.addEventListener('change', action(() => { operatorMenuOpen = false; return model.selectCountry(country.value); }));
+  phone.addEventListener('input', action(() => { operatorMenuOpen = false; return model.setPhone(phone.value); }));
   operator.addEventListener('change', action(() => model.selectOperator(operator.value)));
   product.addEventListener('change', action(() => model.selectProduct(product.value)));
   amount.addEventListener('input', action(() => model.setAmount(amount.value)));
@@ -583,7 +800,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const timer = setInterval(() => { if (signedIn && model.state.quote) render(); }, 1000);
   const removeLanguageListener = onLanguageChange(render);
   render();
-  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
+  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); root.ownerDocument.removeEventListener('click', closeOperatorPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
 }
 
 const root = typeof document === 'undefined' ? null : document.querySelector('[data-recharge-root]');

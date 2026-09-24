@@ -5,7 +5,7 @@ import { ApiError } from '../js/api-client.js';
 export const status = { enabled: true, environment: 'SANDBOX', billingCurrency: 'USD', provider: 'RELOADLY', paymentMode: 'MOCK', testMode: true, productionEnabled: false, approvedForLiveUse: false, liveRechargeEnabled: false };
 export const countries = [{ code: 'JM', name: 'Jamaica', callingCode: '+1' }, { code: 'CA', name: 'Canada', callingCode: '+1' },
   { code: 'HT', name: 'Haiti', callingCode: '+509' }, { code: 'FR', name: 'France', callingCode: '+33' }];
-export const operator = { id: 77, name: 'Test catalog operator', countryCode: 'JM', status: true, denominationType: 'FIXED', senderCurrencyCode: 'USD', destinationCurrencyCode: 'JMD' };
+export const operator = { id: 77, name: 'Test catalog operator', countryCode: 'JM', status: true, denominationType: 'FIXED', senderCurrencyCode: 'USD', destinationCurrencyCode: 'JMD', logoUrl: 'https://cdn.example.test/operator.png' };
 export const products = [
   { id: 'reloadly:JM:77:airtime:7.50', countryCode: 'JM', operatorId: 77, kind: 'AIRTIME', name: 'Test airtime', price: 7.5, priceCurrency: 'USD', deliveredValue: 1170, deliveredCurrency: 'JMD', amountType: 'FIXED' },
   { id: 'reloadly:JM:77:airtime:range', countryCode: 'JM', operatorId: 77, kind: 'AIRTIME', name: 'Test flexible amount', price: 5, priceCurrency: 'USD', deliveredCurrency: 'JMD', amountType: 'RANGE', minimumAmount: 5, maximumAmount: 20 },

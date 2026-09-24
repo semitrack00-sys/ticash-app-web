@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Recharge, internationalPhone, searchCountries, secureId, assertTestService } from '../js/recharge.js';
+import { Recharge, internationalPhone, operatorLogoUrl, searchCountries, secureId, assertTestService } from '../js/recharge.js';
 import { ApiError } from '../js/api-client.js';
 import { fixtureApi, countries, operator, products, quote, transaction, status } from './fixtures.mjs';
 
@@ -188,4 +188,25 @@ test('detection and quote receive exactly one prefix; malformed prefixes never r
   assert.equal(new URL(detection.path, 'https://test.invalid').searchParams.get('phone'), '+18765551234');
   model.selectProduct(products[0].id); await model.getQuote();
   assert.equal(api.calls.find((c) => c.path === '/mobile-topups/quotes').body.phone, '+18765551234');
+});
+
+test('accepts only safe HTTPS operator logo URLs', () => {
+  const good = 'https://cdn.example.test/operator.png?size=36';
+  assert.equal(operatorLogoUrl(good), good);
+
+  for (const value of [
+    undefined,
+    null,
+    '',
+    'http://cdn.example.test/operator.png',
+    'data:image/png;base64,AAAA',
+    'javascript:alert(1)',
+    '//cdn.example.test/operator.png',
+    'https:///operator.png',
+    'https://user:secret@cdn.example.test/operator.png',
+    'https://cdn.example.test/a b.png',
+    'https://cdn.example.test/%zz',
+  ]) {
+    assert.equal(operatorLogoUrl(value), '', String(value));
+  }
 });
