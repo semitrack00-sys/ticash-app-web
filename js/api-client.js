@@ -94,10 +94,10 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
       acceptTokens(data, version);
       return data.user;
     },
-    async register({ firstName, lastName, email, password }) {
+    async register({ firstName, lastName, email, password, countryCode }) {
       clear();
       const version = sessionVersion;
-      const data = await send('/auth/register', { method: 'POST', body: { firstName, lastName, email, password } });
+      const data = await send('/auth/register', { method: 'POST', body: { firstName, lastName, email, password, ...(countryCode ? { countryCode } : {}) } });
       acceptTokens(data, version);
       return data.user;
     },
