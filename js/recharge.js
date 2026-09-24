@@ -1,8 +1,10 @@
 ﻿import { ApiError } from './api-client.js';
 import { getLanguage, localizeCountry, supportedLanguages } from './i18n.js';
+import { checkoutMode, isUuid, validateCheckoutSession } from './checkout-flow.js';
 
 const root = '/mobile-topups';
 const invalid = (message) => new ApiError('INVALID_RESPONSE', message);
+const profileFields = ['firstName', 'lastName', 'phoneNumber', 'countryCode', 'addressLine1', 'addressLine2', 'city', 'region', 'postalCode'];
 export function internationalPhone(value, callingCode) {
   const compact = value.trim().replace(/[\s().-]/g, '').replace(/^00/, '+');
   if (!/^\+[1-9]\d{7,14}$/.test(compact)) throw new ApiError('INVALID_TOPUP_PHONE', 'Enter the full international phone number, including + and its country code.');
@@ -43,7 +45,7 @@ export function secureId(crypto = globalThis.crypto) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 export function assertTestService(status) {
-  if (status?.environment !== 'SANDBOX' || status.paymentMode !== 'MOCK' || status.testMode !== true ||
+  if (status?.environment !== 'SANDBOX' || !['MOCK', checkoutMode].includes(status.paymentMode) || status.testMode !== true ||
       status.productionEnabled !== false || status.approvedForLiveUse !== false || status.liveRechargeEnabled !== false) {
     throw new ApiError('UNSAFE_ENVIRONMENT', 'Test recharge is unavailable: this service has not confirmed test mode.');
   }
@@ -55,6 +57,11 @@ function array(data, key) {
 }
 function validOperator(operator, country) {
   return Number.isSafeInteger(operator?.id) && operator.id > 0 && operator.countryCode === country && operator.status === true;
+}
+function validProduct(product, operatorId, country) {
+  if (!product || product.operatorId !== operatorId || product.countryCode !== country || !['FIXED', 'RANGE'].includes(product.amountType)) return false;
+  if (product.amountType === 'FIXED') return Number.isFinite(product.price) && product.price > 0;
+  return Number.isFinite(product.minimumAmount) && Number.isFinite(product.maximumAmount) && product.minimumAmount > 0 && product.minimumAmount <= product.maximumAmount;
 }
 function validateQuote(quote) {
   if (!quote?.id || !quote.countryCode || !quote.recipientPhone || !quote.operatorId || !quote.productId ||
@@ -74,9 +81,72 @@ export class Recharge {
     this.state = { ready: false, countries: [], country: '', phone: '', operators: [], operator: null, products: [],
       product: null, amount: '', quote: null, reviewed: false, transaction: null, history: [], recipients: [],
       attempt: null, submitting: false, error: '', notice: '', historyError: '', recipientsError: '' };
+    Object.assign(this.state, { paymentMode: null, paymentMethods: [], paymentMethodsError: '', account: null,
+      guest: true, profileLoaded: false, profileError: '', accountCountry: '', checkoutSession: null, userProfile: null });
     this.emit();
   }
   emit() { this.onChange(this.state, this.busy); }
+  setAccount(user, guest = true) {
+    this.state.account = user || null;
+    this.state.guest = guest || user?.isGuest === true;
+  }
+  checkoutBlocked() {
+    const s = this.state;
+    if (s.guest || !s.account) return 'Sign in to a permanent account to use sandbox card payments.';
+    const card = s.paymentMethods.find((method) => method.method === 'CARD');
+    if (!card || card.provider !== 'CHECKOUT_COM' || card.testMode !== true || card.enabled !== true) {
+      return s.paymentMethodsError || (typeof card?.reason === 'string' && card.reason) || 'Sandbox card payments are unavailable.';
+    }
+    if (!s.profileLoaded) return s.profileError || 'Your account profile could not be verified. Retry connection.';
+    if (!s.accountCountry) return 'Save your account/billing country before paying. It is separate from the recharge destination.';
+    return '';
+  }
+  async loadPaymentMethods(active) {
+    try {
+      const methods = array(await this.api.request(`${root}/payment-methods`), 'methods');
+      if (methods.some((method) => !method || typeof method.method !== 'string')) throw invalid('Sandbox card payments are unavailable.');
+      if (active()) { this.state.paymentMethods = methods; this.state.paymentMethodsError = ''; }
+    } catch (error) {
+      if (active()) { this.state.paymentMethods = []; this.state.paymentMethodsError = error.message; }
+    }
+  }
+  async loadProfile(active) {
+    if (this.state.guest || !this.state.account) return;
+    try {
+      const data = await this.api.request('/users/me');
+      const user = data?.user ?? data;
+      if (!user || typeof user !== 'object' || Array.isArray(user) || !user.id) throw invalid('Your account profile could not be verified. Retry connection.');
+      if (active()) {
+        this.state.userProfile = { ...user };
+        this.state.accountCountry = typeof user.countryCode === 'string' && /^[A-Z]{2}$/.test(user.countryCode) ? user.countryCode : '';
+        this.state.profileLoaded = true; this.state.profileError = '';
+      }
+    } catch (error) {
+      if (active()) {
+        this.state.userProfile = null;
+        this.state.profileLoaded = false; this.state.accountCountry = ''; this.state.profileError = error.message;
+      }
+    }
+  }
+  async saveAccountCountry(value) {
+    this.editable();
+    return this.run('profile', async (active) => {
+      if (this.state.paymentMode !== checkoutMode || this.state.guest || !this.state.account) throw invalid('Sign in to a permanent account to use sandbox card payments.');
+      const countryCode = value.trim().toUpperCase();
+      if (!/^[A-Z]{2}$/.test(countryCode)) throw invalid('Enter your two-letter account/billing country code.');
+      const profile = this.state.userProfile;
+      if (!profile || typeof profile.firstName !== 'string' || !profile.firstName.trim() || typeof profile.lastName !== 'string' || !profile.lastName.trim()) {
+        throw invalid('Your account profile could not be verified. Retry connection.');
+      }
+      const body = { firstName: profile.firstName, lastName: profile.lastName };
+      for (const field of profileFields.slice(2)) {
+        if (field === 'countryCode') body[field] = countryCode;
+        else if (Object.hasOwn(profile, field)) body[field] = profile[field] ?? null;
+      }
+      await this.api.request('/users/me', { method: 'PATCH', body });
+      if (active()) await this.loadProfile(active);
+    });
+  }
   editable() {
     if (this.state.submitting || this.state.attempt) throw new ApiError('PENDING_CONFIRMATION', 'Resolve the current confirmation before starting another recharge.');
   }
@@ -96,7 +166,14 @@ export class Recharge {
   }
   async start() {
     await this.run('catalog', async (active) => {
-      assertTestService(await this.api.request(`${root}/status`));
+      const status = await this.api.request(`${root}/status`);
+      assertTestService(status);
+      if (!active()) return;
+      if (this.state.attempt && this.state.paymentMode !== status.paymentMode) throw invalid('Payment mode changed. Refresh transaction status before starting another recharge.');
+      this.state.paymentMode = status.paymentMode;
+      await this.loadPaymentMethods(active);
+      if (!active()) return;
+      if (status.paymentMode === checkoutMode) await this.loadProfile(active);
       const countries = array(await this.api.request(`${root}/countries`), 'countries');
       if (countries.some((c) => !/^[A-Z]{2}$/.test(c.code) || typeof c.name !== 'string' || !/^\+[1-9]\d{0,2}$/.test(c.callingCode))) throw invalid('Invalid country catalog or missing calling codes. Please try again after the service is updated.');
       if (active()) { this.state.countries = countries; this.state.ready = true; }
@@ -150,8 +227,7 @@ export class Recharge {
     return this.run(`products:${revision}`, async (active) => {
       const data = await this.api.request(`${root}/operators/${operator.id}/products?${new URLSearchParams({ country: this.state.country })}`);
       const products = array(data, 'products');
-      if (!validOperator(data.operator, operator.countryCode) || data.operator.id !== operator.id || products.some((p) =>
-        p.operatorId !== operator.id || p.countryCode !== operator.countryCode || !['FIXED', 'RANGE'].includes(p.amountType))) {
+      if (!validOperator(data.operator, operator.countryCode) || data.operator.id !== operator.id || products.some((p) => !validProduct(p, operator.id, operator.countryCode))) {
         throw invalid('The product catalog did not match the selected operator.');
       }
       if (active()) this.state.products = products;
@@ -190,6 +266,7 @@ export class Recharge {
   review(value) { this.state.reviewed = Boolean(value) && this.quoteValid(); this.emit(); }
   quoteValid() { return Boolean(this.state.quote && Date.parse(this.state.quote.expiresAt) > this.now()); }
   async confirm() {
+    if (this.state.paymentMode === checkoutMode || this.state.attempt?.mode === checkoutMode) return this.confirmCheckout();
     if (this.state.submitting || this.state.transaction) return;
     if (!this.state.attempt && (!this.state.reviewed || !this.quoteValid())) {
       this.state.error = 'Review a current quote before confirming.'; this.emit(); return;
@@ -206,7 +283,9 @@ export class Recharge {
     await this.run('confirm', async (active) => {
       let transaction;
       try {
-        assertTestService(await this.api.request(`${root}/status`));
+        const status = await this.api.request(`${root}/status`);
+        assertTestService(status);
+        if (status.paymentMode !== 'MOCK') throw new ApiError('UNSAFE_ENVIRONMENT', 'Payment mode changed. Retry connection before confirming.');
         ({ transaction } = await this.api.request(`${root}/transactions`, {
           method: 'POST', body: attempt.body, headers: { 'Idempotency-Key': attempt.key },
         }));
@@ -226,6 +305,66 @@ export class Recharge {
     });
     if (generation === this.generation) { this.state.submitting = false; this.emit(); }
   }
+  async confirmCheckout() {
+    const s = this.state;
+    // Checkout has no purchase retry button: even an ambiguous response keeps the same reservation locked.
+    if (s.submitting || s.attempt || s.transaction) return;
+    const blocked = this.checkoutBlocked();
+    if (blocked || !s.reviewed || !this.quoteValid()) {
+      s.error = blocked || 'Review a current quote before confirming.'; this.emit(); return;
+    }
+    const generation = this.generation;
+    try { s.attempt = { mode: checkoutMode, body: { quoteId: s.quote.id }, key: secureId(this.crypto) }; }
+    catch (error) { s.error = error.message; this.emit(); return; }
+    const attempt = s.attempt;
+    s.submitting = true;
+    await this.run('confirm', async (active) => {
+      const current = () => active() && s.attempt === attempt;
+      let requested = false;
+      try {
+        const status = await this.api.request(`${root}/status`);
+        assertTestService(status);
+        if (status.paymentMode !== checkoutMode) throw invalid('Payment mode changed. Retry connection before confirming.');
+        if (!current()) return;
+        await this.loadPaymentMethods(current);
+        if (!current()) return;
+        await this.loadProfile(current);
+        if (!current()) return;
+        const reason = this.checkoutBlocked();
+        if (reason) throw invalid(reason);
+        if (!this.quoteValid()) throw invalid('Review a current quote before confirming.');
+        requested = true;
+        const session = validateCheckoutSession(await this.api.request(`${root}/payment-sessions`, {
+          method: 'POST', body: attempt.body, headers: { 'Idempotency-Key': attempt.key },
+        }));
+        if (!current()) return;
+        if (attempt.transactionId && attempt.transactionId !== session.transactionId) throw invalid('Unable to verify the sandbox payment session. Keep this page open and refresh transaction status.');
+        s.checkoutSession = session; attempt.transactionId = session.transactionId;
+      } catch (error) {
+        if (!current()) return;
+        if (current()) {
+          if (!requested || ['TOPUP_QUOTE_EXPIRED', 'TOPUP_QUOTE_NOT_FOUND'].includes(error.code)) s.attempt = null;
+          if (['PAYMENT_SESSION_REPLAY_UNAVAILABLE', 'PAYMENT_SESSION_IN_PROGRESS'].includes(error.code)) {
+            throw invalid('Payment confirmation is unresolved. Keep this page open and refresh history or transaction status. Do not start another payment.');
+          }
+        }
+        throw error;
+      }
+    });
+    if (generation === this.generation) { s.submitting = false; this.emit(); }
+  }
+  reconcileCheckout(transaction) {
+    const attempt = this.state.attempt;
+    if (attempt?.mode !== checkoutMode || !isUuid(transaction?.id) || transaction.testMode !== true ||
+        transaction.quoteId !== attempt.body.quoteId || (attempt.transactionId && attempt.transactionId !== transaction.id)) return false;
+    attempt.transactionId = transaction.id;
+    this.state.transaction = transaction;
+    // AUTHORIZED, pending/recovery and unknown states must remain locked. Only the server can release payment state.
+    if (['CAPTURED', 'FAILED', 'VOIDED', 'REFUNDED'].includes(transaction.paymentStatus)) {
+      Object.assign(this.state, { attempt: null, checkoutSession: null, quote: null, reviewed: false });
+    }
+    return true;
+  }
   async loadHistory() {
     return this.run('history', async (active) => {
       try {
@@ -233,7 +372,8 @@ export class Recharge {
         if (active()) {
           this.state.history = transactions; this.state.historyError = '';
           const match = this.state.attempt && transactions.find((t) => t.quoteId === this.state.attempt.body.quoteId && t.testMode === true);
-          if (match) { this.state.transaction = match; this.state.attempt = null; this.state.quote = null; this.state.reviewed = false; }
+          if (this.state.attempt?.mode === checkoutMode) { if (match) this.reconcileCheckout(match); }
+          else if (match) { this.state.transaction = match; this.state.attempt = null; this.state.quote = null; this.state.reviewed = false; }
         }
       } catch (error) { if (active()) this.state.historyError = error.message; }
     });
@@ -259,14 +399,16 @@ export class Recharge {
     this.setPhone(saved.phone);
     if (saved.operatorId) await this.selectOperator(saved.operatorId);
   }
-  async refreshTransaction(id = this.state.transaction?.id) {
+  async refreshTransaction(id = this.state.attempt?.transactionId || this.state.transaction?.id) {
     if (!id) return;
     const revision = this.revision;
     return this.run('receipt', async (active) => {
       const { transaction } = await this.api.request(`${root}/transactions/${encodeURIComponent(id)}?refresh=true`);
       if (transaction?.id !== id || transaction.testMode !== true) throw invalid('Unable to verify the test receipt.');
       if (active()) {
-        this.state.transaction = transaction;
+        if (this.state.attempt?.mode === checkoutMode) {
+          if (!this.reconcileCheckout(transaction)) throw invalid('Unable to verify the test receipt.');
+        } else this.state.transaction = transaction;
         this.state.history = this.state.history.map((t) => t.id === id ? transaction : t);
       }
     }, () => this.revision === revision);

@@ -10,14 +10,14 @@ The companion backend branch `codex/ticash-recharge-guest-calling-codes` starts 
 
 ## Configuration and authentication
 
-`window.TICASH_PUBLIC_CONFIG.apiBaseUrl` currently retains main's `https://ticash-api.onrender.com/api`. An empty URL disables authentication with a clear explanation. A configured URL alone does not approve live use: the API must explicitly report sandbox/mock status. HTTPS is required except when both the page and API use loopback HTTP for local testing. URLs with credentials, query strings, or fragments are rejected. Keep `mobileRechargeLive: false`; changing it causes this checkout to refuse initialization.
+`window.TICASH_PUBLIC_CONFIG.apiBaseUrl` currently retains main's `https://ticash-api.onrender.com/api`. An empty URL disables authentication with a clear explanation. A configured URL alone does not approve live use: the API must explicitly report sandbox status with MOCK or CHECKOUT_COM_SANDBOX payment mode. HTTPS is required except when both the page and API use loopback HTTP for local testing. URLs with credentials, query strings, or fragments are rejected. Keep `mobileRechargeLive: false`; changing it causes this checkout to refuse initialization.
 
 Both `/login` and `/recharge` now offer sign-in, Create account, and Continue as guest. Successful authentication on `/login` replaces the address with the fixed local `/recharge` path without navigating away. No user-supplied redirect is followed. There is no authentication bypass or demo account in runtime code.
 
 | Method and API-relative path | Request | Response used |
 | --- | --- | --- |
 | POST `/auth/login` | JSON `{email,password}` | `{user,accessToken,refreshToken}` |
-| POST `/auth/register` | JSON `{firstName,lastName,email,password}` | 201 `{user,accessToken,refreshToken}` |
+| POST `/auth/register` | JSON `{firstName,lastName,email,password,countryCode?}` | 201 `{user,accessToken,refreshToken}` |
 | POST `/auth/guest` | No body or credentials | 201 `{guest:true,expiresAt,user,accessToken,refreshToken}` |
 | POST `/auth/refresh` | JSON `{refreshToken}` | `{accessToken,refreshToken}` |
 | POST `/auth/logout` | JSON `{refreshToken}` | 204 |
@@ -62,11 +62,11 @@ Errors use `{error,code}` and HTTP status, with safe fallback text for malformed
 
 ## Confirmation and safety
 
-Before loading catalogs and immediately before submitting a transaction, the API must explicitly report `environment: SANDBOX`, `paymentMode: MOCK`, `testMode: true`, `productionEnabled: false`, `approvedForLiveUse: false`, and `liveRechargeEnabled: false`, with `enabled: true`. Missing or conflicting flags fail closed. Backend gates are authoritative and unchanged.
+Before loading catalogs and immediately before submitting a transaction, the API must explicitly report `environment: SANDBOX`, `paymentMode: MOCK` or `CHECKOUT_COM_SANDBOX`, `testMode: true`, `productionEnabled: false`, `approvedForLiveUse: false`, and `liveRechargeEnabled: false`, with `enabled: true`. Missing or conflicting flags fail closed. Backend gates are authoritative and unchanged.
 
 Confirmation requires a reviewed, unexpired backend quote. Keys use `crypto.randomUUID()` or UUID v4 bytes from `crypto.getRandomValues()`; no insecure fallback exists. A pending confirmation locks selections and double submission. Unknown failures retain the exact key/body for retry, including across access-token refresh. Only explicit pre-reservation quote-expired/not-found or disabled/unsafe-environment responses release the attempt. History can resolve a matching quote's test transaction. These rules follow backend purchase replay-before-expiry and reservation behavior.
 
-There are no card, CVV, payment processor, provider credential, signing secret, or database fields. Backend environment variables are untouched. All public availability flags remain false.
+There are no TiCash-owned card-number, expiry, CVV, provider credential, signing secret, or database fields. Checkout Sandbox uses hosted Flow fields only. Backend environment variables are untouched. All public availability flags remain false.
 
 ## CORS and CSP
 
@@ -79,3 +79,24 @@ The route CSP blocks inline scripts, plugins, base URL changes, and native form 
 Run `npm ci --ignore-scripts`, `npm test`, and `npm run check` on Node.js 24. Tests exercise country/search/reset behavior, detection/manual fallback, fixed/range contracts, quote integrity/expiry/review, secure keys, duplicate/uncertain confirmation, late responses across logout, authentication/refresh failures, network errors, receipts/refresh/repeat, safe text rendering, configuration gates, and TEST MODE visibility. `npm audit` checks development dependencies. No separate lint or build script exists.
 
 Contract checks use source comparison and deterministic test doubles. Test data is confined to `tools/` and never imported by runtime modules. Local browser checks cannot establish deployed API availability, real user authentication, actual cross-origin preflight behavior, or provider delivery. The configured remote backend and real accounts were not exercised; those integration checks remain unexecuted. No real recharge/payment/provider transaction or deployment is authorized by this change.
+
+
+## Checkout.com sandbox Flow frontend
+
+The website uses the backend-selected payment mode. MOCK retains its existing `POST /mobile-topups/transactions` confirmation and same-key retry behavior. Checkout Sandbox never falls back to MOCK or posts a transaction to fulfill airtime. All live-use flags must still be explicitly false.
+
+After authentication, `GET /mobile-topups/payment-methods` supplies `{methods:[{method,provider,testMode,enabled,reason?}]}`. Checkout requires an enabled test CARD method with provider CHECKOUT_COM. Missing, failed or unsafe method responses block Checkout; MOCK confirmation is independent of card availability. Disabled reasons render as text. Eligibility and sandbox status are rechecked immediately before session creation.
+
+Permanent accounts read `GET /users/me` (a user object, or `{user}`). A missing `countryCode` requires an explicitly entered two-letter account/billing country. When that value changes, the browser PATCHes `/users/me` with the existing backend profile fields required/supported by `profileSchema`, changing only `countryCode` while preserving `firstName`, `lastName`, `phoneNumber`, `addressLine1`, `addressLine2`, `city`, `region`, and `postalCode`. After PATCH, `GET /users/me` is read again so the saved server profile remains authoritative before payment. The destination/recharge country is never copied into billing automatically. Registration supports the same optional field. Guest sessions cannot read/update a Checkout billing profile or create a Checkout session.
+
+Checkout confirmation POSTs only `{quoteId}` to `/mobile-topups/payment-sessions`, with a secure UUID Idempotency-Key. The response must contain CHECKOUT_COM, SANDBOX, testMode true, a UUID transactionId, a paymentSession object with a ps_ ID and nonempty payment_session_token, a pk_sbox_ publicKey, positive safe integer amountMinor, USD, and SESSION_CREATED. Session data remains in memory and is passed unmodified to Flow; it is never stored, logged or inserted into the DOM by TiCash.
+
+The integration follows [Checkout.com's Flow initialization and payment-completion contract](https://www.checkout.com/docs/get-started). Only after validating the sandbox session does the browser load `https://checkout-web-components.checkout.com/index.js` directly. No downloaded, bundled or self-hosted SDK is included. `CheckoutWebComponents` receives the session, sandbox public key, `environment: 'sandbox'` and a completion callback, then creates and mounts `flow` in `#checkout-flow-container`. Tests inject a fake factory and do not load the SDK or contact a payment provider.
+
+The three shared recharge/auth pages allow this specific external script origin and Checkout.com frames in their CSP. Script inline execution/eval remain prohibited. Inline styles are allowed on these pages for hosted component styling; object, base-URI and form-action restrictions are retained. The hosted SDK and actual 3DS/CSP behavior have not been exercised against Checkout.com by these local tests; that requires a separately authorized sandbox integration test.
+
+The completion callback ignores the browser payment ID and payload. It reads the TiCash transaction identified by the validated backend session using the existing transaction-status endpoint. Only backend/webhook state can confirm payment or fulfill recharge. A status-refresh button is available before a receipt is received, and an interrupted session without a known transaction ID can recover it from history by quoteId.
+
+A created, ambiguous, replay-unavailable or in-progress payment attempt locks destination/operator/product controls and cannot create another session or idempotency key. History showing a reserved, SESSION_CREATED, PENDING, AUTHORIZED, recovery or unknown payment keeps the lock. Only server-reported CAPTURED, FAILED, VOIDED or REFUNDED releases it. Transaction ID, quote ID and test mode must match. A late session response cannot remount Flow after history has confirmed payment. Flow errors are sanitized; logout invalidates callbacks and removes hosted fields. No browser callback, return URL, or SDK error is treated as payment proof.
+
+Authentication and payment-session state remain memory-only. Reloading or signing out requires signing in and checking history; this change does not add persistent tokens or a payment-resume API. Backend settings, recharge routing, quote/pricing calculations and operator/logo mapping are unchanged. No backend files, migrations, deployments or provider transactions are part of this change.

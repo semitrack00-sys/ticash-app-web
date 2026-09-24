@@ -2,6 +2,7 @@
 import { Recharge, countryFlag, operatorLogoUrl, searchCountries } from './recharge.js';
 import { t, getLanguage, languageLocale, localizeCountry, onLanguageChange, translateElements, syncLanguageSelectors } from './i18n.js';
 import { mountLanguageHeader } from './language-page.js';
+import { checkoutMode, loadCheckoutFactory, mountCheckoutFlow } from './checkout-flow.js';
 
 function el(tag, attributes = {}, ...children) {
   const node = document.createElement(tag);
@@ -151,6 +152,20 @@ export function mountRecharge(root, config, dependencies = {}) {
   let countryMenuOpen = false;
   let operatorMenuOpen = false;
   let loginErrorMessage = '';
+  let flowSession = null;
+  let flowComponent;
+  let flowError = '';
+  let flowMountPending = false;
+  let billingGeneration;
+  const unmountFlow = (component) => {
+    try { component?.unmount?.(); } catch { /* Always clear hosted fields and invalidate callbacks even if SDK cleanup fails. */ }
+  };
+  const clearFlow = () => {
+    flowSession = null;
+    // Detach hosted fields on logout, session change, or authoritative completion.
+    unmountFlow(flowComponent); flowComponent = undefined; flowError = ''; flowMountPending = false;
+    flowContainer.replaceChildren();
+  };
   const button = (label, action, secondary = false) => el('button', { type: 'button', 'data-i18n': label, className: secondary ? 'button secondary' : 'button', onclick: action }, t(label));
   const action = (fn) => async () => {
     try { await fn(); } catch (error) { model.state.error = error.message; model.emit(); }
@@ -186,8 +201,10 @@ export function mountRecharge(root, config, dependencies = {}) {
   const registerEmail = el('input', { id: 'register-email', type: 'email', autocomplete: 'email', required: '', maxlength: '254' });
   const registerPassword = el('input', { id: 'register-password', type: 'password', autocomplete: 'new-password', required: '', minlength: '8', maxlength: '128' });
   const registerButton = el('button', { className: 'button', type: 'submit' }, 'Create TiCash account');
+  const registerCountry = el('input', { id: 'register-country', autocomplete: 'country', maxlength: '2', pattern: '[A-Za-z]{2}' });
   const registerForm = el('form', { id: 'register-form', hidden: '' }, field('First name', firstName), field('Last name', lastName),
     field('Email address', registerEmail), passwordField('Account password', registerPassword),
+    field('Account/billing country code (optional)', registerCountry, 'Enter your two-letter country code. This is separate from the recharge destination.'),
     el('p', { className: 'small muted' }, ui('Create a permanent account to access your saved recipients and history when you sign in again.')), registerButton);
   const chooseAuth = (mode) => {
     if (signingIn) return;
@@ -330,9 +347,28 @@ export function mountRecharge(root, config, dependencies = {}) {
   const reviewCheck = el('label', { className: 'review-check', for: 'reviewed' }, reviewed, el('span', {}, ui('I checked the phone number, operator, product, and quoted total.')));
   const confirmButton = button('Confirm test recharge', action(() => model.confirm())); confirmButton.id = 'confirm-recharge';
   const recoveryNote = el('p', { className: 'message', hidden: '', role: 'status', id: 'recovery-note' }, ui('Confirmation is unresolved. Keep this page open. Retry uses the same request so it cannot create a second recharge; you can also refresh history to find the receipt.'));
+  const billingCountry = el('input', { id: 'billing-country', autocomplete: 'country', required: '', maxlength: '2', pattern: '[A-Za-z]{2}' });
+  const saveCountry = button('Save account country', action(() => {
+    if (billingCountry.reportValidity()) return model.saveAccountCountry(billingCountry.value);
+  })); saveCountry.id = 'save-account-country';
+  const billingStep = el('div', { id: 'billing-country-step', hidden: '' },
+    field('Account/billing country code', billingCountry, 'Enter your two-letter country code. This is separate from the recharge destination.'), saveCountry);
+  const paymentAvailability = el('p', { id: 'payment-availability', role: 'status', className: 'message', hidden: '' });
+  const profileRetry = button('Retry connection', action(() => model.start()), true); profileRetry.id = 'retry-payment-setup';
+  const flowContainer = el('div', { id: 'checkout-flow-container' });
+  const flowMessage = el('p', { role: 'status', className: 'message' });
+  const retryFlow = button('retryPaymentForm', () => {
+    flowError = '';
+    flowMountPending = false;
+    render();
+  }, true); retryFlow.id = 'retry-payment-form';
+  const refreshPayment = button('Refresh transaction status', action(() => model.state.attempt?.transactionId
+    ? model.refreshTransaction() : model.loadHistory()), true); refreshPayment.id = 'checkout-refresh-status';
+  const flowPanel = el('section', { id: 'checkout-flow-panel', hidden: '', 'aria-label': t('Sandbox card payment'), 'data-i18n-aria-label': 'Sandbox card payment' },
+    el('h3', {}, ui('Sandbox card payment')), flowMessage, flowContainer, retryFlow, refreshPayment);
   const reviewPanel = el('details', { className: 'panel checkout-step review-panel', open: '', 'data-checkout-step': '3', 'aria-labelledby': 'review-title' },
     cardHeading('receipt', '3. REVIEW & CONFIRM', 'A little connection. A lot of care.', 'review-title'),
-    reviewContent, expiry, reviewCheck, confirmButton, recoveryNote,
+    reviewContent, expiry, billingStep, paymentAvailability, profileRetry, reviewCheck, confirmButton, recoveryNote, flowPanel,
     el('p', { className: 'review-helper small muted' }, icon('info'), ui('TEST MODE · No real payment is collected. Prices, fees, and availability are supplied by TiCash.')));
   const selectionFields = el('div', { id: 'selection-fields', className: 'checkout-stack' }, destinationPanel, operatorPanel, reviewPanel);
   const receipt = el('section', { className: 'panel receipt', id: 'receipt', 'aria-live': 'polite', hidden: '' });
@@ -425,7 +461,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     guestNote.hidden = !guestSession; createFromGuest.hidden = !guestSession;
     createFromGuest.disabled = s.submitting || Boolean(s.attempt);
     for (const control of [registerButton, signInChoice, registerChoice, guestButton]) control.disabled = !configured || signingIn;
-    for (const control of [email, password, firstName, lastName, registerEmail, registerPassword]) control.disabled = signingIn;
+    for (const control of [email, password, firstName, lastName, registerEmail, registerPassword, registerCountry]) control.disabled = signingIn;
     signInChoice.setAttribute('aria-pressed', String(authMode === 'login'));
     registerChoice.setAttribute('aria-pressed', String(authMode === 'register'));
     guestButton.textContent = t(signingIn && authMode === 'guest' ? 'Starting guest session…' : 'Continue as guest');
@@ -435,6 +471,38 @@ export function mountRecharge(root, config, dependencies = {}) {
     error.textContent = t(s.error); error.hidden = !s.error;
     notice.textContent = t(s.notice); notice.hidden = !s.notice;
     const locked = s.submitting || Boolean(s.attempt);
+    if (billingGeneration !== model.generation) { billingCountry.value = ''; billingGeneration = model.generation; }
+    const checkoutPayment = s.paymentMode === checkoutMode;
+    const paymentBlocked = checkoutPayment ? model.checkoutBlocked() : '';
+    paymentAvailability.hidden = !checkoutPayment || !paymentBlocked;
+    paymentAvailability.textContent = t(paymentBlocked);
+    billingStep.hidden = !checkoutPayment || s.guest || !s.profileLoaded || Boolean(s.accountCountry);
+    billingCountry.disabled = locked || busy.has('profile'); saveCountry.disabled = billingCountry.disabled;
+    profileRetry.hidden = !checkoutPayment || !paymentBlocked || s.guest || locked;
+    profileRetry.disabled = busy.has('catalog') || busy.has('profile');
+    flowPanel.hidden = !checkoutPayment || !s.attempt;
+    flowMessage.textContent = t(flowError || 'Use test payment details only. Payment status is confirmed by TiCash, not by this form. Keep this page open.');
+    retryFlow.hidden = !(s.checkoutSession && !flowComponent && !flowMountPending && flowError);
+    retryFlow.disabled = s.submitting;
+    refreshPayment.disabled = busy.has('receipt') || busy.has('history') || s.submitting;
+    if (flowSession && flowSession !== s.checkoutSession) clearFlow();
+    if (signedIn && s.checkoutSession && !flowComponent && !flowMountPending && (!flowSession || flowSession !== s.checkoutSession || !flowError)) {
+      flowSession = s.checkoutSession;
+      flowMountPending = true;
+      const session = flowSession; const generation = model.generation;
+      const active = () => !disposed && signedIn && generation === model.generation && flowSession === session && model.state.checkoutSession === session;
+      const factory = dependencies.checkoutFactory ? Promise.resolve(dependencies.checkoutFactory) : loadCheckoutFactory(pageWindow);
+      void factory.then((factory) => {
+        if (!active()) return;
+        return mountCheckoutFlow({ session, container: flowContainer, factory, active,
+          onPaymentCompleted: (id) => model.refreshTransaction(id) });
+      }).then((component) => {
+        if (active()) { flowComponent = component; flowMountPending = false; }
+        else unmountFlow(component);
+      }).catch(() => {
+        if (active()) { flowMountPending = false; flowError = 'checkoutFormUnavailable'; render(); }
+      });
+    }
     destinationControls.disabled = !s.ready || locked;
     operatorControls.disabled = !s.ready || locked;
     countriesRetry.hidden = s.ready; countriesRetry.disabled = busy.has('catalog');
@@ -593,8 +661,12 @@ export function mountRecharge(root, config, dependencies = {}) {
     reviewCheck.hidden = !s.quote || Boolean(s.attempt); reviewed.checked = s.reviewed;
     reviewed.disabled = !model.quoteValid() || locked;
     confirmButton.disabled = s.submitting || Boolean(s.transaction) || (!s.attempt && (!s.reviewed || !model.quoteValid()));
-    confirmButton.textContent = t(s.submitting ? 'Confirming…' : s.attempt ? 'Retry same confirmation' : 'Confirm test recharge');
+    if (checkoutPayment) confirmButton.disabled ||= Boolean(s.attempt) || Boolean(paymentBlocked) || busy.has('profile') || busy.has('catalog');
+    confirmButton.textContent = t(s.submitting ? 'Confirming…' : checkoutPayment ? 'Continue to sandbox payment' : s.attempt ? 'Retry same confirmation' : 'Confirm test recharge');
     recoveryNote.hidden = !s.attempt || s.submitting;
+    recoveryNote.textContent = t(checkoutPayment
+      ? 'Payment confirmation is unresolved. Keep this page open and refresh history or transaction status. Do not start another payment.'
+      : 'Confirmation is unresolved. Keep this page open. Retry uses the same request so it cannot create a second recharge; you can also refresh history to find the receipt.');
     const nextReceiptSignature = JSON.stringify([s.transaction, getLanguage()]);
     if (receiptSignature !== nextReceiptSignature) {
       receiptSignature = nextReceiptSignature; receipt.hidden = !s.transaction;
@@ -644,10 +716,13 @@ export function mountRecharge(root, config, dependencies = {}) {
     authMode = mode === 'guest' ? 'guest' : mode;
     signingIn = true; loginError.hidden = true; render();
     try {
-      if (mode === 'guest') await client.guest();
-      else if (mode === 'register') await client.register({ firstName: firstName.value.trim(), lastName: lastName.value.trim(), email: registerEmail.value.trim(), password: registerPassword.value });
-      else await client.login(email.value.trim(), password.value);
+      let user;
+      if (mode === 'guest') user = await client.guest();
+      else if (mode === 'register') user = await client.register({ firstName: firstName.value.trim(), lastName: lastName.value.trim(), email: registerEmail.value.trim(), password: registerPassword.value,
+        ...(registerCountry.value.trim() ? { countryCode: registerCountry.value.trim().toUpperCase() } : {}) });
+      else user = await client.login(email.value.trim(), password.value);
       clearPasswords(); signedIn = true; guestSession = mode === 'guest'; model.reset();
+      model.setAccount(user, guestSession);
       if (mode === 'register') model.state.notice = 'Your TiCash account was created.';
       render();
       // Fixed local destination; user-supplied return URLs are never used.
@@ -800,7 +875,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const timer = setInterval(() => { if (signedIn && model.state.quote) render(); }, 1000);
   const removeLanguageListener = onLanguageChange(render);
   render();
-  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); root.ownerDocument.removeEventListener('click', closeOperatorPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
+  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; clearFlow(); removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); root.ownerDocument.removeEventListener('click', closeOperatorPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
 }
 
 const root = typeof document === 'undefined' ? null : document.querySelector('[data-recharge-root]');
