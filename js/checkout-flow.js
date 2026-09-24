@@ -1,35 +1,34 @@
 import { ApiError } from './api-client.js';
 
-export const checkoutMode = 'CHECKOUT_COM_SANDBOX';
+export const checkoutMode = 'STRIPE_SANDBOX';
 export const isUuid = (value) => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const record = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
 
 export function validateCheckoutSession(data) {
-  if (!record(data) || data.provider !== 'CHECKOUT_COM' || data.environment !== 'SANDBOX' || data.testMode !== true ||
+  if (!record(data) || data.provider !== 'STRIPE' || data.environment !== 'SANDBOX' || data.testMode !== true ||
       !isUuid(data.transactionId) || !record(data.paymentSession) ||
-      typeof data.paymentSession.id !== 'string' || !/^ps_\S+$/.test(data.paymentSession.id) ||
-      typeof data.paymentSession.payment_session_token !== 'string' || !data.paymentSession.payment_session_token.trim() ||
-      typeof data.publicKey !== 'string' || !/^pk_sbox_\S+$/.test(data.publicKey) ||
+      typeof data.paymentSession.id !== 'string' || !/^pi_\S+$/.test(data.paymentSession.id) ||
+      typeof data.paymentSession.client_secret !== 'string' || !/^pi_\S+_secret_\S+$/.test(data.paymentSession.client_secret) ||
+      typeof data.publicKey !== 'string' || !/^pk_test_\S+$/.test(data.publicKey) ||
       !Number.isSafeInteger(data.amountMinor) || data.amountMinor <= 0 || data.currency !== 'USD' || data.paymentStatus !== 'SESSION_CREATED') {
-    throw new ApiError('INVALID_CHECKOUT_SESSION', 'Unable to verify the sandbox payment session. Keep this page open and refresh transaction status.');
+    throw new ApiError('INVALID_CHECKOUT_SESSION', 'Unable to verify the Stripe sandbox payment session. Keep this page open and refresh transaction status.');
   }
   return data;
 }
 
 const libraries = new WeakMap();
-// Official Flow contract: https://www.checkout.com/docs/get-started
-// Load directly from Checkout.com, only after a validated sandbox session exists.
+// Stripe Elements must be loaded from Stripe's hosted SDK after session validation.
 export function loadCheckoutFactory(pageWindow) {
   if (!libraries.has(pageWindow)) {
     const library = new Promise((resolve, reject) => {
       const script = pageWindow.document.createElement('script');
-      script.src = 'https://checkout-web-components.checkout.com/index.js';
+      script.src = 'https://js.stripe.com/v3/';
       script.async = true;
-      const fail = () => reject(new Error('Sandbox payment form unavailable. Refresh transaction status before starting another recharge.'));
+      const fail = () => reject(new Error('Stripe sandbox payment form unavailable. Refresh transaction status before starting another recharge.'));
       const timer = pageWindow.setTimeout(fail, 20000);
       script.onload = () => {
         pageWindow.clearTimeout(timer);
-        if (typeof pageWindow.CheckoutWebComponents === 'function') resolve(pageWindow.CheckoutWebComponents);
+        if (typeof pageWindow.Stripe === 'function') resolve(pageWindow.Stripe);
         else fail();
       };
       script.onerror = () => { pageWindow.clearTimeout(timer); fail(); };
@@ -45,13 +44,17 @@ export function loadCheckoutFactory(pageWindow) {
 
 export async function mountCheckoutFlow({ session, container, factory, active, onPaymentCompleted }) {
   validateCheckoutSession(session);
-  const checkout = await factory({
-    paymentSession: session.paymentSession, publicKey: session.publicKey, environment: 'sandbox',
-    // Never use the browser's payment ID or payload as proof of payment.
-    onPaymentCompleted: () => { if (active()) return onPaymentCompleted(session.transactionId); },
-  });
+  const stripe = await factory(session.publicKey);
   if (!active()) return;
-  const flow = checkout.create('flow');
-  await flow.mount(container);
-  return flow;
+  const checkout = await stripe.initEmbeddedCheckout({
+    clientSecret: session.paymentSession.client_secret,
+    // Never use browser callback payloads as proof of payment.
+    onComplete: () => { if (active()) return onPaymentCompleted(session.transactionId); },
+  });
+  if (!active()) {
+    try { checkout?.unmount?.(); } catch { /* noop */ }
+    return;
+  }
+  await checkout.mount(container);
+  return { unmount() { checkout.unmount?.(); } };
 }

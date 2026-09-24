@@ -92,9 +92,9 @@ export class Recharge {
   }
   checkoutBlocked() {
     const s = this.state;
-    if (s.guest || !s.account) return 'Sign in to a permanent account to use sandbox card payments.';
+    if (s.guest || !s.account) return 'Sign in to a permanent account to use Stripe sandbox card payments.';
     const card = s.paymentMethods.find((method) => method.method === 'CARD');
-    if (!card || card.provider !== 'CHECKOUT_COM' || card.testMode !== true || card.enabled !== true) {
+    if (!card || card.provider !== 'STRIPE' || card.testMode !== true || card.enabled !== true) {
       return s.paymentMethodsError || (typeof card?.reason === 'string' && card.reason) || 'Sandbox card payments are unavailable.';
     }
     if (!s.profileLoaded) return s.profileError || 'Your account profile could not be verified. Retry connection.';
@@ -131,7 +131,7 @@ export class Recharge {
   async saveAccountCountry(value) {
     this.editable();
     return this.run('profile', async (active) => {
-      if (this.state.paymentMode !== checkoutMode || this.state.guest || !this.state.account) throw invalid('Sign in to a permanent account to use sandbox card payments.');
+      if (this.state.paymentMode !== checkoutMode || this.state.guest || !this.state.account) throw invalid('Sign in to a permanent account to use Stripe sandbox card payments.');
       const countryCode = value.trim().toUpperCase();
       if (!/^[A-Z]{2}$/.test(countryCode)) throw invalid('Enter your two-letter account/billing country code.');
       const profile = this.state.userProfile;
@@ -338,7 +338,7 @@ export class Recharge {
           method: 'POST', body: attempt.body, headers: { 'Idempotency-Key': attempt.key },
         }));
         if (!current()) return;
-        if (attempt.transactionId && attempt.transactionId !== session.transactionId) throw invalid('Unable to verify the sandbox payment session. Keep this page open and refresh transaction status.');
+        if (attempt.transactionId && attempt.transactionId !== session.transactionId) throw invalid('Unable to verify the Stripe sandbox payment session. Keep this page open and refresh transaction status.');
         s.checkoutSession = session; attempt.transactionId = session.transactionId;
       } catch (error) {
         if (!current()) return;
