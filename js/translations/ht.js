@@ -84,6 +84,7 @@ export default Object.freeze({
   "chooseOperator": "Chwazi yon operatè",
   "findingOperator": "N ap chèche operatè a…",
   "chooseProduct": "Chwazi yon pwodui",
+  "otherAmount": "Autre montan",
   "rangeHint": "Montan ki disponib: {min} rive {max}. Frè ak total final la ap parèt nan pri ou resevwa a.",
   "loadingAvailableOperators": "N ap chaje operatè ki disponib yo…",
   "loadingProducts": "N ap chaje pwodui ki disponib yo…",

@@ -84,6 +84,7 @@ export default Object.freeze({
   "chooseOperator": "Escolha uma operadora",
   "findingOperator": "Buscando operadora…",
   "chooseProduct": "Escolha um produto",
+  "otherAmount": "Outro valor",
   "rangeHint": "Faixa disponível: de {min} a {max}. A taxa e o total finais aparecem na cotação.",
   "loadingAvailableOperators": "Carregando operadoras disponíveis…",
   "loadingProducts": "Carregando produtos disponíveis…",

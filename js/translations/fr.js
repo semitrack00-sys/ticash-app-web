@@ -84,6 +84,7 @@ export default Object.freeze({
   "chooseOperator": "Choisissez un opérateur",
   "findingOperator": "Recherche de l’opérateur…",
   "chooseProduct": "Choisissez un produit",
+  "otherAmount": "Autre montant",
   "rangeHint": "Montants disponibles : de {min} à {max}. Les frais et le total définitifs figurent dans votre devis.",
   "loadingAvailableOperators": "Chargement des opérateurs disponibles…",
   "loadingProducts": "Chargement des produits disponibles…",

@@ -3,6 +3,7 @@ import { getLanguage, localizeCountry, supportedLanguages } from './i18n.js';
 import { checkoutMode, isUuid, validateCheckoutSession } from './checkout-flow.js';
 
 const root = '/mobile-topups';
+export const customAmountProductId = '__custom_amount__';
 const invalid = (message) => new ApiError('INVALID_RESPONSE', message);
 const profileFields = ['firstName', 'lastName', 'phoneNumber', 'countryCode', 'addressLine1', 'addressLine2', 'city', 'region', 'postalCode'];
 export function internationalPhone(value, callingCode) {
@@ -234,7 +235,11 @@ export class Recharge {
     }, () => this.revision === revision);
   }
   selectProduct(id) {
-    this.editable(); this.invalidate(); this.state.product = this.state.products.find((p) => p.id === id) || null;
+    this.editable(); this.invalidate();
+    const chosen = id === customAmountProductId
+      ? this.state.products.find((p) => p.amountType === 'RANGE') || null
+      : this.state.products.find((p) => p.id === id) || null;
+    this.state.product = chosen;
     this.state.amount = ''; this.emit();
   }
   setAmount(value) { this.editable(); this.invalidate(); this.state.amount = value; this.emit(); }

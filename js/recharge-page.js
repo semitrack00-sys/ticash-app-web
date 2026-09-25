@@ -1,5 +1,5 @@
 ﻿import { apiBaseUrl, createApiClient } from './api-client.js';
-import { Recharge, countryFlag, operatorLogoUrl, searchCountries } from './recharge.js';
+import { Recharge, countryFlag, customAmountProductId, operatorLogoUrl, searchCountries } from './recharge.js';
 import { t, getLanguage, languageLocale, localizeCountry, onLanguageChange, translateElements, syncLanguageSelectors } from './i18n.js';
 import { mountLanguageHeader } from './language-page.js';
 import { checkoutMode, loadCheckoutFactory, mountCheckoutFlow } from './checkout-flow.js';
@@ -629,10 +629,20 @@ export function mountRecharge(root, config, dependencies = {}) {
     detectButton.removeAttribute('data-i18n');
     detectButton.replaceChildren(icon('search'), el('span', {}, t(busy.has('detect') ? 'Finding operator…' : 'Find my operator')));
     operatorsRetry.disabled = !s.country || busy.has(`operators:${s.country}`);
-    options(product, s.products, s.product?.id, t('Choose a product'), (p) => p.amountType === 'RANGE'
-      ? `${p.name} · ${money(p.minimumAmount, p.priceCurrency)}–${money(p.maximumAmount, p.priceCurrency)}`
-      : `${p.name} · ${money(p.price, p.priceCurrency)}`, (p) => p.id);
-    product.disabled = !s.operator || !s.products.length;
+    const customRangeProduct = s.products.find((p) => p.amountType === 'RANGE');
+    const productChoices = customRangeProduct
+      ? [
+          ...s.products,
+          { id: customAmountProductId, name: t('otherAmount'), amountType: 'RANGE', minimumAmount: customRangeProduct.minimumAmount, maximumAmount: customRangeProduct.maximumAmount, priceCurrency: customRangeProduct.priceCurrency },
+        ]
+      : s.products;
+    const selectedProductId = s.product?.amountType === 'RANGE' && customRangeProduct ? customAmountProductId : s.product?.id ?? '';
+    options(product, productChoices, selectedProductId, t('Choose a product'), (p) => p.id === customAmountProductId
+      ? t('otherAmount')
+      : p.amountType === 'RANGE'
+        ? `${p.name} · ${money(p.minimumAmount, p.priceCurrency)}–${money(p.maximumAmount, p.priceCurrency)}`
+        : `${p.name} · ${money(p.price, p.priceCurrency)}`, (p) => p.id);
+    product.disabled = !s.operator || !productChoices.length;
     amountField.hidden = s.product?.amountType !== 'RANGE';
     if (s.product?.amountType === 'RANGE') {
       amount.min = s.product.minimumAmount; amount.max = s.product.maximumAmount;

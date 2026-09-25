@@ -84,6 +84,7 @@ export default Object.freeze({
   "chooseOperator": "Choose an operator",
   "findingOperator": "Finding operator…",
   "chooseProduct": "Choose a product",
+  "otherAmount": "Other amount",
   "rangeHint": "Available range: {min} to {max}. Final fee and total appear in your quote.",
   "loadingAvailableOperators": "Loading available operators…",
   "loadingProducts": "Loading available products…",
