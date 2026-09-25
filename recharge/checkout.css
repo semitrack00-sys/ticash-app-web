@@ -126,7 +126,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .recharge-topbar,.recharge-brand-group{display:flex;align-items:center;gap:12px}
 .recharge-topbar{justify-content:space-between;gap:8px}
 .recharge-topbar .brand{font-size:23px;gap:0;color:white;font-family:Manrope,sans-serif;font-weight:800;letter-spacing:-.05em;text-decoration:none}
-.recharge-wordmark{display:inline-flex;align-items:center}.wordmark-ti{color:var(--gold)}.wordmark-cash{color:#fff}
+.recharge-wordmark{display:inline-flex;align-items:center}.recharge-brand-logo{display:block;width:180px;height:auto;max-width:100%;filter:drop-shadow(0 6px 12px rgba(16,28,45,.18))}.wordmark-ti{color:var(--gold)}.wordmark-cash{color:#fff}
 .menu-toggle{display:grid;place-items:center;min-width:44px;min-height:44px;border:0;border-radius:9px;background:transparent;color:white;cursor:pointer;padding:0}
 .recharge-navigation{display:flex;flex-direction:column;gap:4px;padding:12px;margin:14px 0;background:#112d4a;border:1px solid #ffffff20;border-radius:12px}
 .recharge-navigation a{display:flex;align-items:center;min-height:44px;text-decoration:none;padding:0 8px;font-size:14px;color:white}
@@ -138,7 +138,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .account-dropdown{position:absolute;right:0;top:calc(100% + 8px);z-index:70;min-width:150px;padding:8px;background:white;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px #07182f26}
 .account-dropdown .button{width:100%}
 .recharge-active .test-banner{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:10px;background:#edf4fa;border:1px solid #dbe6f1;border-radius:15px;padding:15px;color:var(--navy);text-align:left}
-.test-icon{display:grid;place-items:center;background:#dfeaf6;border-radius:50%;width:36px;height:36px;color:#4c739c}
+.test-icon{display:grid;place-items:center;background:linear-gradient(135deg,#eaf5ff,#f6effd);border:1px solid rgba(110,130,255,.18);border-radius:50%;width:36px;height:36px;color:#4c739c;overflow:hidden}.test-icon img{display:block;width:18px;height:18px;object-fit:contain}
 .test-copy{display:grid;gap:5px}.test-copy strong{letter-spacing:0;font-size:13px}.test-copy>span{font-size:11px;color:#576a80;line-height:1.4}
 .recharge-active #guest-create-account{font-size:11px;padding:8px 10px;min-height:44px;background:transparent;border-color:#b9cadc;white-space:normal}
 .recharge-active .checkout-progress{display:flex;align-items:center;justify-content:space-between;gap:0;margin:24px 0}

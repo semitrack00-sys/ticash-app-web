@@ -390,7 +390,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const progress = el('ol', { className: 'checkout-progress', 'aria-label': t('Recharge progress'), 'data-i18n-aria-label': 'Recharge progress' }, progressItems);
   const checkout = el('div', { id: 'checkout', hidden: '' }, progress, countriesRetry, selectionFields, receipt, historyPanel);
   const menu = el('nav', { id: 'recharge-navigation', className: 'recharge-navigation', hidden: '', 'aria-label': t('navigation'), 'data-i18n-aria-label': 'navigation' },
-    el('a', { href: '/' }, ui('homeLabel')), el('a', { href: '/send' }, ui('sendMoney')), el('a', { href: '/recharge', 'aria-current': 'page' }, ui('mobileRecharge')), el('a', { href: '/support' }, ui('support')));
+    el('a', { href: '/' }, ui('homeLabel')), el('a', { href: '/send' }, ui('sendMoney')), el('a', { href: '/recharge', 'aria-current': 'page' }, ui('flupFlap')), el('a', { href: '/support' }, ui('support')));
   const menuButton = el('button', { id: 'recharge-menu-toggle', type: 'button', className: 'menu-toggle', 'aria-label': t('navigation'), 'data-i18n-aria-label': 'navigation', 'aria-expanded': 'false', 'aria-controls': 'recharge-navigation', onclick: () => {
     menu.hidden = !menu.hidden; menuButton.setAttribute('aria-expanded', String(!menu.hidden));
   } }, icon('menu'));
@@ -399,17 +399,17 @@ export function mountRecharge(root, config, dependencies = {}) {
     if (accountBar.open) { accountBar.open = false; accountBar.querySelector('summary').focus(); }
     else if (!menu.hidden) { menu.hidden = true; menuButton.setAttribute('aria-expanded', 'false'); menuButton.focus(); }
   };
+  const brandLogo = el('img', { className: 'recharge-brand-logo', src: '/brand/flupflap/logo.svg', alt: 'FlupFlap', width: '180', height: '42' });
   const hero = el('section', { className: 'checkout-hero', hidden: '' },
     el('div', { className: 'recharge-topbar' }, el('div', { className: 'recharge-brand-group' }, menuButton,
-      el('a', { className: 'brand recharge-wordmark', href: '/', 'aria-label': t('homeLabel'), 'data-i18n-aria-label': 'homeLabel' },
-        el('span', { className: 'wordmark-ti' }, 'Ti'), el('span', { className: 'wordmark-cash' }, 'Cash'))), accountBar),
-    menu, el('h1', {}, ui('Mobile Recharge')), el('p', {}, ui('Stay connected, wherever they are.')));
+      el('a', { className: 'brand recharge-wordmark', href: '/', 'aria-label': t('homeLabel'), 'data-i18n-aria-label': 'homeLabel' }, brandLogo)), accountBar),
+    menu, el('h1', {}, ui('Mobile Recharge')), el('p', {}, ui('mobileRechargeByTiCashApp')));
   hero.addEventListener('keydown', closeMenus);
   const siteHeader = root.ownerDocument.querySelector('header');
   const headerLanguage = root.ownerDocument.getElementById('header-language')?.closest('label');
   const originalHeaderHidden = siteHeader?.hidden;
   const testTitle = el('strong'); const testText = el('span');
-  const testIcon = el('span', { className: 'test-icon' }, icon('flask'));
+  const testIcon = el('span', { className: 'test-icon' }, el('img', { src: '/brand/flupflap/icon.svg', alt: 'FlupFlap', width: '18', height: '18' }));
   const testBanner = el('div', { className: 'test-banner', role: 'note' }, testIcon,
     el('div', { className: 'test-copy' }, testTitle, testText), createFromGuest);
   root.replaceChildren(hero, testBanner, error, notice, loginPanel, checkout);
@@ -664,7 +664,7 @@ export function mountRecharge(root, config, dependencies = {}) {
       reviewContent.replaceChildren(s.quote ? details([
         ['Recipient', s.quote.recipientPhone], ['Country', `${localizeCountry(s.countries.find(c => c.code === s.quote.countryCode) || {code:s.quote.countryCode,name:s.quote.countryCode})} (${s.quote.countryCode})`], ['Operator', operatorDetail(s.quote.operatorName, s.operator?.id === s.quote.operatorId ? s.operator : s.operators.find((op) => op.id === s.quote.operatorId))],
         ['Product', s.quote.productName], ['Recharge amount', money(s.quote.providerAmount, s.quote.providerCurrency)],
-        ['TiCash fee', money(s.quote.feeUsd, 'USD')], ['Total', money(s.quote.totalChargeUsd, 'USD')],
+        ['FlupFlap fee', money(s.quote.feeUsd, 'USD')], ['Total', money(s.quote.totalChargeUsd, 'USD')],
       ]) : el('div', { className: 'review-empty' }, icon('chart'), el('strong', {}, ui('Your quote will appear here.')), el('p', { className: 'small muted' }, ui('quoteEmptyInstruction'))));
     }
     expiry.textContent = s.quote ? (model.quoteValid() ? t('quoteUntil', { date: date(s.quote.expiresAt) }) : t('This quote expired. Get a new quote before confirming.')) : '';

@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
 import { Recharge, customAmountProductId, internationalPhone, operatorLogoUrl, searchCountries, secureId, assertTestService } from '../js/recharge.js';
+import { mountRecharge } from '../js/recharge-page.js';
 import { ApiError } from '../js/api-client.js';
 import { fixtureApi, countries, operator, products, quote, transaction, status } from './fixtures.mjs';
 
@@ -77,6 +79,28 @@ test('range-capable operators expose a custom amount option while fixed operator
   assert.equal(fixedOnly.state.products.some((product) => product.amountType === 'RANGE'), false);
   fixedOnly.selectProduct(customAmountProductId);
   assert.equal(fixedOnly.state.product, null);
+});
+test('recharge branding uses FlupFlap and keeps TiCash-App as the parent platform', async () => {
+  const api = fixtureApi();
+  const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
+  globalThis.document = dom.window.document;
+  const root = document.getElementById('root');
+  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
+  try {
+    const guestButton = document.getElementById('continue-guest');
+    guestButton.click();
+    await Promise.resolve();
+    assert.match(root.textContent, /FlupFlap/);
+    assert.match(root.textContent, /Mobile Recharge by TiCash-App/);
+    assert.match(root.textContent, /TiCash-App/);
+    const registerButton = document.getElementById('choose-register');
+    registerButton.click();
+    assert.match(root.textContent, /Create TiCash account/);
+  } finally {
+    app.dispose();
+    dom.window.close();
+    delete globalThis.document;
+  }
 });
 test('cannot confirm without review or after quote expiry', async () => {
   const { model, api } = await setup(); await model.getQuote(); await model.confirm();
