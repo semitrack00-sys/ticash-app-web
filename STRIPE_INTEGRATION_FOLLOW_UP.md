@@ -1,11 +1,11 @@
-# Separate Stripe integration investigation
+# Stripe integration follow-up
 
-This UI redesign deliberately leaves `js/checkout-flow.js`, the API client, recharge state machine, payment configuration, and payment endpoints unchanged.
+The browser-side Stripe contract mismatch in `js/checkout-flow.js` has been repaired by switching from the incompatible Embedded Checkout adapter to the official Stripe.js Payment Element flow using the validated PaymentIntent `pi_..._secret_...` client secret.
 
-The existing adapter validates a PaymentIntent-style `pi_..._secret_...` client secret and passes it to `stripe.initEmbeddedCheckout`. Investigate the backend session contract and the expected Stripe Embedded Checkout Session client secret together in a separate payment task. Confirm the actual response contract before choosing any repair. A browser return or callback must never authorize fulfillment.
+The browser still never authorizes recharge fulfillment. It only confirms theStripe payment form, and the existing backend transaction refresh path remains authoritative after the verified webhook state updates the server. Browser results are not proof of payment and are never treated as authorization.
 
-Contract reference: https://docs.stripe.com/api/checkout/sessions/object (Checkout Session client_secret and ui_mode). This issue has not been repaired or verified through a Stripe payment in this UI task.
+This UI task does not claim live Stripe sandbox verification unless a sandbox integration test is actually run against the backend and Stripe test environment. The current repair preserves the existing server-authoritative flow, security controls, and idempotent transaction locking.
 
 ## Hero artwork
 
-The user-supplied transparent woman/worldwide-globe PNG is now integrated into the existing decorative desktop slot. The approved mobile gradient remains unchanged. Asset provenance and responsive behavior are documented in `brand/flupflap/HERO_ARTWORK.md`. The separate Stripe investigation above remains unresolved and outside this UI task.
+The user-supplied transparent woman/worldwide-globe PNG is integrated into the existing decorative desktop slot. The approved mobile gradient remains unchanged. Asset provenance and responsive behavior are documented in `brand/flupflap/HERO_ARTWORK.md`.

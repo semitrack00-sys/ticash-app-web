@@ -17,7 +17,7 @@ export function validateCheckoutSession(data) {
 }
 
 const libraries = new WeakMap();
-// Stripe Elements must be loaded from Stripe's hosted SDK after session validation.
+// Stripe.js must be loaded from Stripe's hosted SDK after session validation.
 export function loadCheckoutFactory(pageWindow) {
   if (!libraries.has(pageWindow)) {
     const library = new Promise((resolve, reject) => {
@@ -46,15 +46,76 @@ export async function mountCheckoutFlow({ session, container, factory, active, o
   validateCheckoutSession(session);
   const stripe = await factory(session.publicKey);
   if (!active()) return;
-  const checkout = await stripe.initEmbeddedCheckout({
+
+  const elements = stripe.elements({
     clientSecret: session.paymentSession.client_secret,
-    // Never use browser callback payloads as proof of payment.
-    onComplete: () => { if (active()) return onPaymentCompleted(session.transactionId); },
+    appearance: {
+      theme: 'stripe',
+      variables: {
+        colorPrimary: '#0f172a',
+      },
+    },
   });
+
+  const paymentElement = elements.create('payment');
   if (!active()) {
-    try { checkout?.unmount?.(); } catch { /* noop */ }
+    try { paymentElement.unmount?.(); } catch { /* noop */ }
+    try { elements.destroy?.(); } catch { /* noop */ }
     return;
   }
-  await checkout.mount(container);
-  return { unmount() { checkout.unmount?.(); } };
+
+  paymentElement.mount(container);
+
+  let confirmationInProgress = null;
+
+  const confirm = async ({ returnUrl, onError } = {}) => {
+    if (confirmationInProgress) return confirmationInProgress;
+
+    confirmationInProgress = (async () => {
+      try {
+        if (!active()) {
+          throw new ApiError('INVALID_CHECKOUT_SESSION', 'The Stripe sandbox payment session is no longer active. Refresh transaction status before retrying.');
+        }
+
+        const confirmParams = {
+          elements,
+          redirect: 'if_required',
+        };
+
+        if (typeof returnUrl === 'string' && /^\//.test(returnUrl)) {
+          const target = new URL(returnUrl, globalThis.location?.origin || 'https://example.invalid');
+          if (target.origin === (globalThis.location?.origin || target.origin)) {
+            confirmParams.return_url = target.toString();
+          }
+        }
+
+        const result = await stripe.confirmPayment(confirmParams);
+        if (result.error) {
+          const message = result.error.message || 'Unable to confirm the Stripe sandbox payment.';
+          if (typeof onError === 'function') onError(new ApiError('STRIPE_PAYMENT_CONFIRMATION_FAILED', message));
+          throw new ApiError('STRIPE_PAYMENT_CONFIRMATION_FAILED', message);
+        }
+
+        // Do not treat browser success as authorization; only refresh the existing server-bound transaction.
+        if (typeof onPaymentCompleted === 'function') {
+          await onPaymentCompleted(session.transactionId);
+        }
+        return result;
+      } finally {
+        confirmationInProgress = null;
+      }
+    })();
+
+    return confirmationInProgress;
+  };
+
+  return {
+    elements,
+    paymentElement,
+    confirm,
+    unmount() {
+      try { paymentElement.unmount?.(); } catch { /* noop */ }
+      try { elements.destroy?.(); } catch { /* noop */ }
+    },
+  };
 }
