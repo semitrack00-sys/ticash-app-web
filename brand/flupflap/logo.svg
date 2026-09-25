@@ -1,0 +1,15 @@
+<svg width="320" height="72" viewBox="0 0 320 72" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">FlupFlap</title>
+  <desc id="desc">FlupFlap logo for the recharge service by TiCash-App.</desc>
+  <defs>
+    <linearGradient id="flupflapGradient" x1="6" x2="314" y1="6" y2="66" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#53D6FF"/>
+      <stop offset="1" stop-color="#2F7CF6"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="64" height="64" rx="18" fill="url(#flupflapGradient)"/>
+  <path d="M26 21.5H52C57.5228 21.5 62 25.9772 62 31.5V31.5C62 37.0228 57.5228 41.5 52 41.5H34.5V50.5H26V21.5Z" fill="white"/>
+  <path d="M26 41.5H44.5C49.1944 41.5 52.5 44.8056 52.5 49.5V49.5C52.5 54.1944 49.1944 57.5 44.5 57.5H26V41.5Z" fill="white" opacity="0.92"/>
+  <path d="M16 20.5L37 20.5L37 26.5L22 26.5L22 31.5H36L36 37.5L22 37.5L22 50.5H16L16 20.5Z" fill="#11213A" opacity="0.18"/>
+  <text x="88" y="45" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" letter-spacing="0.2">FlupFlap</text>
+</svg>

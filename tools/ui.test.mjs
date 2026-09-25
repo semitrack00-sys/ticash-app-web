@@ -125,7 +125,7 @@ test('quote displays a backend 3.50 fee and 8.50 total without deriving charges'
   await page(async ({ app, query, login }) => {
     await login(); await app.model.selectCountry('JM'); app.model.setPhone(quote.recipientPhone); await app.model.selectOperator(77);
     app.model.selectProduct(products[0].id); await app.model.getQuote();
-    assert.match(query('#quote-details').textContent, /TiCash fee\$3\.50/); assert.match(query('#quote-details').textContent, /Total\$8\.50/);
+    assert.match(query('#quote-details').textContent, /FlupFlap fee\$3\.50/); assert.match(query('#quote-details').textContent, /Total\$8\.50/);
   }, { api });
 });
 
@@ -214,6 +214,18 @@ test('switching during unresolved confirmation preserves attempt and exact idemp
   },{api});
 });
 
+test('recharge brand slot renders the actual FlupFlap SVG logo and scoped icon asset', async () => page(async ({ login, query }) => {
+  await login();
+  const logo = query('.recharge-brand-logo');
+  const icon = query('.test-icon img');
+  assert.equal(logo?.tagName, 'IMG');
+  assert.equal(logo?.getAttribute('src'), '/brand/flupflap/logo.svg');
+  assert.equal(icon?.getAttribute('src'), '/brand/flupflap/icon.svg');
+  assert.equal(logo?.getAttribute('alt'), 'FlupFlap');
+  assert.equal(query('.wordmark-ti'), null);
+  assert.equal(query('.wordmark-cash'), null);
+}));
+
 test('fallback provider names remain literal text and ISO values cannot become HTML', async () => {
   const api=fixtureApi();const attack='<img src=x onerror=alert(1)>';
   api.overrides.set('GET /mobile-topups/countries',()=>({countries:[{code:'JM',name:attack,callingCode:'+1'}]}));
@@ -223,9 +235,9 @@ test('fallback provider names remain literal text and ISO values cannot become H
     assert.equal(query('#country').options[1].textContent,`🇯🇲 ${attack} (+1)`);assert.equal(query('#country').options[1].value,'JM');
     input('#country','JM','change');await tick();assert.ok(query('#phone-hint').textContent.includes(attack));
     assert.equal(root.querySelector('[onerror]'), null);
-    assert.equal(root.querySelector('.recharge-topbar .brand img'), null);
-    assert.equal(query('.wordmark-ti').textContent, 'Ti');
-    assert.equal(query('.wordmark-cash').textContent, 'Cash');
+    assert.equal(root.querySelector('.recharge-brand-logo')?.getAttribute('src'), '/brand/flupflap/logo.svg');
+    assert.equal(query('.wordmark-ti'), null);
+    assert.equal(query('.wordmark-cash'), null);
     for (const img of root.querySelectorAll('img.country-picker-flag')) {
       assert.match(img.getAttribute('src') || '', /^\/flags\/[a-z]{2}\.svg$/);
     }

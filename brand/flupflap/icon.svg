@@ -1,0 +1,13 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">FlupFlap icon</title>
+  <desc id="desc">FlupFlap app icon for the mobile recharge service by TiCash-App.</desc>
+  <defs>
+    <linearGradient id="flupflapIconGradient" x1="18" x2="107" y1="18" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#53D6FF"/>
+      <stop offset="1" stop-color="#2F7CF6"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="12" width="104" height="104" rx="28" fill="url(#flupflapIconGradient)"/>
+  <path d="M44 40H83C90.732 40 97 46.268 97 54C97 61.732 90.732 68 83 68H56V82H44V40Z" fill="white"/>
+  <path d="M44 68H69C76.732 68 83 74.268 83 82C83 89.732 76.732 96 69 96H44V68Z" fill="white" opacity="0.95"/>
+</svg>

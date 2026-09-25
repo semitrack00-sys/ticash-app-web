@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Recharge, internationalPhone, operatorLogoUrl, searchCountries, secureId, assertTestService } from '../js/recharge.js';
+import { JSDOM } from 'jsdom';
+import { Recharge, customAmountProductId, internationalPhone, operatorLogoUrl, searchCountries, secureId, assertTestService } from '../js/recharge.js';
+import { mountRecharge } from '../js/recharge-page.js';
 import { ApiError } from '../js/api-client.js';
 import { fixtureApi, countries, operator, products, quote, transaction, status } from './fixtures.mjs';
 
@@ -60,6 +62,45 @@ test('range quote sends a valid amount and rejects out-of-range or fractional-ce
   }
   model.setAmount('13.25'); await model.getQuote();
   assert.equal(api.calls.filter((c) => c.path === '/mobile-topups/quotes').at(-1).body.amount, 13.25);
+});
+test('range-capable operators expose a custom amount option while fixed operators keep their preset catalog', async () => {
+  const { model } = await setup();
+  model.selectProduct(products[1].id);
+  assert.equal(model.state.product.id, products[1].id);
+  model.selectProduct(customAmountProductId);
+  assert.equal(model.state.product.id, products[1].id);
+  assert.equal(model.state.amount, '');
+
+  const fixedOnlyApi = fixtureApi();
+  fixedOnlyApi.overrides.set('GET /mobile-topups/operators/77/products', () => ({ operator: structuredClone(operator), products: [structuredClone(products[0])] }));
+  const fixedOnly = new Recharge(fixedOnlyApi);
+  await fixedOnly.start(); await fixedOnly.selectCountry('JM'); fixedOnly.setPhone('+1 (876) 555-1234');
+  await fixedOnly.selectOperator(77);
+  assert.equal(fixedOnly.state.products.some((product) => product.amountType === 'RANGE'), false);
+  fixedOnly.selectProduct(customAmountProductId);
+  assert.equal(fixedOnly.state.product, null);
+});
+test('recharge branding uses FlupFlap and keeps TiCash-App as the parent platform', async () => {
+  const api = fixtureApi();
+  const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
+  globalThis.document = dom.window.document;
+  const root = document.getElementById('root');
+  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
+  try {
+    const guestButton = document.getElementById('continue-guest');
+    guestButton.click();
+    await Promise.resolve();
+    assert.match(root.textContent, /FlupFlap/);
+    assert.match(root.textContent, /Mobile Recharge by TiCash-App/);
+    assert.match(root.textContent, /TiCash-App/);
+    const registerButton = document.getElementById('choose-register');
+    registerButton.click();
+    assert.match(root.textContent, /Create TiCash account/);
+  } finally {
+    app.dispose();
+    dom.window.close();
+    delete globalThis.document;
+  }
 });
 test('cannot confirm without review or after quote expiry', async () => {
   const { model, api } = await setup(); await model.getQuote(); await model.confirm();
