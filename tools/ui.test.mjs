@@ -139,7 +139,7 @@ test('shared header language selector synchronizes translated UI, ISO labels, se
     assert.equal(dom.window.document.documentElement.lang,code);
     assert.equal(dom.window.document.querySelector('#header-language').value,code);
     assert.equal(dom.window.document.querySelector('header a').textContent,t('mobileRecharge'));
-    assert.equal(query('#get-quote').textContent,t('getQuote'));
+    assert.equal(query('#get-quote').textContent,t('continueRecharge'));
     assert.equal(query('#country').value,'HT'); assert.equal(query('#country').options.length,2);
     assert.equal(query('#country').selectedOptions[0].textContent,`🇭🇹 ${names[code]} (+509)`);
     assert.match(query('#phone-hint').textContent,/🇭🇹/); assert.match(query('#phone-hint').textContent,/\+509/);
@@ -214,14 +214,14 @@ test('switching during unresolved confirmation preserves attempt and exact idemp
   },{api});
 });
 
-test('recharge brand slot renders the actual FlupFlap SVG logo and scoped icon asset', async () => page(async ({ login, query }) => {
+test('recharge brand slot renders the official FlupFlap PNG logo and scoped icon asset', async () => page(async ({ login, query }) => {
   await login();
   const logo = query('.recharge-brand-logo');
   const icon = query('.test-icon img');
   assert.equal(logo?.tagName, 'IMG');
-  assert.equal(logo?.getAttribute('src'), '/brand/flupflap/logo.svg');
+  assert.equal(logo?.getAttribute('src'), '/brand/flupflap/ChatGPT Image Sep 24, 2026, 09_49_40 PM.png');
   assert.equal(icon?.getAttribute('src'), '/brand/flupflap/icon.svg');
-  assert.equal(logo?.getAttribute('alt'), 'FlupFlap');
+  assert.match(logo?.getAttribute('alt'), /FlupFlap.*Worldwide Mobile Recharge by TiCash-App/);
   assert.equal(query('.wordmark-ti'), null);
   assert.equal(query('.wordmark-cash'), null);
 }));
@@ -235,7 +235,7 @@ test('fallback provider names remain literal text and ISO values cannot become H
     assert.equal(query('#country').options[1].textContent,`🇯🇲 ${attack} (+1)`);assert.equal(query('#country').options[1].value,'JM');
     input('#country','JM','change');await tick();assert.ok(query('#phone-hint').textContent.includes(attack));
     assert.equal(root.querySelector('[onerror]'), null);
-    assert.equal(root.querySelector('.recharge-brand-logo')?.getAttribute('src'), '/brand/flupflap/logo.svg');
+    assert.equal(root.querySelector('.recharge-brand-logo')?.getAttribute('src'), '/brand/flupflap/ChatGPT Image Sep 24, 2026, 09_49_40 PM.png');
     assert.equal(query('.wordmark-ti'), null);
     assert.equal(query('.wordmark-cash'), null);
     for (const img of root.querySelectorAll('img.country-picker-flag')) {
@@ -376,9 +376,12 @@ test('country search lives inside the picker and preserves search focus, SVG fla
 }));
 
 
-test('checkout keeps three sibling stacked cards, required controls and safe empty states', async () => page(async ({ login, root, query }) => {
+test('FlupFlap groups existing controls into details and review while preserving safe empty states', async () => page(async ({ login, root, query }) => {
   await login();
-  assert.deepEqual([...query('#selection-fields').children].map(card => card.dataset.checkoutStep), ['1', '2', '3']);
+  assert.equal(query('#selection-fields').children.length, 2);
+  assert.equal(query('[data-checkout-step="1"] fieldset').querySelector('#phone') !== null, true);
+  assert.equal(query('.review-column #review-title').textContent, 'Review & Pay');
+  assert.equal(query('[data-checkout-step="1"]').querySelectorAll('fieldset').length, 2);
   assert.equal(root.querySelector('.checkout-grid'), null);
   const css = readFileSync(new URL('../recharge/checkout.css', import.meta.url), 'utf8');
   assert.doesNotMatch(css, /\.checkout-grid|\.review-panel\s*\{[^}]*position:\s*sticky/);
@@ -543,3 +546,80 @@ test('auto detected operator keeps its provider logo', async () => page(async ({
     operator.logoUrl,
   );
 }));
+
+
+test('localhost preview parameter cannot sign in or fabricate catalog and quote state', async () => page(async ({ app, query }) => {
+  assert.equal(query('#checkout').hidden, true);
+  assert.deepEqual(app.model.state.countries, []);
+  assert.equal(app.model.state.quote, null);
+}, { url: 'http://localhost/recharge?preview=flupflap' }));
+
+test('FlupFlap uses official PNG, catalog-only tiles, exact ranges, and clears them on destination change', async () => page(async ({ login, app, query, root }) => {
+  await login();
+  assert.match(query('.flupflap-hero img').getAttribute('src'), /ChatGPT Image Sep 24, 2026, 09_49_40 PM.png$/);
+  assert.equal(root.querySelectorAll('.product-tile').length, 0);
+  assert.equal(query('.product-kinds').textContent, '');
+  await app.model.selectCountry('JM'); app.model.setPhone(quote.recipientPhone); await app.model.selectOperator(77);
+  const tiles = [...root.querySelectorAll('.product-tile')];
+  assert.deepEqual(tiles.map(tile => tile.dataset.productId), products.map(p => p.id));
+  assert.doesNotMatch(query('.product-kinds').textContent, /Data Plans|Combo Plans/);
+  tiles[0].focus(); tiles[0].click();
+  assert.equal(document.activeElement.dataset.productId, products[0].id);
+  assert.equal(query('.product-tile').getAttribute('aria-pressed'), 'true');
+  assert.equal(query('#product').value, products[0].id);
+  root.querySelectorAll('.product-tile')[1].click();
+  assert.equal(query('#amount').min, '5'); assert.equal(query('#amount').max, '20');
+  app.model.setAmount('13'); await app.model.getQuote();
+  assert.equal(app.model.state.quote.productId, products[1].id);
+  app.model.state.attempt = { body: { quoteId: quote.id }, key: 'locked' }; app.model.emit();
+  assert.ok([...root.querySelectorAll('.product-tile')].every(tile => tile.disabled));
+  app.model.state.attempt = null;
+  await app.model.selectCountry('CA');
+  assert.equal(root.querySelectorAll('.product-tile').length, 0);
+  assert.equal(app.model.state.quote, null);
+}));
+
+test('catalog type labels and coverage contain only returned provider entries', async () => {
+  const api = fixtureApi();
+  api.overrides.set('GET /mobile-topups/operators/77/products', () => ({ operator, products: [{ ...products[0], kind: 'DATA' }] }));
+  await page(async ({ login, app, query }) => {
+    await login(); await app.model.selectCountry('JM'); await app.model.selectOperator(77);
+    assert.equal(query('.product-kinds').textContent, 'Data Plans');
+    assert.doesNotMatch(query('.product-kinds').textContent, /Combo|Airtime/);
+    assert.equal(query('.coverage-list').children.length, app.model.state.countries.length);
+    assert.deepEqual([...query('.coverage-list').querySelectorAll('img')].map(img => img.getAttribute('src')), app.model.state.countries.map(c => `/flags/${c.code.toLowerCase()}.svg`));
+  }, { api });
+});
+
+test('available destinations follow replacement backend coverage without screenshot-country fallbacks', async () => {
+  const api = fixtureApi();
+  let returnedCountries = [{ code: 'NZ', name: 'New Zealand', callingCode: '+64' }];
+  api.overrides.set('GET /mobile-topups/countries', () => ({ countries: returnedCountries }));
+  await page(async ({ login, app, query }) => {
+    assert.equal(query('.coverage-panel').hidden, true);
+    await login();
+    assert.equal(query('.coverage-panel').hidden, false);
+    assert.equal(query('.coverage-list').children.length, 1);
+    assert.equal(query('.coverage-list img').getAttribute('src'), '/flags/nz.svg');
+    assert.doesNotMatch(query('.coverage-list').textContent, /Jamaica|Canada|Haiti|France/);
+    returnedCountries = [];
+    await app.model.start();
+    assert.equal(query('.coverage-panel').hidden, true);
+    assert.equal(query('.coverage-list').children.length, 0);
+  }, { api });
+});
+
+test('missing, malformed or failed initial coverage never displays fabricated destinations', async () => {
+  for (const response of [() => ({}), () => ({ countries: [{ code: 'NZ', name: 'New Zealand' }] }), () => { throw new Error('Catalog unavailable'); }]) {
+    const api = fixtureApi();
+    api.overrides.set('GET /mobile-topups/countries', response);
+    await page(async ({ login, app, query }) => {
+      await login();
+      assert.ok(app.model.state.error);
+      assert.equal(query('.coverage-panel').hidden, true);
+      assert.equal(query('.coverage-list').children.length, 0);
+      assert.equal(query('.flupflap-hero-art').getAttribute('aria-hidden'), 'true');
+      assert.equal(query('.flupflap-hero-art img'), null);
+    }, { api });
+  }
+});

@@ -91,7 +91,7 @@ test('recharge branding uses FlupFlap and keeps TiCash-App as the parent platfor
     guestButton.click();
     await Promise.resolve();
     assert.match(root.textContent, /FlupFlap/);
-    assert.match(root.textContent, /Mobile Recharge by TiCash-App/);
+    assert.match(root.querySelector('.flupflap-hero img').alt, /Mobile Recharge by TiCash-App/);
     assert.match(root.textContent, /TiCash-App/);
     const registerButton = document.getElementById('choose-register');
     registerButton.click();

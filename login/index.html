@@ -11,18 +11,34 @@
   <link rel="stylesheet" href="/recharge/checkout.css">
   <link rel="icon" href="/ticash-logo.png">
 <link rel="stylesheet" href="/language.css">
+  <link rel="stylesheet" href="/login/login.css">
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="/"><img src="/ticash-logo.png" alt=""><span>TiCash</span></a>
+    <a class="brand" href="/"><img src="/ticash-logo.png" alt=""><span>TiCash-App</span></a>
     <nav aria-label="Main navigation" data-i18n-aria-label="navigation"><a href="/send" data-i18n="sendMoney">Send Money</a><a href="/recharge" data-i18n="mobileRecharge">Mobile Recharge</a><a href="/support" data-i18n="support">Support</a></nav>
   </header>
-  <main class="checkout-main" data-recharge-root>
+  <div class="login-layout">
+    <section class="login-story" aria-labelledby="login-welcome">
+      <a class="login-service" href="/" aria-label="FlupFlap">
+        <img src="/brand/flupflap/ChatGPT Image Sep 24, 2026, 09_49_40 PM.png" alt="FlupFlap" width="2172" height="724">
+        <span data-i18n="loginServiceCaption">A service offered by TiCash-App</span>
+      </a>
+      <div class="login-story-copy">
+        <h2 id="login-welcome" data-i18n="loginBrandTitle">Worldwide Mobile Recharge</h2>
+        <p class="login-story-description" data-i18n="loginBrandDescription">Top up mobile phones for family and friends around the world with FlupFlap, a service offered by TiCash-App.</p>
+        <ul class="login-features"><li><span class="login-feature-icon phone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8v20H8zM10 18h4"/></svg></span><strong data-i18n="loginFeatureAnytime"></strong></li><li><span class="login-feature-icon globe" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18"/></svg></span><strong data-i18n="loginFeatureGlobal"></strong></li><li><span class="login-feature-icon family" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M3 21v-2a7 7 0 0 1 14 0v2M18 4a4 4 0 0 1 0 8M20 15a6 6 0 0 1 2 4v2"/></svg></span><strong data-i18n="loginFeatureFamily"></strong></li><li><span class="login-feature-icon shield" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-8 10-8 10S4 17 4 12V6zM8 12l3 3 5-6"/></svg></span><strong data-i18n="loginFeatureSafe"></strong></li></ul>
+      </div>
+      <!-- Decorative illustration only: not a transaction result or coverage catalog. -->
+      <div class="login-world-art" aria-hidden="true"></div>
+    </section>
+  <main class="checkout-main" data-recharge-root data-login-brand="flupflap">
     <p class="test-banner"><strong>TEST MODE</strong> No real money. No live recharge.</p>
     <h1>Sign in to TiCash</h1>
     <p>Loading secure test checkout…</p>
     <noscript>Enable JavaScript to sign in and use test recharge. No payment details are collected.</noscript>
   </main>
+  </div>
   <footer class="site-footer"><span>© 2026 TiCash · contact@ticash-app.com</span><span><a href="/legal/privacy" data-i18n="privacy">Privacy</a><a href="/legal/terms" data-i18n="terms">Terms</a></span></footer>
   <script src="/public-config.js"></script>
   <script type="module" src="/js/recharge-page.js"></script>
