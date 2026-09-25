@@ -281,6 +281,8 @@ export default Object.freeze({
   "sandboxCardPayment": "Stripe sandbox card payment",
   "checkoutFormNotice": "Use test payment details only. Payment status is confirmed by TiCash, not by this form. Keep this page open.",
   "continueSandboxPayment": "Continue to Stripe sandbox payment",
+  "confirmSandboxCardPayment": "Confirm sandbox card payment",
+  "checkoutPaymentFailed": "Unable to confirm Stripe sandbox payment. Verify your test details and try again.",
   "enterDetails": "Enter Details",
   "reviewPay": "Review & Pay",
   "detailsIntro": "Select the country, enter the phone number, and choose a product.",
