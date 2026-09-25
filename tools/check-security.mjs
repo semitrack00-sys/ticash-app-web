@@ -5,6 +5,8 @@ function scripts(dir) {
 }
 const browserFiles = [...scripts('js'), 'public-config.js', 'login/index.html', 'recharge/index.html', 'recharge/reset-password/index.html'];
 const sources = browserFiles.map((path) => readFileSync(path, 'utf8')).join('\n');
+assert.doesNotMatch(sources, /Test catalog operator|Test airtime|\+18765551234|preview-user|preview-range|preview-quote|__visual-fixture|flupflap-visual-preview|fixtures\.mjs/, 'Screenshot fixtures must never become application data');
+assert.doesNotMatch(sources, /(?:\.\.\/|\.\/|\/)tools\//, 'Production browser code must not import test tools');
 assert.doesNotMatch(sources, /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\s*\(/, 'Unsafe DOM execution sink');
 for (const file of browserFiles.filter((file) => file !== 'js/i18n.js')) {
   assert.doesNotMatch(readFileSync(file, 'utf8'), /localStorage|sessionStorage|document\.cookie|indexedDB/, 'Credentials must remain in memory');
