@@ -1,4 +1,4 @@
-/* /login-only presentation. Signed-in recharge retains its approved layout. */
+/* Shared FlupFlap authentication presentation. Signed-in recharge retains its approved layout. */
 body:not(:has(.recharge-active)){background:radial-gradient(ellipse at 8% 22%,#caeaff,transparent 50%),radial-gradient(ellipse at 92% 40%,#ffe2f3,transparent 52%),#f3f5ff;color:#10164f}
 .login-layout{display:contents}
 .login-layout:has(.recharge-active) .login-story{display:none}
