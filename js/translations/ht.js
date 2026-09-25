@@ -271,7 +271,7 @@ export default Object.freeze({
   "enterDetails": "Antre detay yo",
   "reviewPay": "Verifye epi peye",
   "detailsIntro": "Chwazi peyi a, antre nimewo telefòn nan, epi chwazi yon pwodwi.",
-  "heroConnection": "Voye kredi ak done bay fanmi ak zanmi toupatou nan mond lan.",
+  "heroConnection": "Voye kredi bay fanmi ak zanmi atravè mond lan.",
   "flupAirtime": "Rechaj mobil",
   "worldwideDestinations": "Destinasyon atravè lemond",
   "familyFriends": "Pou fanmi ak zanmi",

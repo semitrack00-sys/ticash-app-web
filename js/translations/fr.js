@@ -271,7 +271,7 @@ export default Object.freeze({
   "enterDetails": "Saisir les détails",
   "reviewPay": "Vérifier et payer",
   "detailsIntro": "Sélectionnez le pays, saisissez le numéro de téléphone et choisissez un produit.",
-  "heroConnection": "Envoyez du crédit et des données à vos proches partout dans le monde.",
+  "heroConnection": "Envoyez du crédit à votre famille et à vos amis à travers le monde.",
   "flupAirtime": "Recharge mobile",
   "worldwideDestinations": "Destinations internationales",
   "familyFriends": "Pour vos proches",

@@ -271,7 +271,7 @@ export default Object.freeze({
   "enterDetails": "Enter Details",
   "reviewPay": "Review & Pay",
   "detailsIntro": "Select the country, enter the phone number, and choose a product.",
-  "heroConnection": "Send airtime and data to family and friends anywhere in the world.",
+  "heroConnection": "Send airtime to family and friends around the world.",
   "flupAirtime": "Airtime Top-Up",
   "worldwideDestinations": "Worldwide destinations",
   "familyFriends": "For family & friends",
