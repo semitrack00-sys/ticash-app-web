@@ -1,4 +1,17 @@
 export default Object.freeze({
+  "internetData": "Done entènèt",
+  "bundlesPlans": "Pakè ak plan",
+  "planMinutes": "Minit",
+  "planSms": "SMS",
+  "planUnlimited": "San limit",
+  "planValidity": "Dire validite",
+  "planRedeemWithin": "Sèvi ak li anvan",
+  "planUnitHOUR": "èdtan",
+  "planUnitDAY": "jou",
+  "planUnitWEEK": "semèn",
+  "planUnitMONTH": "mwa",
+  "planUnitYEAR": "ane",
+
   "loginTrustAccount": "Kont TiCash-App",
   "loginTrustPassword": "Pwoteje ak modpas",
   "loginFeatureSafe": "An sekirite",
