@@ -1,5 +1,5 @@
 ﻿import { apiBaseUrl, createApiClient } from './api-client.js';
-import { Recharge, countryFlag, customAmountProductId, operatorLogoUrl, searchCountries } from './recharge.js';
+import { Recharge, productClassification, countryFlag, customAmountProductId, operatorLogoUrl, searchCountries } from './recharge.js';
 import { t, getLanguage, languageLocale, localizeCountry, onLanguageChange, translateElements, syncLanguageSelectors } from './i18n.js';
 import { mountLanguageHeader } from './language-page.js';
 import { checkoutMode, loadCheckoutFactory, mountCheckoutFlow } from './checkout-flow.js';
@@ -92,6 +92,20 @@ function operatorLogo(operator, className = '') {
 
   frame.append(image, fallback);
   return frame;
+}
+
+function planDetails(product) {
+  const lines = [];
+  if (typeof product?.description === 'string') lines.push(product.description);
+  for (const benefit of product?.benefits ?? []) {
+    lines.push(`${t(benefit.type === 'DATA' ? 'internetData' : benefit.type === 'SMS' ? 'planSms' : 'planMinutes')}: ${benefit.amount === -1 ? t('planUnlimited') : benefit.amount} ${benefit.amount === -1 ? '' : benefit.unit}`.trim());
+  }
+  if (product?.validity) {
+    const v = product.validity;
+    lines.push(t(v.semantics === 'REDEMPTION' ? 'planRedeemWithin' : 'planValidity') + ': ' + (v.quantity === -1 ? t('planUnlimited') : `${v.quantity} ${t('planUnit' + v.unit)}`));
+  }
+  if (product?.redemptionPeriodIso) lines.push(`${t('planRedeemWithin')}: ${product.redemptionPeriodIso}`);
+  return el('div', { className: 'plan-metadata' }, ...lines.map(line => el('small', {}, line)));
 }
 
 function operatorDetail(name, operator) {
@@ -313,7 +327,7 @@ export function mountRecharge(root, config, dependencies = {}) {
 
   const product = el('select', { id: 'product', hidden: '' });
   const productTiles = el('div', { className: 'product-tiles', role: 'group', 'aria-label': t('Recharge product'), 'data-i18n-aria-label': 'Recharge product' });
-  const productKinds = el('div', { className: 'product-kinds' });
+  const productKinds = el('div', { className: 'product-kinds', role: 'group', 'aria-label': t('Recharge product'), 'data-i18n-aria-label': 'Recharge product' });
   let productSignature;
   const amount = el('input', { id: 'amount', type: 'number', inputmode: 'decimal', step: '0.01', 'aria-describedby': 'amount-hint' });
   const amountHint = el('small', { id: 'amount-hint' });
@@ -566,14 +580,18 @@ export function mountRecharge(root, config, dependencies = {}) {
     options(country, matches, s.country, t(matches.length ? 'Choose a country' : 'No matching countries'), (c) => `${countryFlag(c.code)} ${localizeCountry(c)} (${c.callingCode})`.trim(), (c) => c.code);
     countryPickerButton.disabled = !s.ready || locked;
     countryPickerButton.setAttribute('aria-expanded', String(countryMenuOpen));
+    const countryGlobe = icon('globe');
+    countryGlobe.classList.add('country-picker-icon');
     if (selectedCountry) {
       countryPickerButton.replaceChildren(
+        countryGlobe.cloneNode(true),
         countryFlagImage(selectedCountry),
         el('span', { className: 'country-picker-name' }, `${localizeCountry(selectedCountry)} (${selectedCountry.callingCode})`),
         el('span', { className: 'country-picker-code' }, selectedCountry.callingCode),
       );
     } else {
       countryPickerButton.replaceChildren(
+        countryGlobe.cloneNode(true),
         el('span', { className: 'country-picker-flag country-picker-flag-placeholder', 'aria-hidden': 'true' }),
         el('span', { className: 'country-picker-name' }, t(matches.length ? 'Choose a country' : 'No matching countries')),
         el('span', { className: 'country-picker-code' }, ''),
@@ -678,13 +696,14 @@ export function mountRecharge(root, config, dependencies = {}) {
     detectButton.removeAttribute('data-i18n');
     detectButton.replaceChildren(icon('search'), el('span', {}, t(busy.has('detect') ? 'Finding operator…' : 'Find my operator')));
     operatorsRetry.disabled = !s.country || busy.has(`operators:${s.country}`);
-    const customRangeProduct = s.products.find((p) => p.amountType === 'RANGE');
+    const visibleProducts = s.products.filter(p => productClassification(p) === s.category);
+    const customRangeProduct = visibleProducts.find((p) => p.amountType === 'RANGE');
     const productChoices = customRangeProduct
       ? [
-          ...s.products,
+          ...visibleProducts,
           { id: customAmountProductId, name: t('otherAmount'), amountType: 'RANGE', minimumAmount: customRangeProduct.minimumAmount, maximumAmount: customRangeProduct.maximumAmount, priceCurrency: customRangeProduct.priceCurrency },
         ]
-      : s.products;
+      : visibleProducts;
     const selectedProductId = s.product?.amountType === 'RANGE' && customRangeProduct ? customAmountProductId : s.product?.id ?? '';
     options(product, productChoices, selectedProductId, t('Choose a product'), (p) => p.id === customAmountProductId
       ? t('otherAmount')
@@ -692,11 +711,11 @@ export function mountRecharge(root, config, dependencies = {}) {
         ? `${p.name} · ${money(p.minimumAmount, p.priceCurrency)}–${money(p.maximumAmount, p.priceCurrency)}`
         : `${p.name} · ${money(p.price, p.priceCurrency)}`, (p) => p.id);
     product.disabled = !s.operator || !productChoices.length;
-    const nextProductSignature = JSON.stringify([s.products, s.product?.id, locked, getLanguage()]);
+    const nextProductSignature = JSON.stringify([s.products, s.category, s.product?.id, locked, getLanguage()]);
     if (productSignature !== nextProductSignature) {
       const focused = productTiles.contains(root.ownerDocument.activeElement) ? root.ownerDocument.activeElement.dataset.productId : null;
       productSignature = nextProductSignature;
-      productTiles.replaceChildren(...s.products.map((candidate) => {
+      productTiles.replaceChildren(...visibleProducts.map((candidate) => {
         const tile = button(candidate.name, action(() => model.selectProduct(candidate.id)), true);
         tile.removeAttribute('data-i18n'); tile.className = 'product-tile';
         tile.dataset.productId = candidate.id; tile.disabled = locked;
@@ -704,13 +723,23 @@ export function mountRecharge(root, config, dependencies = {}) {
         tile.replaceChildren(el('strong', {}, candidate.amountType === 'RANGE' ? t('otherAmount') : money(candidate.deliveredValue ?? candidate.price, candidate.deliveredValue == null ? candidate.priceCurrency : candidate.deliveredCurrency)),
           el('span', {}, candidate.name), el('small', {}, candidate.amountType === 'RANGE'
             ? `${money(candidate.minimumAmount, candidate.priceCurrency)}–${money(candidate.maximumAmount, candidate.priceCurrency)}` : money(candidate.price, candidate.priceCurrency)));
+        if (productClassification(candidate) !== 'AIRTIME') {
+          tile.prepend(operatorDetail(s.operator.name, s.operator));
+          tile.append(planDetails(candidate));
+        }
         return tile;
       }));
       if (focused) [...productTiles.children].find((item) => item.dataset.productId === focused)?.focus();
-      // Labels describe only catalog types actually returned by the provider.
-      const kinds = [...new Set(s.products.map((p) => p.kind))];
-      productKinds.replaceChildren(...[['AIRTIME', 'phone', 'Airtime Top-Up'], ['DATA', 'globe', 'Data Plans'], ['COMBO', 'gift', 'Combo Plans']]
-        .filter(([kind]) => kinds.includes(kind)).map(([, symbol, label]) => el('span', {}, icon(symbol), ui(label))));
+      const focusedCategory = productKinds.contains(root.ownerDocument.activeElement) ? root.ownerDocument.activeElement.dataset.category : null;
+      const kinds = [...new Set(s.products.map(productClassification))];
+      productKinds.replaceChildren(...[['AIRTIME', 'phone', 'Airtime Top-Up'], ['DATA', 'globe', 'internetData'], ['BUNDLE', 'gift', 'bundlesPlans']]
+        .filter(([kind]) => kinds.includes(kind)).map(([kind, symbol, label]) => {
+          if (kinds.length === 1) return el('span', {}, icon(symbol), ui(label));
+          const choice = button(label, action(() => model.selectCategory(kind)), true);
+          choice.dataset.category = kind; choice.setAttribute('aria-pressed', String(s.category === kind)); choice.disabled = locked;
+          choice.replaceChildren(icon(symbol), ui(label)); return choice;
+        }));
+      if (focusedCategory) [...productKinds.children].find(item => item.dataset.category === focusedCategory)?.focus();
     }
     const coverageSignature = JSON.stringify([s.countries, getLanguage()]);
     if (coverageList.dataset.signature !== coverageSignature) {
@@ -738,7 +767,7 @@ export function mountRecharge(root, config, dependencies = {}) {
       quoteSignature = nextQuoteSignature;
       reviewContent.replaceChildren(s.quote ? details([
         ['Recipient', s.quote.recipientPhone], ['Country', `${localizeCountry(s.countries.find(c => c.code === s.quote.countryCode) || {code:s.quote.countryCode,name:s.quote.countryCode})} (${s.quote.countryCode})`], ['Operator', operatorDetail(s.quote.operatorName, s.operator?.id === s.quote.operatorId ? s.operator : s.operators.find((op) => op.id === s.quote.operatorId))],
-        ['Product', s.quote.productName], ['Recharge amount', money(s.quote.providerAmount, s.quote.providerCurrency)],
+        ['Product', el('div', {}, s.quote.productName, planDetails(s.quote.productSnapshot))], ['Recharge amount', money(s.quote.providerAmount, s.quote.providerCurrency)],
         ['FlupFlap fee', money(s.quote.feeUsd, 'USD')], ['Total', money(s.quote.totalChargeUsd, 'USD')],
       ]) : el('div', { className: 'review-empty' }, icon('chart'), el('strong', {}, ui('Your quote will appear here.')), el('p', { className: 'small muted' }, ui('quoteEmptyInstruction'))));
     }
@@ -760,7 +789,7 @@ export function mountRecharge(root, config, dependencies = {}) {
         receipt.replaceChildren(el('span', { className: 'eyebrow' }, ui('TEST RECEIPT')), el('h2', {}, t('receiptHeading', { status: t(String(txn.status || 'pending').toLowerCase()) })),
           el('p', { className: 'muted' }, ui('This is a test transaction. No real money or airtime was transferred.')),
           details([['Reference', txn.id], ['Status', txn.status], ['Test payment status', txn.paymentStatus], ['Phone number', txn.recipientPhone],
-            ['Destination', `${countryFlag(txn.countryCode)} ${txn.countryCode}`.trim()], ['Operator', operatorDetail(txn.operatorName, s.operator?.id === txn.operatorId ? s.operator : s.operators.find((op) => op.id === txn.operatorId))], ['Product', txn.productName],
+            ['Destination', `${countryFlag(txn.countryCode)} ${txn.countryCode}`.trim()], ['Operator', operatorDetail(txn.operatorName, s.operator?.id === txn.operatorId ? s.operator : s.operators.find((op) => op.id === txn.operatorId))], ['Product', el('div', {}, txn.productName, planDetails(txn.productSnapshot))],
             ['Recharge', money(txn.providerAmount, txn.providerCurrency)], ['Fee', money(txn.feeUsd, 'USD')], ['Total', money(txn.totalChargeUsd, 'USD')],
             ['Recipient value', txn.deliveredValue === undefined ? t('Awaiting confirmation') : money(txn.deliveredValue, txn.deliveredCurrency)],
             ['Updated', date(txn.updatedAt)], ...(txn.failureCode ? [['Failure reason', txn.failureCode]] : [])]), refreshReceipt);

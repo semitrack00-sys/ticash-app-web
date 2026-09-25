@@ -59,10 +59,17 @@ function array(data, key) {
 function validOperator(operator, country) {
   return Number.isSafeInteger(operator?.id) && operator.id > 0 && operator.countryCode === country && operator.status === true;
 }
+export const productClassification = product => product.classification ?? product.kind;
 function validProduct(product, operatorId, country) {
   if (!product || product.operatorId !== operatorId || product.countryCode !== country || !['FIXED', 'RANGE'].includes(product.amountType)) return false;
-  if (product.amountType === 'FIXED') return Number.isFinite(product.price) && product.price > 0;
-  return Number.isFinite(product.minimumAmount) && Number.isFinite(product.maximumAmount) && product.minimumAmount > 0 && product.minimumAmount <= product.maximumAmount;
+  const classification = productClassification(product);
+  if (!['AIRTIME', 'DATA', 'BUNDLE'].includes(classification) || product.priceCurrency !== 'USD' || typeof product.id !== 'string' || typeof product.name !== 'string') return false;
+  if (product.catalogVersion !== undefined && !/^[a-f0-9]{64}$/.test(product.catalogVersion)) return false;
+  if (classification !== 'AIRTIME' && product.amountType !== 'FIXED') return false;
+  if (product.benefits !== undefined && (!Array.isArray(product.benefits) || product.benefits.some(b => !['DATA', 'MINUTES', 'SMS'].includes(b?.type) || !Number.isFinite(b.amount) || (b.amount < 0 && b.amount !== -1) || !/^[A-Z_]{1,24}$/.test(b.unit)))) return false;
+  if (product.validity !== undefined && (!Number.isInteger(product.validity.quantity) || (product.validity.quantity <= 0 && product.validity.quantity !== -1) || !['HOUR', 'DAY', 'WEEK', 'MONTH', 'YEAR'].includes(product.validity.unit) || !['SERVICE', 'REDEMPTION'].includes(product.validity.semantics))) return false;
+  if (product.amountType === 'FIXED') return Number.isFinite(product.price) && product.price >= 5 && product.price <= 100;
+  return Number.isFinite(product.minimumAmount) && Number.isFinite(product.maximumAmount) && product.minimumAmount >= 5 && product.maximumAmount <= 100 && product.minimumAmount <= product.maximumAmount;
 }
 function validateQuote(quote) {
   if (!quote?.id || !quote.countryCode || !quote.recipientPhone || !quote.operatorId || !quote.productId ||
@@ -80,7 +87,7 @@ export class Recharge {
   reset() {
     this.generation += 1; this.revision += 1; this.busy.clear();
     this.state = { ready: false, countries: [], country: '', phone: '', operators: [], operator: null, products: [],
-      product: null, amount: '', quote: null, reviewed: false, transaction: null, history: [], recipients: [],
+      category: '', product: null, amount: '', quote: null, reviewed: false, transaction: null, history: [], recipients: [],
       attempt: null, submitting: false, error: '', notice: '', historyError: '', recipientsError: '' };
     Object.assign(this.state, { paymentMode: null, paymentMethods: [], paymentMethodsError: '', account: null,
       guest: true, profileLoaded: false, profileError: '', accountCountry: '', checkoutSession: null, userProfile: null });
@@ -155,7 +162,7 @@ export class Recharge {
     this.revision += 1;
     Object.assign(this.state, { quote: null, reviewed: false, transaction: null, error: '', notice: '' });
   }
-  clearOperator() { Object.assign(this.state, { operator: null, products: [], product: null, amount: '' }); }
+  clearOperator() { Object.assign(this.state, { operator: null, products: [], category: '', product: null, amount: '' }); }
   async run(name, action, current = () => true) {
     if (this.busy.has(name)) return;
     const generation = this.generation;
@@ -231,8 +238,13 @@ export class Recharge {
       if (!validOperator(data.operator, operator.countryCode) || data.operator.id !== operator.id || products.some((p) => !validProduct(p, operator.id, operator.countryCode))) {
         throw invalid('The product catalog did not match the selected operator.');
       }
-      if (active()) this.state.products = products;
+      if (active()) { this.state.products = products; this.state.category = products.length ? productClassification(products[0]) : ''; }
     }, () => this.revision === revision);
+  }
+  selectCategory(category) {
+    this.editable();
+    if (!this.state.products.some(p => productClassification(p) === category)) return;
+    this.invalidate(); this.state.category = category; this.state.product = null; this.state.amount = ''; this.emit();
   }
   selectProduct(id) {
     this.editable(); this.invalidate();
@@ -240,6 +252,7 @@ export class Recharge {
       ? this.state.products.find((p) => p.amountType === 'RANGE') || null
       : this.state.products.find((p) => p.id === id) || null;
     this.state.product = chosen;
+    if (chosen) this.state.category = productClassification(chosen);
     this.state.amount = ''; this.emit();
   }
   setAmount(value) { this.editable(); this.invalidate(); this.state.amount = value; this.emit(); }
@@ -249,6 +262,7 @@ export class Recharge {
       throw new ApiError('SELECTION_REQUIRED', 'Choose an operator and a recharge product.');
     }
     const body = { countryCode: country, phone: this.normalizedPhone(), operatorId: operator.id, productId: product.id };
+    if (product.catalogVersion) body.catalogVersion = product.catalogVersion;
     if (product.amountType === 'RANGE') {
       if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0 || Number(amount) < product.minimumAmount || Number(amount) > product.maximumAmount) {
         throw new ApiError('INVALID_TOPUP_AMOUNT', 'Enter an amount within the displayed range, using up to two decimal places.');

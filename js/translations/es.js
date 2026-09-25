@@ -1,4 +1,17 @@
 export default Object.freeze({
+  "internetData": "Datos de Internet",
+  "bundlesPlans": "Paquetes y planes",
+  "planMinutes": "Minutos",
+  "planSms": "SMS",
+  "planUnlimited": "Ilimitado",
+  "planValidity": "Validez",
+  "planRedeemWithin": "Canjear en",
+  "planUnitHOUR": "horas",
+  "planUnitDAY": "días",
+  "planUnitWEEK": "semanas",
+  "planUnitMONTH": "meses",
+  "planUnitYEAR": "años",
+
   "loginTrustAccount": "Cuenta TiCash-App",
   "loginTrustPassword": "Protegido con contraseña",
   "loginFeatureSafe": "Seguro y protegido",
