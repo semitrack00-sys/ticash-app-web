@@ -281,6 +281,8 @@ export default Object.freeze({
   "sandboxCardPayment": "Peman kat Stripe nan tès",
   "checkoutFormNotice": "Itilize sèlman enfòmasyon peman tès. Se TiCash ki konfime estati peman an, se pa fòm sa a. Kenbe paj sa a ouvè.",
   "continueSandboxPayment": "Kontinye nan peman Stripe nan tès",
+  "confirmSandboxCardPayment": "Konfime peman kat la nan tès",
+  "checkoutPaymentFailed": "Nou pa t kapab konfime peman Stripe nan tès. Verifye enfòmasyon tès ou epi eseye ankò.",
   "enterDetails": "Antre detay yo",
   "reviewPay": "Verifye epi peye",
   "detailsIntro": "Chwazi peyi a, antre nimewo telefòn nan, epi chwazi yon pwodwi.",

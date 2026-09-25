@@ -85,7 +85,10 @@ export async function mountCheckoutFlow({ session, container, factory, active, o
         if (typeof returnUrl === 'string' && /^\//.test(returnUrl)) {
           const target = new URL(returnUrl, globalThis.location?.origin || 'https://example.invalid');
           if (target.origin === (globalThis.location?.origin || target.origin)) {
-            confirmParams.return_url = target.toString();
+            // Keep return targets same-origin and strip URL secrets from query/hash.
+            target.search = '';
+            target.hash = '';
+            confirmParams.confirmParams = { return_url: target.toString() };
           }
         }
 

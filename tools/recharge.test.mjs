@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { Recharge, customAmountProductId, internationalPhone, operatorLogoUrl, searchCountries, secureId, assertTestService } from '../js/recharge.js';
+import { checkoutMode } from '../js/checkout-flow.js';
 import { mountRecharge } from '../js/recharge-page.js';
 import { ApiError } from '../js/api-client.js';
 import { fixtureApi, countries, operator, products, quote, transaction, status } from './fixtures.mjs';
@@ -14,6 +15,40 @@ async function setup() {
 }
 async function reviewed(model) { await model.getQuote(); model.review(true); }
 function deferred() { let resolve; const promise = new Promise((r) => { resolve = r; }); return { promise, resolve }; }
+async function flush(times = 6) { for (let index = 0; index < times; index += 1) await Promise.resolve(); }
+
+function stripePaymentSession(transactionId = transaction.id) {
+  return {
+    provider: 'STRIPE',
+    environment: 'SANDBOX',
+    testMode: true,
+    transactionId,
+    paymentSession: {
+      id: 'pi_fixture',
+      client_secret: 'pi_fixture_secret_fixture',
+    },
+    publicKey: 'pk_test_fixture',
+    amountMinor: 800,
+    currency: 'USD',
+    paymentStatus: 'SESSION_CREATED',
+  };
+}
+
+async function setupStripeCheckout({ profileCountry = 'CA', paymentSessionHandler } = {}) {
+  const api = fixtureApi();
+  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ method: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: profileCountry } }));
+  api.overrides.set('POST /mobile-topups/payment-sessions', paymentSessionHandler || (() => stripePaymentSession()));
+  const model = new Recharge(api);
+  model.setAccount({ id: 'user-1' }, false);
+  await model.start();
+  await model.selectCountry('JM');
+  model.setPhone('+1 (876) 555-1234');
+  await model.selectOperator(77);
+  model.selectProduct(products[0].id);
+  return { api, model };
+}
 
 test('loads only provider countries and searches name/code without a fixed destination', async () => {
   const { model } = await setup();
@@ -25,6 +60,13 @@ test('loads only provider countries and searches name/code without a fixed desti
 test('normalizes international input and rejects local or malformed phone numbers', () => {
   assert.equal(internationalPhone('00 1 (876) 555-1234'), '+18765551234');
   for (const phone of ['8765551234', '+0 123456789', '+1<script>', '+12']) assert.throws(() => internationalPhone(phone));
+});
+test('test safety gates accept only MOCK and Stripe sandbox payment modes', () => {
+  assert.doesNotThrow(() => assertTestService({ ...status, paymentMode: 'MOCK' }));
+  assert.doesNotThrow(() => assertTestService({ ...status, paymentMode: checkoutMode }));
+  for (const unsafe of ['LIVE', 'CARD', '', null]) {
+    assert.throws(() => assertTestService({ ...status, paymentMode: unsafe }));
+  }
 });
 for (const change of ['country', 'phone', 'operator', 'product', 'amount']) {
   test(`${change} change clears quote, review, transaction, and the required downstream selection`, async () => {
@@ -145,6 +187,199 @@ test('transaction status refresh and repeat use exact contract; repeat requires 
   await model.refreshTransaction(); assert.equal(model.state.transaction.status, 'DELIVERED');
   await model.repeat(transaction.id); assert.equal(model.state.quote.totalChargeUsd, 8.75); assert.equal(model.state.reviewed, false);
   assert.equal(api.calls.at(-1).path, `/mobile-topups/transactions/${transaction.id}/repeat`);
+});
+test('Stripe checkout reserves payment-session with idempotency and never posts browser fulfillment transaction directly', async () => {
+  const { model, api } = await setupStripeCheckout();
+  await reviewed(model);
+  await model.confirm();
+
+  const paymentCalls = api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST');
+  assert.equal(paymentCalls.length, 1);
+  assert.deepEqual(paymentCalls[0].body, { quoteId: quote.id });
+  assert.match(paymentCalls[0].headers['Idempotency-Key'], /^[0-9a-f-]{36}$/i);
+  assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
+  assert.equal(model.state.attempt?.transactionId, transaction.id);
+});
+test('Stripe checkout uses billing country from account profile, not recharge destination', async () => {
+  const blocked = await setupStripeCheckout({ profileCountry: '' });
+  await reviewed(blocked.model);
+  await blocked.model.confirm();
+  assert.match(blocked.model.state.error, /billing country/i);
+  assert.equal(blocked.api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 0);
+
+  const allowed = await setupStripeCheckout({ profileCountry: 'CA' });
+  await reviewed(allowed.model);
+  await allowed.model.confirm();
+  assert.equal(allowed.api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 1);
+});
+test('malformed Stripe payment session keeps checkout attempt locked to same idempotent reservation', async () => {
+  const { model, api } = await setupStripeCheckout({ paymentSessionHandler: () => ({ provider: 'STRIPE', environment: 'SANDBOX' }) });
+  await reviewed(model);
+  await model.confirm();
+  assert.match(model.state.error, /Stripe sandbox payment session/);
+  assert.ok(model.state.attempt);
+  assert.equal(model.state.checkoutSession, null);
+  assert.throws(() => model.setAmount('9'));
+
+  const calls = api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST');
+  assert.equal(calls.length, 1);
+});
+test('only terminal server payment states release Stripe checkout lock', async () => {
+  const { model, api } = await setupStripeCheckout();
+  await reviewed(model);
+  await model.confirm();
+  assert.ok(model.state.attempt);
+  const id = model.state.attempt.transactionId;
+  let paymentStatus = 'AUTHORIZED';
+  api.overrides.set(`GET /mobile-topups/transactions/${id}`, () => ({ transaction: { ...transaction, id, quoteId: quote.id, paymentStatus, testMode: true } }));
+
+  await model.refreshTransaction(id);
+  assert.ok(model.state.attempt);
+  assert.equal(model.state.checkoutSession?.transactionId, id);
+
+  paymentStatus = 'CAPTURED';
+  await model.refreshTransaction(id);
+  assert.equal(model.state.attempt, null);
+  assert.equal(model.state.checkoutSession, null);
+});
+test('payment-session replay/in-progress recovery keeps the same locked idempotency key for Stripe checkout', async () => {
+  const { model, api } = await setupStripeCheckout({
+    paymentSessionHandler: () => {
+      throw new ApiError('PAYMENT_SESSION_IN_PROGRESS', 'still in progress', 409);
+    },
+  });
+  await reviewed(model);
+  await model.confirm();
+
+  const calls = api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST');
+  assert.equal(calls.length, 1);
+  assert.equal(model.state.attempt.key, calls[0].headers['Idempotency-Key']);
+  assert.ok(model.state.attempt);
+  assert.match(model.state.error, /unresolved/i);
+});
+test('page-level Stripe flow mounts once and explicit pay button confirms payment with single in-flight request', async () => {
+  const api = fixtureApi();
+  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ method: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
+  api.overrides.set('POST /mobile-topups/payment-sessions', () => stripePaymentSession());
+  api.overrides.set(`GET /mobile-topups/transactions/${transaction.id}`, () => ({ transaction: { ...transaction, id: transaction.id, quoteId: quote.id, testMode: true, paymentStatus: 'AUTHORIZED' } }));
+  const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
+  globalThis.document = dom.window.document;
+
+  let mountCalls = 0;
+  let stripeConfirmCalls = 0;
+  const release = deferred();
+  const checkoutFactory = async () => ({
+    elements() {
+      return {
+        create() {
+          return {
+            mount() { mountCalls += 1; },
+            unmount() {},
+          };
+        },
+        destroy() {},
+      };
+    },
+    async confirmPayment() {
+      stripeConfirmCalls += 1;
+      await release.promise;
+      return { error: null };
+    },
+  });
+
+  const root = document.getElementById('root');
+  const app = mountRecharge(root, { mobileRechargeLive: false }, { api, checkoutFactory });
+  let refreshedTransactionId = null;
+  const originalRefreshTransaction = app.model.refreshTransaction.bind(app.model);
+  app.model.refreshTransaction = async (id) => {
+    refreshedTransactionId = id;
+    return originalRefreshTransaction(id);
+  };
+  try {
+    document.getElementById('email').value = 'user@example.test';
+    document.getElementById('password').value = 'correct horse battery staple';
+    document.getElementById('login-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await flush();
+
+    await app.model.selectCountry('JM');
+    app.model.setPhone('+1 (876) 555-1234');
+    await app.model.selectOperator(77);
+    app.model.selectProduct(products[0].id);
+    await reviewed(app.model);
+    await app.model.confirm();
+    await flush();
+
+    assert.equal(mountCalls, 1);
+    const payButton = document.getElementById('confirm-sandbox-payment');
+    for (let attempt = 0; attempt < 20 && (payButton.hidden || payButton.disabled); attempt += 1) {
+      await flush(2);
+    }
+    assert.equal(payButton.hidden, false);
+    assert.equal(payButton.disabled, false);
+    payButton.click();
+    payButton.click();
+    await flush(2);
+    assert.equal(stripeConfirmCalls, 1);
+    assert.equal(payButton.disabled, true);
+    release.resolve();
+    await flush();
+    for (let attempt = 0; attempt < 20 && api.calls.filter((call) => call.path.startsWith(`/mobile-topups/transactions/${transaction.id}`) && call.method === 'GET').length === 0; attempt += 1) {
+      await flush(2);
+    }
+    assert.equal(payButton.disabled, true);
+    assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
+    assert.equal(refreshedTransactionId, transaction.id);
+  } finally {
+    app.dispose();
+    dom.window.close();
+    delete globalThis.document;
+  }
+});
+test('Stripe pay action surfaces safe error and still never performs browser fulfillment POST', async () => {
+  const api = fixtureApi();
+  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ method: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
+  api.overrides.set('POST /mobile-topups/payment-sessions', () => stripePaymentSession());
+  const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
+  globalThis.document = dom.window.document;
+  const checkoutFactory = async () => ({
+    elements() {
+      return {
+        create() { return { mount() {}, unmount() {} }; },
+        destroy() {},
+      };
+    },
+    async confirmPayment() { return { error: { message: 'card_declined' } }; },
+  });
+
+  const root = document.getElementById('root');
+  const app = mountRecharge(root, { mobileRechargeLive: false }, { api, checkoutFactory });
+  try {
+    document.getElementById('email').value = 'user@example.test';
+    document.getElementById('password').value = 'correct horse battery staple';
+    document.getElementById('login-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await flush();
+
+    await app.model.selectCountry('JM');
+    app.model.setPhone('+1 (876) 555-1234');
+    await app.model.selectOperator(77);
+    app.model.selectProduct(products[0].id);
+    await reviewed(app.model);
+    await app.model.confirm();
+    await flush();
+
+    document.getElementById('confirm-sandbox-payment').click();
+    await flush();
+    assert.match(document.getElementById('checkout-flow-panel').textContent, /Unable to confirm Stripe sandbox payment/);
+    assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
+  } finally {
+    app.dispose();
+    dom.window.close();
+    delete globalThis.document;
+  }
 });
 test('saved recipients repopulate destination with current provider catalog', async () => {
   const { model } = await setup(); await model.useRecipient('saved');

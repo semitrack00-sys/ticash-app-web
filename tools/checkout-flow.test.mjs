@@ -99,6 +99,58 @@ test('Payment Element receives the validated PaymentIntent client secret and nev
   }
 });
 
+test('confirmPayment uses Payment Element API options with nested confirmParams and same-origin return URL', async () => {
+  const payload = session();
+  const dom = new JSDOM('<!doctype html><html><body><div id="stripe"></div></body></html>', { url: 'https://website.example/recharge?unsafe=1#frag' });
+  const { document } = dom.window;
+  const container = document.getElementById('stripe');
+  let lastCall;
+
+  const factory = async () => ({
+    async confirmPayment(options) {
+      lastCall = options;
+      return { error: null };
+    },
+    elements() {
+      return {
+        create() {
+          return { mount() {}, unmount() {} };
+        },
+        destroy() {},
+      };
+    },
+  });
+
+  const previousLocation = globalThis.location;
+  try {
+    globalThis.document = document;
+    globalThis.location = dom.window.location;
+    const flow = await mountCheckoutFlow({
+      session: payload,
+      container,
+      factory,
+      active: () => true,
+      onPaymentCompleted: async () => {},
+    });
+
+    await flow.confirm({ returnUrl: '/recharge/callback?token=abc#state' });
+    assert.equal(lastCall.redirect, 'if_required');
+    assert.equal(typeof lastCall.confirmParams, 'object');
+    assert.equal(lastCall.confirmParams.return_url, 'https://website.example/recharge/callback');
+
+    await flow.confirm({ returnUrl: 'https://evil.example/steal' });
+    assert.equal(lastCall.confirmParams, undefined);
+  } finally {
+    if (previousLocation === undefined) {
+      delete globalThis.location;
+    } else {
+      globalThis.location = previousLocation;
+    }
+    delete globalThis.document;
+    dom.window.close();
+  }
+});
+
 test('duplicate confirmation is prevented while a payment flow is active', async () => {
   const dom = new JSDOM('<!doctype html><html><body></body></html>');
   const payload = session();

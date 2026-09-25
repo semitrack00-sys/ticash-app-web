@@ -170,6 +170,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   let flowComponent;
   let flowError = '';
   let flowMountPending = false;
+  let flowConfirmPending = false;
   let billingGeneration;
   const unmountFlow = (component) => {
     try { component?.unmount?.(); } catch { /* Always clear hosted fields and invalidate callbacks even if SDK cleanup fails. */ }
@@ -177,7 +178,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const clearFlow = () => {
     flowSession = null;
     // Detach hosted fields on logout, session change, or authoritative completion.
-    unmountFlow(flowComponent); flowComponent = undefined; flowError = ''; flowMountPending = false;
+    unmountFlow(flowComponent); flowComponent = undefined; flowError = ''; flowMountPending = false; flowConfirmPending = false;
     flowContainer.replaceChildren();
   };
   const button = (label, action, secondary = false) => el('button', { type: 'button', 'data-i18n': label, className: secondary ? 'button secondary' : 'button', onclick: action }, t(label));
@@ -392,8 +393,22 @@ export function mountRecharge(root, config, dependencies = {}) {
   }, true); retryFlow.id = 'retry-payment-form';
   const refreshPayment = button('Refresh transaction status', action(() => model.state.attempt?.transactionId
     ? model.refreshTransaction() : model.loadHistory()), true); refreshPayment.id = 'checkout-refresh-status';
+  const confirmPayment = button('confirmSandboxCardPayment', async () => {
+    if (flowConfirmPending || !flowComponent) return;
+    flowConfirmPending = true;
+    flowError = '';
+    render();
+    try {
+      await flowComponent.confirm({ returnUrl: '/recharge' });
+    } catch {
+      flowError = 'checkoutPaymentFailed';
+    } finally {
+      flowConfirmPending = false;
+      render();
+    }
+  }); confirmPayment.id = 'confirm-sandbox-payment';
   const flowPanel = el('section', { id: 'checkout-flow-panel', hidden: '', 'aria-label': t('Sandbox card payment'), 'data-i18n-aria-label': 'Sandbox card payment' },
-    el('h3', {}, ui('Sandbox card payment')), flowMessage, flowContainer, retryFlow, refreshPayment);
+    el('h3', {}, ui('Sandbox card payment')), flowMessage, flowContainer, confirmPayment, retryFlow, refreshPayment);
   const reviewPanel = el('details', { className: 'panel checkout-step review-panel', open: '', 'data-checkout-step': '3', 'aria-labelledby': 'review-title' },
     cardHeading('receipt', '3. REVIEW & CONFIRM', 'Review & Pay', 'review-title'),
     reviewContent, expiry, billingStep, paymentAvailability, profileRetry, reviewCheck, confirmButton, recoveryNote, flowPanel,
@@ -545,8 +560,11 @@ export function mountRecharge(root, config, dependencies = {}) {
     profileRetry.disabled = busy.has('catalog') || busy.has('profile');
     flowPanel.hidden = !checkoutPayment || !s.attempt;
     flowMessage.textContent = t(flowError || 'Use test payment details only. Payment status is confirmed by TiCash, not by this form. Keep this page open.');
+    confirmPayment.hidden = !flowComponent;
+    confirmPayment.disabled = flowConfirmPending || s.submitting || !flowComponent || Boolean(s.transaction);
+    confirmPayment.textContent = t(flowConfirmPending ? 'Confirming…' : 'confirmSandboxCardPayment');
     retryFlow.hidden = !(s.checkoutSession && !flowComponent && !flowMountPending && flowError);
-    retryFlow.disabled = s.submitting;
+    retryFlow.disabled = s.submitting || flowConfirmPending;
     refreshPayment.disabled = busy.has('receipt') || busy.has('history') || s.submitting;
     if (flowSession && flowSession !== s.checkoutSession) clearFlow();
     if (signedIn && s.checkoutSession && !flowComponent && !flowMountPending && (!flowSession || flowSession !== s.checkoutSession || !flowError)) {
@@ -560,7 +578,7 @@ export function mountRecharge(root, config, dependencies = {}) {
         return mountCheckoutFlow({ session, container: flowContainer, factory, active,
           onPaymentCompleted: (id) => model.refreshTransaction(id) });
       }).then((component) => {
-        if (active()) { flowComponent = component; flowMountPending = false; }
+        if (active()) { flowComponent = component; flowMountPending = false; render(); }
         else unmountFlow(component);
       }).catch(() => {
         if (active()) { flowMountPending = false; flowError = 'checkoutFormUnavailable'; render(); }
