@@ -37,7 +37,7 @@ function stripePaymentSession(transactionId = transaction.id) {
 async function setupStripeCheckout({ profileCountry = 'CA', paymentSessionHandler } = {}) {
   const api = fixtureApi();
   api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
-  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ method: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: profileCountry } }));
   api.overrides.set('POST /mobile-topups/payment-sessions', paymentSessionHandler || (() => stripePaymentSession()));
   const model = new Recharge(api);
@@ -212,6 +212,37 @@ test('Stripe checkout uses billing country from account profile, not recharge de
   await allowed.model.confirm();
   assert.equal(allowed.api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 1);
 });
+test('Stripe checkout accepts CARD payment methods from backend type contract and proceeds without unavailable message', async () => {
+  const api = fixtureApi();
+  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({
+    methods: [{
+      type: 'CARD',
+      enabled: true,
+      provider: 'STRIPE',
+      testMode: true,
+      label: 'Test card - Stripe Sandbox',
+    }],
+  }));
+  api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
+  api.overrides.set('POST /mobile-topups/payment-sessions', () => stripePaymentSession());
+
+  const model = new Recharge(api);
+  model.setAccount({ id: 'user-1' }, false);
+  await model.start();
+  await model.selectCountry('JM');
+  model.setPhone('+1 (876) 555-1234');
+  await model.selectOperator(77);
+  model.selectProduct(products[0].id);
+  await reviewed(model);
+
+  assert.equal(model.checkoutBlocked(), '');
+  assert.doesNotMatch(model.state.paymentMethodsError, /Sandbox card payments are unavailable\./);
+
+  await model.confirm();
+  assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 1);
+  assert.doesNotMatch(model.state.error, /Sandbox card payments are unavailable\./);
+});
 test('malformed Stripe payment session keeps checkout attempt locked to same idempotent reservation', async () => {
   const { model, api } = await setupStripeCheckout({ paymentSessionHandler: () => ({ provider: 'STRIPE', environment: 'SANDBOX' }) });
   await reviewed(model);
@@ -260,7 +291,7 @@ test('payment-session replay/in-progress recovery keeps the same locked idempote
 test('page-level Stripe flow mounts once and explicit pay button confirms payment with single in-flight request', async () => {
   const api = fixtureApi();
   api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
-  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ method: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
   api.overrides.set('POST /mobile-topups/payment-sessions', () => stripePaymentSession());
   api.overrides.set(`GET /mobile-topups/transactions/${transaction.id}`, () => ({ transaction: { ...transaction, id: transaction.id, quoteId: quote.id, testMode: true, paymentStatus: 'AUTHORIZED' } }));
@@ -340,7 +371,7 @@ test('page-level Stripe flow mounts once and explicit pay button confirms paymen
 test('Stripe pay action surfaces safe error and still never performs browser fulfillment POST', async () => {
   const api = fixtureApi();
   api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
-  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ method: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
   api.overrides.set('POST /mobile-topups/payment-sessions', () => stripePaymentSession());
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
