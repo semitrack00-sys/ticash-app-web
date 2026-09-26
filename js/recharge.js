@@ -101,7 +101,7 @@ export class Recharge {
   checkoutBlocked() {
     const s = this.state;
     if (s.guest || !s.account) return 'Sign in to a permanent account to use Stripe sandbox card payments.';
-    const card = s.paymentMethods.find((method) => method.method === 'CARD');
+    const card = s.paymentMethods.find((method) => method.type === 'CARD');
     if (!card || card.provider !== 'STRIPE' || card.testMode !== true || card.enabled !== true) {
       return s.paymentMethodsError || (typeof card?.reason === 'string' && card.reason) || 'Sandbox card payments are unavailable.';
     }
@@ -112,7 +112,7 @@ export class Recharge {
   async loadPaymentMethods(active) {
     try {
       const methods = array(await this.api.request(`${root}/payment-methods`), 'methods');
-      if (methods.some((method) => !method || typeof method.method !== 'string')) throw invalid('Sandbox card payments are unavailable.');
+      if (methods.some((method) => !method || typeof method.type !== 'string')) throw invalid('Sandbox card payments are unavailable.');
       if (active()) { this.state.paymentMethods = methods; this.state.paymentMethodsError = ''; }
     } catch (error) {
       if (active()) { this.state.paymentMethods = []; this.state.paymentMethodsError = error.message; }
