@@ -2,6 +2,7 @@
 import { Recharge, productClassification, countryFlag, customAmountProductId, operatorLogoUrl, searchCountries } from './recharge.js';
 import { t, getLanguage, languageLocale, localizeCountry, onLanguageChange, translateElements, syncLanguageSelectors } from './i18n.js';
 import { mountLanguageHeader } from './language-page.js';
+import { mountRechargeJourney } from './recharge-journey.js';
 import { checkoutMode, loadCheckoutFactory, mountCheckoutFlow } from './checkout-flow.js';
 
 function el(tag, attributes = {}, ...children) {
@@ -140,6 +141,7 @@ function details(data) {
 
 // Shared by /login and /recharge. In-page sign-in preserves memory-only tokens.
 export function mountRecharge(root, config, dependencies = {}) {
+  const flupflapLogin = root.dataset.loginBrand === 'flupflap';
   const pageWindow = root.ownerDocument.defaultView;
   const resetLocation = new URL(pageWindow.location.href);
   const isResetRoute = /^\/recharge\/reset-password\/?$/.test(resetLocation.pathname);
@@ -152,6 +154,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const removeLanguageHeader = mountLanguageHeader(root.ownerDocument);
   let client;
   let model;
+  let journey;
   let signedIn = false;
   let guestSession = false;
   let authMode = isResetRoute ? 'reset' : 'login';
@@ -217,14 +220,14 @@ export function mountRecharge(root, config, dependencies = {}) {
   const registerPassword = el('input', { id: 'register-password', type: 'password', autocomplete: 'new-password', required: '', minlength: '8', maxlength: '128' });
   const registerButton = el('button', { className: 'button', type: 'submit' }, 'Create TiCash account');
   const registerCountry = el('input', { id: 'register-country', autocomplete: 'country', maxlength: '2', pattern: '[A-Za-z]{2}' });
-  const registerForm = el('form', { id: 'register-form', hidden: '' }, field('First name', firstName), field('Last name', lastName),
+  const registerForm = el('form', { id: 'register-form', hidden: '' }, ...(flupflapLogin ? [] : [field('First name', firstName), field('Last name', lastName)]),
     field('Email address', registerEmail), passwordField('Account password', registerPassword),
     field('Account/billing country code (optional)', registerCountry, 'Enter your two-letter country code. This is separate from the recharge destination.'),
     el('p', { className: 'small muted' }, ui('Create a permanent account to access your saved recipients and history when you sign in again.')), registerButton);
   const chooseAuth = (mode) => {
     if (signingIn) return;
     authMode = mode; resetToken = ''; recoveryMessage = ''; clearPasswords(); loginError.hidden = true; render();
-    (mode === 'forgot' ? forgotEmail : mode === 'register' ? firstName : email).focus();
+    (mode === 'forgot' ? forgotEmail : mode === 'register' ? (flupflapLogin ? registerEmail : firstName) : email).focus();
   };
   const signInChoice = button('Sign in', () => chooseAuth('login'), true); signInChoice.id = 'choose-login';
   const registerChoice = button('Create account', () => chooseAuth('register'), true); registerChoice.id = 'choose-register';
@@ -245,7 +248,6 @@ export function mountRecharge(root, config, dependencies = {}) {
   const loginTitle = el('h1', { id: 'login-title' });
   const loginIntro = el('p', { className: 'muted auth-intro' });
   // Presentation opt-in on /login only; the shared authentication lifecycle is unchanged.
-  const flupflapLogin = root.dataset.loginBrand === 'flupflap';
   const loginSubtitle = flupflapLogin ? el('p', { className: 'login-subheading' }, ui('loginFlupFlapSignIn')) : null;
   const loginTrust = flupflapLogin ? el('div', { className: 'login-trust' },
     [['info', 'loginTrustPassword'], ['user', 'loginTrustAccount'], ['recipient', 'support']].map(([symbol, label]) =>
@@ -269,7 +271,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     if (model.state.submitting || model.state.attempt) return;
     signedIn = false; guestSession = false; authMode = 'register'; clearPasswords(); model.reset(); render();
     try { await client.logout(); } catch { /* Local tokens are already cleared. */ }
-    firstName.focus();
+    (flupflapLogin ? registerEmail : firstName).focus();
   }, true); createFromGuest.id = 'guest-create-account';
   const accountBar = el('details', { className: 'account-bar', hidden: '' },
     el('summary', { className: 'account-summary' }, icon('user'), el('span', {}, accountLabel, el('small', {}, ui('Test mode'))), icon('chevron')),
@@ -336,13 +338,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const catalogNote = el('p', { className: 'small muted catalog-note', role: 'status' });
   const detectButton = button('Find my operator', action(() => model.detect()), true); detectButton.id = 'detect-operator';
   const operatorsRetry = button('Reload operators', action(() => model.loadOperators()), true);
-  const quoteButton = button('Continue', action(async () => {
-    await model.getQuote();
-    if (model.state.quote) {
-      reviewPanel.open = true; reviewPanel.querySelector('summary').focus();
-      reviewPanel.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-    }
-  })); quoteButton.id = 'get-quote';
+  const quoteButton = button('Continue', action(() => journey.continueToPay())); quoteButton.id = 'get-quote';
   const countriesRetry = button('Retry connection', action(() => model.start()), true);
   const recipientsSelect = el('select', { id: 'saved-recipient' });
   const recipientNote = el('small', { role: 'status' });
@@ -368,13 +364,13 @@ export function mountRecharge(root, config, dependencies = {}) {
       operatorPicker,
     ),
     el('div', { className: 'field product-label' }, el('span', { id: 'product-catalog-title' }, ui('Recharge product')), product), productTiles, amountField, catalogNote, quoteButton);
-  const destinationPanel = el('details', { className: 'panel checkout-step', open: '', 'data-checkout-step': '1' },
+  const destinationPanel = el('section', { className: 'panel checkout-step', open: '', 'data-checkout-step': '1' },
     cardHeading('globe', '1. DESTINATION', 'Enter Details'), el('p', { className: 'details-intro' }, ui('detailsIntro')), productKinds, destinationControls);
   const reviewContent = el('div', { id: 'quote-details' });
   const expiry = el('p', { className: 'small', role: 'status', id: 'quote-expiry' });
   const reviewed = el('input', { type: 'checkbox', id: 'reviewed' });
   const reviewCheck = el('label', { className: 'review-check', for: 'reviewed' }, reviewed, el('span', {}, ui('I checked the phone number, operator, product, and quoted total.')));
-  const confirmButton = button('Confirm test recharge', action(() => model.confirm())); confirmButton.id = 'confirm-recharge';
+  const confirmButton = button('Confirm test recharge', action(() => journey.pay())); confirmButton.id = 'confirm-recharge';
   const recoveryNote = el('p', { className: 'message', hidden: '', role: 'status', id: 'recovery-note' }, ui('Confirmation is unresolved. Keep this page open. Retry uses the same request so it cannot create a second recharge; you can also refresh history to find the receipt.'));
   const billingCountry = el('input', { id: 'billing-country', autocomplete: 'country', required: '', maxlength: '2', pattern: '[A-Za-z]{2}' });
   const saveCountry = button('Save account country', action(() => {
@@ -401,7 +397,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     try {
       await flowComponent.confirm({ returnUrl: '/recharge' });
     } catch {
-      flowError = 'checkoutPaymentFailed';
+      flowError = 'journeyPaymentError';
     } finally {
       flowConfirmPending = false;
       render();
@@ -409,7 +405,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   }); confirmPayment.id = 'confirm-sandbox-payment';
   const flowPanel = el('section', { id: 'checkout-flow-panel', hidden: '', 'aria-label': t('Sandbox card payment'), 'data-i18n-aria-label': 'Sandbox card payment' },
     el('h3', {}, ui('Sandbox card payment')), flowMessage, flowContainer, confirmPayment, retryFlow, refreshPayment);
-  const reviewPanel = el('details', { className: 'panel checkout-step review-panel', open: '', 'data-checkout-step': '3', 'aria-labelledby': 'review-title' },
+  const reviewPanel = el('section', { className: 'panel checkout-step review-panel', open: '', 'data-checkout-step': '3', 'aria-labelledby': 'review-title' },
     cardHeading('receipt', '3. REVIEW & CONFIRM', 'Review & Pay', 'review-title'),
     reviewContent, expiry, billingStep, paymentAvailability, profileRetry, reviewCheck, confirmButton, recoveryNote, flowPanel,
     el('p', { className: 'review-helper small muted' }, icon('info'), ui('TEST MODE · No real payment is collected. Prices, fees, and availability are supplied by TiCash.')));
@@ -519,8 +515,8 @@ export function mountRecharge(root, config, dependencies = {}) {
     });
     historyIntro.textContent = t('Your recent test recharges.'); historyIntro.hidden = guestSession;
     const recovering = ['forgot', 'reset'].includes(authMode);
-    loginTitle.textContent = t(authMode === 'forgot' ? 'Forgot your password?' : authMode === 'reset' ? 'Reset your password' : authMode === 'register' ? 'Create TiCash account' : 'Sign in to TiCash');
-    loginIntro.textContent = t(authMode === 'forgot' ? 'Enter your email to request reset instructions.' : authMode === 'reset' ? 'Choose a new password for your TiCash account.' : authMode === 'register' ? 'authRegisterIntro' : 'Sign in to continue your mobile recharge.');
+    loginTitle.textContent = t(authMode === 'forgot' ? 'Forgot your password?' : authMode === 'reset' ? 'Reset your password' : authMode === 'register' ? (flupflapLogin ? 'Create FlupFlap account' : 'Create TiCash account') : 'Sign in to TiCash');
+    loginIntro.textContent = t(authMode === 'forgot' ? 'Enter your email to request reset instructions.' : authMode === 'reset' ? (flupflapLogin ? 'Choose a new password for your FlupFlap account.' : 'Choose a new password for your TiCash account.') : authMode === 'register' ? 'authRegisterIntro' : 'Sign in to continue your mobile recharge.');
     if (loginSubtitle) {
       loginSubtitle.hidden = recovering || authMode === 'register';
       if (!loginSubtitle.hidden) { loginTitle.textContent = t('loginWelcome'); loginIntro.textContent = t('loginAccess'); }
@@ -543,7 +539,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     signInChoice.setAttribute('aria-pressed', String(authMode === 'login'));
     registerChoice.setAttribute('aria-pressed', String(authMode === 'register'));
     guestButton.textContent = t(signingIn && authMode === 'guest' ? 'Starting guest session…' : 'Continue as guest');
-    registerButton.textContent = t(signingIn && authMode === 'register' ? 'Creating account…' : 'Create TiCash account');
+    registerButton.textContent = t(signingIn && authMode === 'register' ? 'Creating account…' : flupflapLogin ? 'Create FlupFlap account' : 'Create TiCash account');
     loginButton.disabled = !configured || signingIn;
     loginButton.textContent = t(signingIn ? 'Signing in…' : 'Sign in');
     error.textContent = t(s.error); error.hidden = !s.error;
@@ -738,9 +734,9 @@ export function mountRecharge(root, config, dependencies = {}) {
         tile.removeAttribute('data-i18n'); tile.className = 'product-tile';
         tile.dataset.productId = candidate.id; tile.disabled = locked;
         tile.setAttribute('aria-pressed', String(candidate.id === s.product?.id));
-        tile.replaceChildren(el('strong', {}, candidate.amountType === 'RANGE' ? t('otherAmount') : money(candidate.deliveredValue ?? candidate.price, candidate.deliveredValue == null ? candidate.priceCurrency : candidate.deliveredCurrency)),
+        tile.replaceChildren(el('strong', {}, candidate.amountType === 'RANGE' ? t('otherAmount') : money(candidate.price, candidate.priceCurrency)),
           el('span', {}, candidate.name), el('small', {}, candidate.amountType === 'RANGE'
-            ? `${money(candidate.minimumAmount, candidate.priceCurrency)}–${money(candidate.maximumAmount, candidate.priceCurrency)}` : money(candidate.price, candidate.priceCurrency)));
+            ? `${money(candidate.minimumAmount, candidate.priceCurrency)}–${money(candidate.maximumAmount, candidate.priceCurrency)}` : candidate.deliveredValue == null ? candidate.priceCurrency : money(candidate.deliveredValue, candidate.deliveredCurrency)));
         if (productClassification(candidate) !== 'AIRTIME') {
           tile.prepend(operatorDetail(s.operator.name, s.operator));
           tile.append(planDetails(candidate));
@@ -820,15 +816,18 @@ export function mountRecharge(root, config, dependencies = {}) {
     if (historySignature !== nextHistorySignature) {
       historySignature = nextHistorySignature;
       historyList.replaceChildren(...(s.history.length ? s.history.map((txn) => {
-        const view = button('View / refresh', action(() => model.refreshTransaction(txn.id)), true);
-        const repeat = button('Repeat recharge', action(() => model.repeat(txn.id)), true);
-        view.disabled = locked || busy.has('receipt'); repeat.disabled = locked || busy.has('repeat');
-        return el('article', { className: 'history-item' },
-          el('div', {}, el('strong', {}, txn.productName), el('p', {}, `${txn.recipientPhone} · ${txn.countryCode}`), el('small', {}, date(txn.createdAt))),
+        const view = button('View / refresh', action(() => journey.viewTransaction(txn.id)), true);
+        view.removeAttribute('data-i18n');
+        view.classList.add('history-view');
+        view.disabled = locked || busy.has('receipt');
+        view.replaceChildren(
+          el('div', {}, el('strong', {}, txn.operatorName), el('small', {}, txn.productName), el('p', {}, `${txn.recipientPhone} · ${txn.countryCode}`), el('small', {}, date(txn.createdAt))),
           el('div', {}, el('span', { className: 'status-pill' }, String(txn.status)), el('p', {}, money(txn.totalChargeUsd, 'USD'))),
-          el('div', { className: 'compact-actions' }, view, repeat));
+          icon('chevron'));
+        return el('article', { className: 'history-item' }, view);
       }) : [busy.has('history') ? el('p', { className: 'muted' }, t('Loading your history…')) : el('div', { className: 'history-empty' }, icon('receipt'), el('strong', {}, ui('historyEmptyTitle')), el('p', { className: 'small muted' }, ui('historyEmptyInstruction')))]));
     }
+    journey?.update(s, busy, signedIn);
   }
   const expired = () => {
     signedIn = false; guestSession = false; clearPasswords(); model?.reset(); render();
@@ -836,11 +835,17 @@ export function mountRecharge(root, config, dependencies = {}) {
   };
   try {
     if (config.mobileRechargeLive !== false) throw new Error('This checkout supports test mode only.');
-    client = dependencies.api || createApiClient({ baseUrl: apiBaseUrl(config.apiBaseUrl), onSessionExpired: expired });
+    client = dependencies.api || createApiClient({ baseUrl: apiBaseUrl(config.apiBaseUrl), identityDomain: flupflapLogin ? 'FLUPFLAP' : 'TICASH', onSessionExpired: expired });
   } catch (error) {
     configured = false; setLoginError(error.message);
   }
   model = new Recharge(client, { ...dependencies, onChange: render });
+  journey = mountRechargeJourney({ root, model, render, el, ui, button, action, money, date, details, icon, operatorDetail,
+    nodes: { checkout, selectionFields, destinationPanel, destinationControls, operatorControls, productKinds,
+      reviewPanel, reviewContent, quoteButton, confirmButton, confirmPayment, reviewed, reviewCheck, expiry,
+      receipt, refreshReceipt, historyPanel, historyList, coverage, recipientsPanel, recipientsSelect,
+      hero, progress, progressItems, menu, menuButton, sidebar, accountBar, testTitle, testText, flowPanel,
+      phone, country, product, amount, catalogNote, detectButton, operatorsRetry, operatorPicker, reassurance } });
   async function authenticate(mode) {
     if (signingIn || !configured) return;
     const form = mode === 'register' ? registerForm : loginForm;
@@ -850,12 +855,12 @@ export function mountRecharge(root, config, dependencies = {}) {
     try {
       let user;
       if (mode === 'guest') user = await client.guest();
-      else if (mode === 'register') user = await client.register({ firstName: firstName.value.trim(), lastName: lastName.value.trim(), email: registerEmail.value.trim(), password: registerPassword.value,
+      else if (mode === 'register') user = await client.register({ ...(flupflapLogin ? {} : { firstName: firstName.value.trim(), lastName: lastName.value.trim() }), email: registerEmail.value.trim(), password: registerPassword.value,
         ...(registerCountry.value.trim() ? { countryCode: registerCountry.value.trim().toUpperCase() } : {}) });
       else user = await client.login(email.value.trim(), password.value);
       clearPasswords(); signedIn = true; guestSession = mode === 'guest'; model.reset();
       model.setAccount(user, guestSession);
-      if (mode === 'register') model.state.notice = 'Your TiCash account was created.';
+      if (mode === 'register') model.state.notice = flupflapLogin ? 'Your FlupFlap account was created.' : 'Your TiCash account was created.';
       render();
       // Fixed local destination; user-supplied return URLs are never used.
       if (globalThis.location?.pathname.startsWith('/login')) globalThis.history.replaceState(null, '', '/recharge');
@@ -1007,7 +1012,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const timer = setInterval(() => { if (signedIn && model.state.quote) render(); }, 1000);
   const removeLanguageListener = onLanguageChange(render);
   render();
-  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; clearFlow(); removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); root.ownerDocument.removeEventListener('click', closeOperatorPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
+  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; journey?.dispose(); clearFlow(); removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); root.ownerDocument.removeEventListener('click', closeOperatorPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
 }
 
 const root = typeof document === 'undefined' ? null : document.querySelector('[data-recharge-root]');

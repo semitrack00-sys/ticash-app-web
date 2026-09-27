@@ -21,7 +21,10 @@ export function apiBaseUrl(value, pageUrl = globalThis.location?.href) {
 
 // Tokens exist only in this closure. No browser storage, URL, DOM, or analytics.
 // The backend rotates refresh tokens; concurrent 401s share one refresh request.
-export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessionExpired = () => {}, timeoutMs = 20000 }) {
+export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessionExpired = () => {}, timeoutMs = 20000, identityDomain = 'TICASH' }) {
+  if (!['TICASH', 'FLUPFLAP'].includes(identityDomain)) throw new ApiError('INVALID_CONFIG', 'Unknown identity domain.');
+  const flupflap = identityDomain === 'FLUPFLAP';
+  const auth = flupflap ? '/flupflap/auth' : '/auth';
   let accessToken = null;
   let refreshToken = null;
   let refreshFlight = null;
@@ -60,6 +63,7 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
     if (typeof data?.accessToken !== 'string' || !data.accessToken || typeof data?.refreshToken !== 'string' || !data.refreshToken) {
       throw new ApiError('INVALID_RESPONSE', 'The sign-in response was incomplete.');
     }
+    if (flupflap && data.user?.domain !== 'FLUPFLAP') throw new ApiError('INVALID_RESPONSE', 'Invalid FlupFlap identity.');
     accessToken = data.accessToken;
     refreshToken = data.refreshToken;
   }
@@ -67,7 +71,7 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
   async function refresh(version) {
     if (!refreshToken) throw new ApiError('UNAUTHENTICATED', 'Please sign in to continue.', 401);
     if (!refreshFlight) {
-      const pending = send('/auth/refresh', { method: 'POST', body: { refreshToken } })
+      const pending = send(`${auth}/refresh`, { method: 'POST', body: { refreshToken } })
         .then((data) => acceptTokens(data, version))
         .catch(() => {
           if (version === sessionVersion) clear(true);
@@ -80,42 +84,50 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
   }
 
   return {
+    identityDomain,
     forgotPassword(email) {
-      return send('/auth/forgot-password', { method: 'POST', body: { email } });
+      return send(`${auth}/forgot-password`, { method: 'POST', body: { email } });
     },
     resetPassword(token, newPassword) {
       clear();
-      return send('/auth/reset-password', { method: 'POST', body: { token, newPassword } });
+      return send(`${auth}/reset-password`, { method: 'POST', body: flupflap ? { token, password: newPassword } : { token, newPassword } });
     },
     async login(email, password) {
       clear();
       const version = sessionVersion;
-      const data = await send('/auth/login', { method: 'POST', body: { email, password } });
+      const data = await send(`${auth}/login`, { method: 'POST', body: { email, password } });
       acceptTokens(data, version);
       return data.user;
     },
     async register({ firstName, lastName, email, password, countryCode }) {
       clear();
       const version = sessionVersion;
-      const data = await send('/auth/register', { method: 'POST', body: { firstName, lastName, email, password, ...(countryCode ? { countryCode } : {}) } });
+      const data = await send(`${auth}/register`, { method: 'POST', body: { ...(flupflap ? {} : { firstName, lastName }), email, password, ...(countryCode ? { countryCode } : {}) } });
       acceptTokens(data, version);
       return data.user;
     },
     async guest() {
       clear();
       const version = sessionVersion;
-      const data = await send('/auth/guest', { method: 'POST' });
-      if (data?.guest !== true || data.user?.role !== 'CUSTOMER') throw new ApiError('INVALID_RESPONSE', 'The service did not return a guest customer session.');
+      const data = await send(`${auth}/guest`, { method: 'POST' });
+      if (data?.guest !== true || (flupflap ? data.user?.domain !== 'FLUPFLAP' : data.user?.role !== 'CUSTOMER')) throw new ApiError('INVALID_RESPONSE', 'The service did not return a guest customer session.');
       acceptTokens(data, version);
       return data.user;
     },
     async logout() {
       const token = refreshToken;
+      const access = accessToken;
       clear();
-      if (token) await send('/auth/logout', { method: 'POST', body: { refreshToken: token } });
+      if (flupflap && access) await send(`${auth}/logout`, { method: 'POST', headers: { Authorization: `Bearer ${access}` } });
+      else if (token) await send(`${auth}/logout`, { method: 'POST', body: { refreshToken: token } });
     },
     clear,
     async request(path, options = {}) {
+      if (flupflap) {
+        if (path === '/users/me') path = '/flupflap/auth/me';
+        else if (/^\/mobile-topups(?:\/|$)/.test(path) && !path.split(/[?#]/)[0].includes('..') && !path.split(/[?#]/)[0].includes('%')) path = '/flupflap' + path;
+        else throw new ApiError('INVALID_PATH', 'FlupFlap cannot access TiCash-only services.');
+      }
       const version = sessionVersion;
       const usedToken = accessToken;
       if (!usedToken) throw new ApiError('UNAUTHENTICATED', 'Please sign in to continue.', 401);

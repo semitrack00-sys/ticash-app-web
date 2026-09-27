@@ -170,3 +170,31 @@ test('password recovery uses public POST endpoints without auth headers or token
   ]);
   for(const {options} of calls){assert.equal(options.headers.Authorization,undefined);assert.equal(options.referrerPolicy,'no-referrer');}
 });
+
+test('FlupFlap auth is separate, lightweight, memory-only and cannot request TiCash services', async () => {
+  const calls=[];const flup={...session,user:{id:'flup',domain:'FLUPFLAP'}};
+  const api=createApiClient({baseUrl:'https://test.example/api',identityDomain:'FLUPFLAP',fetchImpl:async(url,options)=>{
+    calls.push({url,...options});return url.endsWith('/logout')?new Response(null,{status:204}):json(flup);
+  }});
+  await api.register({firstName:'Do not send',lastName:'Do not send',email:'flup@example.test',password:'test-password'});
+  assert.equal(calls[0].url,'https://test.example/api/flupflap/auth/register');
+  assert.deepEqual(JSON.parse(calls[0].body),{email:'flup@example.test',password:'test-password'});
+  await api.request('/mobile-topups/countries');await api.request('/users/me');
+  assert.equal(calls[1].url,'https://test.example/api/flupflap/mobile-topups/countries');
+  assert.equal(calls[2].url,'https://test.example/api/flupflap/auth/me');
+  for(const path of ['/transfers','/recipients','/funding/wallet','/kyc/status','/admin/session','/mobile-topups/../transfers']) await assert.rejects(api.request(path),{code:'INVALID_PATH'});
+  await api.logout();assert.equal(calls.at(-1).headers.Authorization,'Bearer test-access');assert.equal(calls.at(-1).body,undefined);
+  await assert.rejects(api.request('/mobile-topups/countries'),{status:401});
+});
+test('FlupFlap refuses a TiCash identity response and uses its own reset contract',async()=>{
+  const calls=[];const api=createApiClient({baseUrl:'https://test.example/api',identityDomain:'FLUPFLAP',fetchImpl:async(url,options)=>{calls.push({url,...options});return json(session);}});
+  await assert.rejects(api.login('flup@example.test','test-password'),{code:'INVALID_RESPONSE'});
+  await api.resetPassword('test-reset-token','new-password');assert.equal(calls.at(-1).url,'https://test.example/api/flupflap/auth/reset-password');assert.deepEqual(JSON.parse(calls.at(-1).body),{token:'test-reset-token',password:'new-password'});
+});
+
+test('FlupFlap detection preserves encoded international phone query parameters',async()=>{
+ const calls=[];const api=createApiClient({baseUrl:'https://test.example/api',identityDomain:'FLUPFLAP',fetchImpl:async(url)=>{calls.push(url);return json({...session,user:{id:'flup',domain:'FLUPFLAP'}});}});
+ await api.login('flup@example.test','test-password');await api.request('/mobile-topups/operators/detect?country=JM&phone=%2B18765551234');
+ assert.equal(calls.at(-1),'https://test.example/api/flupflap/mobile-topups/operators/detect?country=JM&phone=%2B18765551234');
+ await assert.rejects(api.request('/mobile-topups/%2e%2e/transfers'),{code:'INVALID_PATH'});
+});

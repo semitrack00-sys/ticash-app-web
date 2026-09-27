@@ -143,11 +143,12 @@ export class Recharge {
       const countryCode = value.trim().toUpperCase();
       if (!/^[A-Z]{2}$/.test(countryCode)) throw invalid('Enter your two-letter account/billing country code.');
       const profile = this.state.userProfile;
-      if (!profile || typeof profile.firstName !== 'string' || !profile.firstName.trim() || typeof profile.lastName !== 'string' || !profile.lastName.trim()) {
+      const flupflap = this.api.identityDomain === 'FLUPFLAP';
+      if (!profile || (!flupflap && (typeof profile.firstName !== 'string' || !profile.firstName.trim() || typeof profile.lastName !== 'string' || !profile.lastName.trim()))) {
         throw invalid('Your account profile could not be verified. Retry connection.');
       }
-      const body = { firstName: profile.firstName, lastName: profile.lastName };
-      for (const field of profileFields.slice(2)) {
+      const body = flupflap ? { countryCode } : { firstName: profile.firstName, lastName: profile.lastName };
+      for (const field of flupflap ? [] : profileFields.slice(2)) {
         if (field === 'countryCode') body[field] = countryCode;
         else if (Object.hasOwn(profile, field)) body[field] = profile[field] ?? null;
       }

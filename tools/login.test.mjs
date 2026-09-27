@@ -53,13 +53,13 @@ test(`${route}: real login markup preserves credentials, busy state, in-memory t
 
 test(`${route}: login branding localizes without replacing registration, recovery, validation or password controls`, async () => loginPage(async ({ query }) => {
   query('#choose-register').click();
-  query('#first-name').value = 'Ti'; query('#register-email').value = 'tester@example.com';
+  assert.equal(query('#first-name'), null); query('#register-email').value = 'tester@example.com';
   query('#register-password').value = 'test-password'; query('#register-password-visibility').click();
   for (const code of ['ht', 'fr', 'es', 'pt', 'en']) {
     setLanguage(code);
     assert.equal(query('#login-welcome').textContent, t('loginBrandTitle'));
     assert.equal(query('.login-story-description').textContent, t('loginBrandDescription'));
-    assert.equal(query('#first-name').value, 'Ti');
+    assert.equal(query('#register-email').value, 'tester@example.com');
     assert.equal(query('#register-password').value, 'test-password');
     assert.equal(query('#register-password').type, 'text');
     assert.equal(query('#register-form').hidden, false);
@@ -105,15 +105,15 @@ test('recharge reuses the approved FlupFlap authentication markup and stylesheet
   } finally { documents.forEach(dom => dom.window.close()); }
 });
 
-test('recharge FlupFlap registration submits unchanged credentials and exposes checkout', async () => {
+test('recharge FlupFlap registration submits lightweight FlupFlap credentials and exposes checkout', async () => {
   const api = fixtureApi(); let credentials;
   api.register = async data => { credentials = data; return { id: 'registered-user', role: 'CUSTOMER' }; };
   await loginPage(async ({ query, submit, dom }) => {
     query('#choose-register').click();
-    query('#first-name').value = 'Ti'; query('#last-name').value = 'Cash';
+    assert.equal(query('#first-name'), null); assert.equal(query('#last-name'), null);
     query('#register-email').value = 'tester@example.com'; query('#register-password').value = 'test-password';
     submit('#register-form'); await tick();
-    assert.deepEqual(credentials, { firstName: 'Ti', lastName: 'Cash', email: 'tester@example.com', password: 'test-password' });
+    assert.deepEqual(credentials, { email: 'tester@example.com', password: 'test-password' });
     assert.equal(query('#checkout').hidden, false);
     assert.equal(query('#register-password').value, '');
     assert.equal(dom.window.location.pathname, '/recharge');
@@ -138,7 +138,7 @@ test('recharge FlupFlap recovery and guest entry retain their existing flows', a
     assert.equal(guests, 1);
     assert.equal(query('#checkout').hidden, false);
     assert.equal(query('#guest-note').hidden, false);
-    assert.match(root.textContent, /TEST MODE/);
+    assert.match(root.textContent, /Test mode|TEST MODE/);
     assert.equal(dom.window.location.pathname, '/recharge');
     assert.ok(api.calls.every(call => !call.method || call.method === 'GET'));
     query('#sign-out').click(); await tick();
