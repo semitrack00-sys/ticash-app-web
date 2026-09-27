@@ -16,7 +16,12 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   let summarySignature;
   let recentSignature;
   let disposed = false;
-  const pending = () => Boolean(model.state.transaction && (!['DELIVERED', 'FAILED'].includes(model.state.transaction.status) || !['CAPTURED', 'FAILED', 'VOIDED', 'REFUNDED'].includes(model.state.transaction.paymentStatus)));
+  const pending = () => {
+    const txn = model.state.transaction;
+    if (!txn) return false;
+    if (['DELIVERED', 'FAILED'].includes(txn.status)) return false;
+    return !['CAPTURED', 'FAILED', 'VOIDED', 'REFUNDED'].includes(txn.paymentStatus);
+  };
   const locked = () => Boolean(model.state.attempt || model.state.submitting || pending());
   const heading = (key, id) => el('h2', { id, tabindex: '-1' }, ui(key));
   const section = (name, key) => el('section', { id: `journey-${name}`, className: 'journey-screen panel', 'aria-labelledby': `journey-${name}-title`, hidden: '' }, heading(key, `journey-${name}-title`));
@@ -219,7 +224,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     if (s.transaction && resultSignature !== resultKey) {
       resultSignature = resultKey;
       const txn = s.transaction;
-      const delivered = txn.status === 'DELIVERED' && txn.paymentStatus === 'CAPTURED';
+      const delivered = txn.status === 'DELIVERED';
       const failed = txn.status === 'FAILED';
       const title = delivered ? 'journeySuccess' : failed ? 'journeyFailed' : 'journeyPending';
       const headingNode = heading(title, 'journey-result-title');

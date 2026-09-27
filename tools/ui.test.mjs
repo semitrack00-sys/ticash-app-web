@@ -262,6 +262,15 @@ test('receipt and history localize labels and dates while keeping provider value
   }
 }));
 
+test('receipt shows the success state when backend status is DELIVERED even without CAPTURED payment status', async () => page(async ({ app, query }) => {
+  app.model.state.transaction = { ...transaction, status: 'DELIVERED', paymentStatus: 'AUTHORIZED' };
+  app.model.state.history = [app.model.state.transaction];
+  app.model.emit();
+  assert.match(query('#receipt').textContent, /Recharge successful!/);
+  assert.equal(query('#receipt .journey-result-symbol').textContent, '✓');
+  assert.equal(query('#receipt .status-pill').textContent.trim(), 'DELIVERED');
+}));
+
 
 test('visible country picker uses local SVG flags instead of platform emoji glyphs', async () => page(async ({ login, query, input }) => {
   await login();
@@ -693,7 +702,7 @@ test('journey uses authoritative statuses, limits recent history, and repeats on
     app.model.state.transaction = { ...transaction, status: 'FAILED', paymentStatus: 'FAILED' }; app.model.emit();
     assert.match(query('#receipt h2').textContent, /failed/); assert.equal(query('#recharge-again').hidden, true);
     app.model.state.transaction = { ...transaction, status: 'DELIVERED', paymentStatus: 'AUTHORIZED' }; app.model.emit();
-    assert.match(query('#receipt h2').textContent, /processing/);
+    assert.match(query('#receipt h2').textContent, /successful/); assert.equal(query('#recharge-again').hidden, false);
     app.model.state.transaction = { ...transaction, status: 'DELIVERED', paymentStatus: 'CAPTURED' }; app.model.emit();
     assert.match(query('#receipt h2').textContent, /successful/); assert.equal(query('#recharge-again').hidden, false);
     const before = api.calls.length; query('#recharge-again').click(); await tick();
