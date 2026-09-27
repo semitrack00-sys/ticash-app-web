@@ -404,7 +404,7 @@ test('Stripe pay action surfaces safe error and still never performs browser ful
 
     document.getElementById('confirm-sandbox-payment').click();
     await flush();
-    assert.match(document.getElementById('checkout-flow-panel').textContent, /Unable to confirm Stripe sandbox payment/);
+    assert.match(document.getElementById('checkout-flow-panel').textContent, /Payment could not be confirmed/);
     assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
   } finally {
     app.dispose();

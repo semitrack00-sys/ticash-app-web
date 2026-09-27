@@ -139,7 +139,7 @@ test('shared header language selector synchronizes translated UI, ISO labels, se
     assert.equal(dom.window.document.documentElement.lang,code);
     assert.equal(dom.window.document.querySelector('#header-language').value,code);
     assert.equal(dom.window.document.querySelector('header a').textContent,t('mobileRecharge'));
-    assert.equal(query('#get-quote').textContent,t('continueRecharge'));
+    assert.equal(query('#get-quote').textContent,t('journeyContinuePayment'));
     assert.equal(query('#country').value,'HT'); assert.equal(query('#country').options.length,2);
     assert.equal(query('#country').selectedOptions[0].textContent,`🇭🇹 ${names[code]} (+509)`);
     assert.match(query('#phone-hint').textContent,/🇭🇹/); assert.match(query('#phone-hint').textContent,/\+509/);
@@ -177,9 +177,9 @@ for (const session of ['account','guest']) test(`${session} language switches pr
       assert.equal(query('#country').value,'JM'); assert.equal(query('#phone').value,quote.recipientPhone);
       assert.equal(query('#operator').value,'77'); assert.equal(query('#product').value,products[0].id);
       assert.equal(query('#reviewed').checked,true); assert.equal(query('#confirm-recharge').disabled,false);
-      assert.ok(query('#quote-details').textContent.includes('(JM)'));
+      assert.ok(query('.review-panel .journey-recipient').textContent.includes('JM'));
       for(const value of [3.5,8.5]) assert.ok(query('#quote-details').textContent.includes(new Intl.NumberFormat(languageLocale(),{style:'currency',currency:'USD'}).format(value)));
-      assert.ok(query('#quote-details').textContent.includes(quote.operatorName)); assert.ok(query('#quote-details').textContent.includes(quote.productName));
+      assert.ok(query('.review-panel .journey-recipient').textContent.includes(quote.operatorName)); assert.ok(query('#quote-details').textContent.includes(quote.productName));
       assert.equal(dom.window.localStorage.length,1); assert.equal(dom.window.localStorage.key(0),'ticash.language');
     }
   },{api});
@@ -254,11 +254,11 @@ test('receipt and history localize labels and dates while keeping provider value
   for (const code of ['ht','fr','es','pt','en']) {
     input('#header-language',code,'change');assert.deepEqual(app.model.state,state);
     const text=query('#receipt').textContent;
-    assert.ok(text.includes(t('testReceipt')));assert.ok(text.includes(t('reference')));assert.ok(text.includes(t('receiptHeading',{status:t('processing')})));
+    assert.ok(text.includes(t('testReceipt')));assert.ok(text.includes(t('reference')));assert.ok(text.includes(t('journeyPending')));
     for (const raw of [transaction.id,transaction.recipientPhone,transaction.operatorName,transaction.productName,'PROCESSING','AUTHORIZED','🇯🇲 JM']) assert.ok(text.includes(raw),raw);
     const date=new Intl.DateTimeFormat(languageLocale(),{dateStyle:'medium',timeStyle:'short'}).format(new Date(transaction.createdAt));
     assert.ok(text.includes(date));assert.ok(query('#history-list').textContent.includes(date));
-    assert.ok(query('#history-list').textContent.includes(t('repeat')));
+    assert.ok(query('#receipt').textContent.includes(t('journeyViewReceipt')));
   }
 }));
 
@@ -352,12 +352,13 @@ test('reset rejects invalid tokens and preserves a valid token after same-passwo
 test('three-step progress reflects a complete destination and a real quote, then resets on edits',async()=>page(async({login,app,query,input})=>{
   await login();const current=()=>query('.checkout-progress [aria-current=step]').dataset.step;
   assert.equal(current(),'1');await app.model.selectCountry('JM');assert.equal(current(),'1');
-  app.model.setPhone(quote.recipientPhone);assert.equal(current(),'2');
+  app.model.setPhone(quote.recipientPhone);assert.equal(current(),'1');
+  query('#continue-number').click(); await tick(); assert.equal(current(),'2');
   await app.model.selectOperator(77);app.model.selectProduct(products[0].id);assert.equal(current(),'2');
-  await app.model.getQuote();assert.equal(current(),'3');
+  query('#get-quote').click(); await tick(); assert.equal(current(),'3');
   assert.equal(query('#quote-details dt:last-of-type')!==null,true);
-  assert.match(query('#quote-details').textContent,/Recipient/);assert.match(query('#quote-details').textContent,/Total/);
-  input('#phone','+1');assert.equal(current(),'1');assert.equal(query('#confirm-recharge').disabled,true);
+  assert.match(query('.review-panel .journey-recipient').textContent,/18765551234/);assert.match(query('#quote-details').textContent,/Total/);
+  query('.review-panel .journey-recipient button').click(); input('#phone','+1');assert.equal(current(),'1');assert.equal(query('#confirm-recharge').disabled,true);
 }));
 
 test('country search lives inside the picker and preserves search focus, SVG flags and keyboard selection',async()=>page(async({login,query,input,dom})=>{
@@ -376,12 +377,12 @@ test('country search lives inside the picker and preserves search focus, SVG fla
 }));
 
 
-test('FlupFlap groups existing controls into details and review while preserving safe empty states', async () => page(async ({ login, root, query }) => {
+test('FlupFlap separates existing controls into number, amount and payment screens while preserving safe empty states', async () => page(async ({ login, root, query }) => {
   await login();
-  assert.equal(query('#selection-fields').children.length, 2);
+  assert.equal(query('#selection-fields').children.length, 3);
   assert.equal(query('[data-checkout-step="1"] fieldset').querySelector('#phone') !== null, true);
-  assert.equal(query('.review-column #review-title').textContent, 'Review & Pay');
-  assert.equal(query('[data-checkout-step="1"]').querySelectorAll('fieldset').length, 2);
+  assert.equal(query('.review-panel #review-title').textContent, 'Payment method');
+  assert.equal(query('[data-checkout-step="1"]').querySelectorAll('fieldset').length, 1);
   assert.equal(root.querySelector('.checkout-grid'), null);
   const css = readFileSync(new URL('../recharge/checkout.css', import.meta.url), 'utf8');
   assert.doesNotMatch(css, /\.checkout-grid|\.review-panel\s*\{[^}]*position:\s*sticky/);
@@ -509,7 +510,7 @@ test('manual operator selection keeps logo through quote and receipt', async () 
   await app.model.getQuote();
 
   assert.equal(
-    query('#quote-details img.operator-logo-image')
+    query('.review-panel .journey-recipient img.operator-logo-image')
       .getAttribute('src'),
     operator.logoUrl,
   );
@@ -623,3 +624,110 @@ test('missing, malformed or failed initial coverage never displays fabricated de
     }, { api });
   }
 });
+
+test('journey validates number, detects once on repeated taps, and separates directory/history from checkout', async () => page(async ({ login, query, input, api, dom }) => {
+  await login();
+  assert.equal(query('#operator-fallback').hidden, true);
+  query('#continue-number').click(); await tick();
+  assert.match(query('#recharge-error').textContent, /country/);
+  input('#country', 'JM', 'change'); await tick(); input('#phone', '+1');
+  query('#continue-number').click(); await tick();
+  assert.equal(api.calls.filter(c => c.path.includes('/detect')).length, 0);
+  input('#phone', quote.recipientPhone);
+  query('#continue-number').click(); query('#continue-number').click(); await tick();
+  assert.equal(api.calls.filter(c => c.path.includes('/detect')).length, 1);
+  assert.equal(query('#journey-amount').hidden, false);
+  assert.equal(dom.window.document.activeElement.id, 'journey-amount-title');
+  assert.equal(query('[data-journey-screen=number]').hidden, true);
+  assert.equal(query('#checkout .coverage-panel'), null);
+  assert.equal(query('#checkout #history-list'), null);
+  assert.equal(query('#journey-directory').hidden, true);
+  const calls = api.calls.length;
+  query('[data-journey-nav=directory]').click();
+  assert.equal(query('#journey-directory').hidden, false);
+  assert.equal(query('#journey-amount').hidden, true);
+  assert.equal(api.calls.length, calls, 'navigation must reuse loaded catalogs');
+}));
+
+test('journey exposes manual fallback only when detection fails and preserves recipients', async () => {
+  const api = fixtureApi(); api.overrides.set('GET /mobile-topups/operators/detect', () => { throw new ApiError('UNAVAILABLE', 'Operator unavailable'); });
+  await page(async ({ login, query, input, app }) => {
+    await login(); input('#country', 'JM', 'change'); await tick(); input('#phone', quote.recipientPhone);
+    query('#continue-number').click(); await tick(); assert.equal(query('#operator-fallback').hidden, false);
+    input('#operator', '77', 'change'); await tick(); query('#continue-number').click(); await tick();
+    assert.equal(query('#journey-amount').hidden, false);
+    query('[data-journey-nav=recipients]').click();
+    assert.equal(query('#journey-recipients').hidden, false);
+    input('#saved-recipient', 'saved', 'change'); await tick();
+    assert.equal(app.model.state.phone, quote.recipientPhone); assert.equal(app.model.state.operator.logoUrl, operator.logoUrl);
+  }, { api });
+});
+
+test('journey quotes provider amount once, refreshes expired price and requires review before payment', async () => page(async ({ login, query, input, app, api }) => {
+  await login(); input('#country', 'JM', 'change'); await tick(); input('#phone', quote.recipientPhone);
+  query('#continue-number').click(); await tick(); query('[data-product-id]').click();
+  query('#get-quote').click(); query('#get-quote').click(); await tick();
+  assert.equal(api.calls.filter(c => c.path === '/mobile-topups/quotes').length, 1);
+  assert.equal(query('.review-panel').hidden, false);
+  assert.match(query('#quote-details').textContent, /FlupFlap fee\$0.50Total\$8.00/);
+  query('#reviewed').click();
+  app.model.state.quote.expiresAt = '2000-01-01T00:00:00Z'; app.model.emit();
+  api.overrides.set('POST /mobile-topups/quotes', () => ({ quote: { ...quote, feeUsd: 1.25, totalChargeUsd: 8.75 } }));
+  query('#confirm-recharge').click(); query('#confirm-recharge').click(); await tick();
+  assert.equal(api.calls.filter(c => c.method === 'POST' && c.path === '/mobile-topups/transactions').length, 0);
+  assert.equal(app.model.state.reviewed, false); assert.equal(query('#confirm-recharge').disabled, true);
+  assert.match(query('#quote-details').textContent, /8.75/);
+  query('#reviewed').click(); query('#confirm-recharge').click(); query('#confirm-recharge').click(); await tick();
+  assert.equal(api.calls.filter(c => c.method === 'POST' && c.path === '/mobile-topups/transactions').length, 1);
+  assert.equal(query('#receipt').hidden, false); assert.match(query('#receipt h2').textContent, /processing/);
+  assert.equal(query('#recharge-again').hidden, true);
+  query('[data-journey-nav=number]').click(); assert.equal(query('#receipt').hidden, false);
+}));
+
+test('journey uses authoritative statuses, limits recent history, and repeats only a confirmed recharge', async () => {
+  const api = fixtureApi();
+  api.overrides.set('GET /mobile-topups/transactions', () => ({ transactions: Array.from({ length: 5 }, (_, i) => ({ ...transaction, id: `history-${i}` })) }));
+  await page(async ({ login, query, app }) => {
+    await login(); query('[data-journey-nav=home]').click(); assert.equal(query('.recent-list').children.length, 3);
+    assert.equal(query('#history-list').children.length, 5);
+    app.model.state.transaction = { ...transaction, status: 'FAILED', paymentStatus: 'FAILED' }; app.model.emit();
+    assert.match(query('#receipt h2').textContent, /failed/); assert.equal(query('#recharge-again').hidden, true);
+    app.model.state.transaction = { ...transaction, status: 'DELIVERED', paymentStatus: 'AUTHORIZED' }; app.model.emit();
+    assert.match(query('#receipt h2').textContent, /processing/);
+    app.model.state.transaction = { ...transaction, status: 'DELIVERED', paymentStatus: 'CAPTURED' }; app.model.emit();
+    assert.match(query('#receipt h2').textContent, /successful/); assert.equal(query('#recharge-again').hidden, false);
+    const before = api.calls.length; query('#recharge-again').click(); await tick();
+    assert.equal(query('.review-panel').hidden, false); assert.equal(app.model.state.reviewed, false);
+    assert.deepEqual(api.calls.slice(before).map(c => c.path), [`/mobile-topups/transactions/${transaction.id}/repeat`]);
+    assert.equal(app.model.state.quote.totalChargeUsd, 8.75);
+  }, { api });
+});
+
+test('journey range amount debounce uses backend quote and edits clear the previous total', async () => page(async ({ login, query, input, app, api }) => {
+  await login(); await app.model.selectCountry('JM'); app.model.setPhone(quote.recipientPhone);
+  query('#continue-number').click(); await tick();
+  input('#product', products[1].id, 'change'); input('#amount', '13.2'); input('#amount', '13.25');
+  await new Promise(resolve => setTimeout(resolve, 450));
+  const calls = api.calls.filter(c => c.path === '/mobile-topups/quotes');
+  assert.equal(calls.length, 1); assert.equal(calls[0].body.amount, 13.25);
+  assert.match(query('#amount-summary').textContent, /8.00/); // fixture response, never client-calculated
+  input('#amount', '999'); assert.equal(app.model.state.quote, null);
+  assert.doesNotMatch(query('#amount-summary').textContent, /8.00/);
+  await new Promise(resolve => setTimeout(resolve, 450));
+  assert.equal(api.calls.filter(c => c.path === '/mobile-topups/quotes').length, 1);
+}));
+
+test('journey replaces stale range quote after a slow response without repeating an unchanged failure', async () => page(async ({ login, query, input, app, api }) => {
+  await login(); await app.model.selectCountry('JM'); app.model.setPhone(quote.recipientPhone);
+  query('#continue-number').click(); await tick(); input('#product', products[1].id, 'change');
+  let release;
+  api.overrides.set('POST /mobile-topups/quotes', async (_path, {body}) => {
+    if (body.amount === 6) await new Promise(resolve => { release = resolve; });
+    return { quote: { ...quote, productId: products[1].id, providerAmount: body.amount, feeUsd: 1.25, totalChargeUsd: body.amount + 1.25 } };
+  });
+  input('#amount', '6'); await new Promise(resolve => setTimeout(resolve, 400));
+  assert.equal(typeof release, 'function'); input('#amount', '13'); release();
+  await new Promise(resolve => setTimeout(resolve, 500));
+  assert.equal(app.model.state.quote.providerAmount, 13);
+  assert.deepEqual(api.calls.filter(c => c.path === '/mobile-topups/quotes').map(c => c.body.amount), [6,13]);
+}));
