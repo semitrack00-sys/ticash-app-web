@@ -1,4 +1,12 @@
 export default Object.freeze({
+  "checkoutResumeInvalid": "Invalid checkout return link.",
+  "checkoutResumeError": "Checkout return link is unavailable.",
+  "checkoutAmountMismatch": "Unable to verify the Stripe sandbox payment amount. Refresh transaction status before retrying.",
+  "checkoutResumeLoading": "Checking your recharge status…",
+  "checkoutResumeReadOnly": "This return link shows only this test recharge. Payment and delivery status are confirmed by the server.",
+  "checkoutResumeUnavailable": "This checkout return link is unavailable. Sign in to check your history before starting another payment.",
+  "checkoutResumeExpired": "This checkout return link has expired. Sign in to check your history before starting another payment.",
+  "checkoutResumeStart": "Sign in or continue as guest",
   "Unknown identity domain.": "Unknown identity domain.",
   "Invalid FlupFlap identity.": "Invalid FlupFlap identity.",
   "FlupFlap cannot access TiCash-only services.": "FlupFlap cannot access TiCash-only services.",

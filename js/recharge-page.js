@@ -5,6 +5,7 @@ import { mountLanguageHeader } from './language-page.js';
 import { mountRechargeJourney } from './recharge-journey.js';
 import { checkoutMode, loadCheckoutFactory, mountCheckoutFlow } from './checkout-flow.js';
 import { createBillingCountryPicker } from './billing-country-picker.js';
+import { consumeCheckoutReturn, mountCheckoutResume } from './checkout-resume.js';
 
 function el(tag, attributes = {}, ...children) {
   const node = document.createElement(tag);
@@ -142,14 +143,17 @@ function details(data) {
 
 // Shared by /login and /recharge. In-page sign-in preserves memory-only tokens.
 export function mountRecharge(root, config, dependencies = {}) {
+  const checkoutReturn = consumeCheckoutReturn(root.ownerDocument.defaultView);
+  if (checkoutReturn.present) {
+    const resume = mountCheckoutResume(root, config, checkoutReturn.token, dependencies);
+    checkoutReturn.token = '';
+    return resume;
+  }
   const flupflapLogin = root.dataset.loginBrand === 'flupflap';
   const pageWindow = root.ownerDocument.defaultView;
   const resetLocation = new URL(pageWindow.location.href);
   const isResetRoute = /^\/recharge\/reset-password\/?$/.test(resetLocation.pathname);
   let resetToken = isResetRoute ? resetLocation.searchParams.get('token') || '' : '';
-  const resumeTransactionId = ['transactionId', 'orderId', 'rechargeOrderId']
-    .map((key) => resetLocation.searchParams.get(key) || '')
-    .find((value) => value);
   if (resetLocation.searchParams.has('token')) {
     resetLocation.searchParams.delete('token');
     pageWindow.history.replaceState(null, '', resetLocation.pathname + resetLocation.search + resetLocation.hash);
@@ -858,7 +862,6 @@ export function mountRecharge(root, config, dependencies = {}) {
     configured = false; setLoginError(error.message);
   }
   model = new Recharge(client, { ...dependencies, onChange: render });
-  if (resumeTransactionId) model.state.resumeTransactionId = resumeTransactionId;
   journey = mountRechargeJourney({ root, model, render, el, ui, button, action, money, date, details, icon, operatorDetail,
     nodes: { checkout, selectionFields, destinationPanel, destinationControls, operatorControls, productKinds,
       reviewPanel, reviewContent, quoteButton, confirmButton, confirmPayment, reviewed, reviewCheck, expiry,

@@ -1,4 +1,12 @@
 export default Object.freeze({
+  "checkoutResumeInvalid": "Link de retorno do pagamento inválido.",
+  "checkoutResumeError": "O link de retorno do pagamento está indisponível.",
+  "checkoutAmountMismatch": "Não foi possível verificar o valor do pagamento de teste Stripe. Atualize o status da transação antes de tentar novamente.",
+  "checkoutResumeLoading": "Verificando o status da sua recarga…",
+  "checkoutResumeReadOnly": "Este link mostra apenas esta recarga de teste. O servidor confirma o status do pagamento e da entrega.",
+  "checkoutResumeUnavailable": "Este link de retorno está indisponível. Entre para consultar seu histórico antes de iniciar outro pagamento.",
+  "checkoutResumeExpired": "Este link de retorno expirou. Entre para consultar seu histórico antes de iniciar outro pagamento.",
+  "checkoutResumeStart": "Entrar ou continuar como convidado",
   "Unknown identity domain.": "Domínio de identidade desconhecido.",
   "Invalid FlupFlap identity.": "Identidade FlupFlap inválida.",
   "FlupFlap cannot access TiCash-only services.": "FlupFlap não pode acessar serviços exclusivos do TiCash.",

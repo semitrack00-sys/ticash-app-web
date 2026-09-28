@@ -41,7 +41,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   };
   const pending = () => {
     const txn = model.state.transaction;
-    if (!txn) return Boolean(model.state.resumeTransactionId || model.state.attempt);
+    if (!txn) return Boolean(model.state.attempt);
     return !['DELIVERED', 'SUCCESS', 'FAILED', 'CANCELLED'].includes(txn.status);
   };
   const locked = () => Boolean(model.state.attempt || model.state.submitting || pending());
@@ -97,7 +97,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   recipientsScreen.append(n.recipientsPanel, useRecipientContinue);
   const home = section('home', 'journeyHomeTitle');
   const recent = el('div', { className: 'recent-list' });
-  home.append(button('journeyRechargeNow', () => show(model.state.transaction || model.state.resumeTransactionId ? 'result' : model.state.attempt ? 'pay' : 'number')),
+  home.append(button('journeyRechargeNow', () => show(model.state.transaction ? 'result' : model.state.attempt ? 'pay' : 'number')),
     el('div', { className: 'section-heading' }, el('h3', {}, ui('journeyRecent')), button('journeyViewAll', () => show('history'), true)), recent);
   n.historyPanel.querySelector('h2').replaceChildren(ui('journeyHistory'));
   n.historyPanel.querySelector('h2').tabIndex = -1;
@@ -195,9 +195,8 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       lastTransaction = s.transaction.id; screen = 'result';
       queueMicrotask(() => { if (screen === 'result') n.receipt.querySelector('h2')?.focus(); });
     } else if (!s.transaction) lastTransaction = undefined;
-    if (s.resumeTransactionId && !s.transaction && screen !== 'result') screen = 'result';
     if (s.checkoutSession && ['number', 'amount'].includes(screen)) screen = 'pay';
-    const autoRefreshId = s.transaction?.id || s.resumeTransactionId || s.attempt?.transactionId;
+    const autoRefreshId = s.transaction?.id || s.attempt?.transactionId;
     if (autoRefreshId && pending()) scheduleStatusPoll(autoRefreshId);
     else stopStatusPoll();
     ancillary.hidden = !signedIn;
@@ -250,7 +249,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
         quoteTimer = setTimeout(() => { if (!disposed && requestedGeneration === model.generation && screen === 'amount') void action(freshQuote)(); }, 350);
       }
     }
-    const resultKey = JSON.stringify([s.transaction, s.resumeTransactionId, getLanguage()]);
+    const resultKey = JSON.stringify([s.transaction, getLanguage()]);
     if (s.transaction && resultSignature !== resultKey) {
       resultSignature = resultKey;
       const txn = s.transaction;
@@ -269,19 +268,9 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
         operatorDetail(txn.operatorName, s.operator?.id === txn.operatorId ? s.operator : s.operators.find(op => op.id === txn.operatorId)),
         el('p', {}, txn.recipientPhone), priceSummary(txn), el('p', { className: 'status-pill' }, String(txn.status)), n.refreshReceipt, again, fullReceipt);
       n.receipt.setAttribute('aria-labelledby', 'journey-result-title');
-    } else if (!s.transaction && s.resumeTransactionId && resultSignature !== resultKey) {
-      resultSignature = resultKey;
-      n.receipt.replaceChildren(
-        el('span', { className: 'journey-result-symbol', 'aria-hidden': 'true' }, '…'),
-        heading('journeyPending', 'journey-result-title'),
-        el('p', { className: 'muted' }, ui('journeyPendingInfo')),
-        el('p', { className: 'status-pill' }, 'AWAITING_PAYMENT'),
-        n.refreshReceipt,
-      );
-      n.receipt.setAttribute('aria-labelledby', 'journey-result-title');
     }
-    if (!s.transaction && !s.resumeTransactionId) resultSignature = undefined;
-    const recentKey = JSON.stringify([s.history, locked(), getLanguage(), s.resumeTransactionId]);
+    if (!s.transaction) resultSignature = undefined;
+    const recentKey = JSON.stringify([s.history, locked(), getLanguage()]);
     if (recentSignature !== recentKey) {
       recentSignature = recentKey;
       recent.replaceChildren(...s.history.slice(0, 3).map(txn => {

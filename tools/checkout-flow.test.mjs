@@ -30,6 +30,19 @@ const invalidSessions = [
   { ...session(), paymentStatus: 'AUTHORIZED' },
 ];
 
+test('initial and replayed hosted sessions need no resume token; leaked capabilities and credentials fail closed', () => {
+  const initial = validateCheckoutSession(session());
+  const replay = validateCheckoutSession(structuredClone(initial));
+  assert.deepEqual(replay, initial);
+  assert.equal(Object.hasOwn(replay, 'checkoutResumeToken'), false);
+  for (const key of ['client_secret', 'secretKey', 'webhookSecret', 'accessToken', 'refreshToken', 'checkoutResumeToken']) {
+    assert.throws(() => validateCheckoutSession({ ...session(), [key]: 'must-not-expose' }), /Unable to verify/);
+  }
+  for (const url of ['https://checkout.stripe.com.evil.test/pay', 'https://checkout.stripe.com/pay?accessToken=secret', 'https://checkout.stripe.com/pay?refresh_token=secret', 'https://checkout.stripe.com/pay#accessToken=secret']) {
+    assert.throws(() => validateCheckoutSession({ ...session(), checkoutSession: { ...session().checkoutSession, url } }), /Unable to verify/);
+  }
+});
+
 test('hosted checkout session validation is strict and only allows Stripe sandbox sessions', () => {
   for (const value of invalidSessions) {
     assert.throws(() => validateCheckoutSession(value), /Unable to verify the Stripe sandbox checkout session/);

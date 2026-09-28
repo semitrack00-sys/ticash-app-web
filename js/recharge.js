@@ -92,7 +92,7 @@ export class Recharge {
       category: '', product: null, amount: '', quote: null, reviewed: false, transaction: null, history: [], recipients: [],
       attempt: null, submitting: false, error: '', notice: '', historyError: '', recipientsError: '' };
     Object.assign(this.state, { paymentMode: null, paymentMethods: [], paymentMethodsError: '', account: null,
-      guest: true, profileLoaded: false, profileError: '', accountCountry: '', billingCountry: '', checkoutSession: null, resumeTransactionId: '', userProfile: null });
+      guest: true, profileLoaded: false, profileError: '', accountCountry: '', billingCountry: '', checkoutSession: null, userProfile: null });
     this.emit();
   }
   emit() { this.onChange(this.state, this.busy); }
@@ -387,6 +387,7 @@ export class Recharge {
           method: 'POST', body: attempt.body, headers: { 'Idempotency-Key': attempt.key },
         }));
         if (!current()) return;
+        if (session.amountMinor !== Math.round(s.quote.totalChargeUsd * 100)) throw invalid('Unable to verify the Stripe sandbox payment amount. Refresh transaction status before retrying.');
         if (attempt.transactionId && attempt.transactionId !== session.transactionId) throw invalid('Unable to verify the Stripe sandbox payment session. Keep this page open and refresh transaction status.');
         s.checkoutSession = session; attempt.transactionId = session.transactionId;
         return session;
@@ -422,8 +423,6 @@ export class Recharge {
         const transactions = array(await this.api.request(`${root}/transactions`), 'transactions');
         if (active()) {
           this.state.history = transactions; this.state.historyError = '';
-          const resume = this.state.resumeTransactionId && transactions.find((t) => t.id === this.state.resumeTransactionId);
-          if (resume) this.state.transaction = resume;
           const match = this.state.attempt && transactions.find((t) => t.quoteId === this.state.attempt.body.quoteId && t.testMode === true);
           if (this.state.attempt?.mode === checkoutMode) { if (match) this.reconcileCheckout(match); }
           else if (match) { this.state.transaction = match; this.state.attempt = null; this.state.quote = null; this.state.reviewed = false; }

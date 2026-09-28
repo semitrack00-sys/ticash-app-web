@@ -1,4 +1,12 @@
 export default Object.freeze({
+  "checkoutResumeInvalid": "Lyen retou peman an pa valab.",
+  "checkoutResumeError": "Lyen retou peman an pa disponib.",
+  "checkoutAmountMismatch": "Nou pa ka verifye montan peman tès Stripe la. Rafrechi estati tranzaksyon an anvan ou eseye ankò.",
+  "checkoutResumeLoading": "N ap verifye estati rechaj ou a…",
+  "checkoutResumeReadOnly": "Lyen retou sa a montre sèlman rechaj tès sa a. Sèvè a konfime estati peman ak livrezon an.",
+  "checkoutResumeUnavailable": "Lyen retou peman sa a pa disponib. Konekte pou verifye istorik ou anvan ou kòmanse yon lòt peman.",
+  "checkoutResumeExpired": "Lyen retou peman sa a ekspire. Konekte pou verifye istorik ou anvan ou kòmanse yon lòt peman.",
+  "checkoutResumeStart": "Konekte oswa kontinye kòm envite",
   "Unknown identity domain.": "Domèn idantite enkoni.",
   "Invalid FlupFlap identity.": "Idantite FlupFlap pa valab.",
   "FlupFlap cannot access TiCash-only services.": "FlupFlap pa ka jwenn aksè nan sèvis ki sèlman pou TiCash.",

@@ -49,6 +49,31 @@ async function setupStripeCheckout({ profileCountry = 'CA', paymentSessionHandle
   return { api, model };
 }
 
+test('hosted checkout amount must exactly match the server quote; mismatch keeps the attempt locked', async () => {
+  const { model } = await setupStripeCheckout({ paymentSessionHandler: () => ({ ...stripePaymentSession(), amountMinor: 801 }) });
+  await reviewed(model);
+  await model.confirm();
+  assert.match(model.state.error, /Unable to verify the Stripe sandbox payment amount/);
+  assert.equal(model.state.checkoutSession, null);
+  assert.ok(model.state.attempt);
+});
+
+test('a replayed hosted session without a resume token is accepted while duplicate confirmation stays locked', async () => {
+  const replayedSession = stripePaymentSession();
+  const { model, api } = await setupStripeCheckout({ paymentSessionHandler: () => structuredClone(replayedSession) });
+  await reviewed(model);
+  await model.confirm();
+  const reservedKey = model.state.attempt.key;
+  assert.deepEqual(model.state.checkoutSession, replayedSession);
+  await model.confirm();
+  assert.equal(model.state.checkoutSession.checkoutSession.id, 'cs_test_fixture');
+  assert.equal(Object.hasOwn(model.state.checkoutSession, 'checkoutResumeToken'), false);
+  const calls = api.calls.filter(call => call.path === '/mobile-topups/payment-sessions');
+  assert.equal(calls.length, 1);
+  assert.ok(calls.every(call => call.headers['Idempotency-Key'] === reservedKey));
+  assert.equal(api.calls.some(call => call.method === 'POST' && call.path === '/mobile-topups/transactions'), false);
+});
+
 test('Stripe checkout allows authenticated guest sessions to complete sandbox payment', async () => {
   const api = fixtureApi();
   api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
