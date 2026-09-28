@@ -340,5 +340,10 @@ export default Object.freeze({
   "stayConnected": "Rete konekte",
   "flupDataPlans": "Plan done",
   "flupComboPlans": "Plan konbine",
-  "continueRecharge": "Kontinye"
+  "continueRecharge": "Kontinye",
+  "billingCountryLabel": "Peyi pou fakti",
+  "billingCountryPlaceholder": "Chwazi peyi pou fakti",
+  "billingCountrySearch": "Chèche peyi pou fakti",
+  "billingCountryNoResults": "Pa gen peyi ki koresponn.",
+  "billingCountryHelp": "Chwazi peyi moun k ap peye a oswa kat la. Li ka diferan ak peyi k ap resevwa rechaj la."
 });

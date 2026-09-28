@@ -4,6 +4,7 @@ import { t, getLanguage, languageLocale, localizeCountry, onLanguageChange, tran
 import { mountLanguageHeader } from './language-page.js';
 import { mountRechargeJourney } from './recharge-journey.js';
 import { checkoutMode, loadCheckoutFactory, mountCheckoutFlow } from './checkout-flow.js';
+import { createBillingCountryPicker } from './billing-country-picker.js';
 
 function el(tag, attributes = {}, ...children) {
   const node = document.createElement(tag);
@@ -374,15 +375,17 @@ export function mountRecharge(root, config, dependencies = {}) {
   const recoveryNote = el('p', { className: 'message', hidden: '', role: 'status', id: 'recovery-note' }, ui('Confirmation is unresolved. Keep this page open. Retry uses the same request so it cannot create a second recharge; you can also refresh history to find the receipt.'));
   const billingCountry = el('input', { id: 'billing-country', autocomplete: 'country', required: '', maxlength: '2', pattern: '[A-Za-z]{2}' });
   billingCountry.addEventListener('input', () => {
-    if (model.state.guest) model.setBillingCountry(billingCountry.value);
-    else model.state.accountCountry = billingCountry.value.trim().toUpperCase();
+    if (model.state.guest) return;
+    model.state.accountCountry = billingCountry.value.trim().toUpperCase();
     if (model.state.paymentMode === checkoutMode) render();
   });
   const saveCountry = button('Save account country', action(() => {
     if (billingCountry.reportValidity()) return model.saveAccountCountry(billingCountry.value);
   })); saveCountry.id = 'save-account-country';
+  const accountCountryField = field('Account/billing country code', billingCountry, 'Enter your two-letter country code. This is separate from the recharge destination.');
+  const guestBillingPicker = createBillingCountryPicker(root.ownerDocument, code => action(() => model.setBillingCountry(code))());
   const billingStep = el('div', { id: 'billing-country-step', hidden: '' },
-    field('Account/billing country code', billingCountry, 'Enter your two-letter country code. This is separate from the recharge destination.'), saveCountry);
+    guestBillingPicker.element, accountCountryField, saveCountry);
   const paymentAvailability = el('p', { id: 'payment-availability', role: 'status', className: 'message', hidden: '' });
   const profileRetry = button('Retry connection', action(() => model.start()), true); profileRetry.id = 'retry-payment-setup';
   const flowContainer = el('div', { id: 'checkout-flow-container' });
@@ -550,14 +553,16 @@ export function mountRecharge(root, config, dependencies = {}) {
     error.textContent = t(s.error); error.hidden = !s.error;
     notice.textContent = t(s.notice); notice.hidden = !s.notice;
     const locked = s.submitting || Boolean(s.attempt);
-    if (billingGeneration !== model.generation) { billingCountry.value = s.guest ? s.billingCountry : s.accountCountry; billingGeneration = model.generation; }
+    guestBillingPicker.update(s.billingCountry, locked || busy.has('profile'), s.guest, billingGeneration !== model.generation);
+    billingGeneration = model.generation;
     const checkoutPayment = s.paymentMode === checkoutMode;
     const paymentBlocked = checkoutPayment ? model.checkoutBlocked() : '';
     paymentAvailability.hidden = !checkoutPayment || !paymentBlocked;
     paymentAvailability.textContent = t(paymentBlocked);
     billingStep.hidden = !checkoutPayment || (!s.guest && (!s.profileLoaded || Boolean(s.accountCountry)));
-    billingCountry.value = s.guest ? s.billingCountry : s.accountCountry;
-    billingCountry.disabled = locked || busy.has('profile');
+    accountCountryField.hidden = s.guest;
+    billingCountry.value = s.accountCountry;
+    billingCountry.disabled = locked || busy.has('profile') || s.guest;
     saveCountry.hidden = s.guest;
     saveCountry.disabled = billingCountry.disabled || s.guest;
     profileRetry.hidden = !checkoutPayment || !paymentBlocked || s.guest || locked;
@@ -1020,7 +1025,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const timer = setInterval(() => { if (signedIn && model.state.quote) render(); }, 1000);
   const removeLanguageListener = onLanguageChange(render);
   render();
-  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; journey?.dispose(); clearFlow(); removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); root.ownerDocument.removeEventListener('click', closeOperatorPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
+  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; journey?.dispose(); guestBillingPicker.dispose(); clearFlow(); removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); root.ownerDocument.removeEventListener('click', closeOperatorPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
 }
 
 const root = typeof document === 'undefined' ? null : document.querySelector('[data-recharge-root]');
