@@ -1,4 +1,16 @@
 @import url('/route.css');
+/* Guest billing choice is independent of destination/provider coverage. */
+.billing-picker { min-width:0; width:100%; }
+.billing-picker [hidden] { display:none!important; }
+.billing-picker #billing-country-picker { width:100%; min-height:50px; padding:12px 36px 12px 14px; text-align:left; white-space:normal; overflow-wrap:anywhere; border:1px solid #c9d8ef; border-radius:10px; background:#fff; color:#122859; font:inherit; position:relative; }
+.billing-picker #billing-country-picker:after { content:'⌄'; position:absolute; right:14px; top:12px; }
+.billing-picker-menu { margin:8px 0; padding:10px; border:1px solid #c9d8ef; border-radius:12px; background:#fff; box-shadow:0 5px 18px #244d8015; min-width:0; }
+.billing-picker #billing-country-search { width:100%; min-width:0; box-sizing:border-box; margin-bottom:8px; }
+.billing-picker #billing-country-options { max-height:240px; overflow-y:auto; overscroll-behavior:contain; }
+.billing-picker [role=option] { display:block; width:100%; min-height:44px; padding:10px 12px; border:0; border-radius:7px; background:#fff; color:#122859; text-align:left; white-space:normal; overflow-wrap:anywhere; font:inherit; box-sizing:border-box; }
+.billing-picker [role=option]:hover,.billing-picker [role=option].is-active { background:#eef5ff; }
+.billing-picker [aria-selected=true] { background:#e4f0ff; font-weight:700; }
+.billing-picker button:focus-visible,.billing-picker input:focus-visible { outline:3px solid #0077ff; outline-offset:2px; }
 :root{
   --flap-blue:#1aa6ff;
   --flap-blue-deep:#0d59d8;

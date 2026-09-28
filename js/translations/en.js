@@ -340,5 +340,10 @@ export default Object.freeze({
   "stayConnected": "Stay connected",
   "flupDataPlans": "Data Plans",
   "flupComboPlans": "Combo Plans",
-  "continueRecharge": "Continue"
+  "continueRecharge": "Continue",
+  "billingCountryLabel": "Billing country",
+  "billingCountryPlaceholder": "Select billing country",
+  "billingCountrySearch": "Search billing countries",
+  "billingCountryNoResults": "No matching countries.",
+  "billingCountryHelp": "Select the country associated with the payer/card. It can differ from the recharge destination."
 });
