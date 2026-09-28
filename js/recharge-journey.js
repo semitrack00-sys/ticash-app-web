@@ -16,6 +16,47 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   let summarySignature;
   let recentSignature;
   let disposed = false;
+  let statusPollTimer;
+  let statusPollTransactionId;
+  let statusPollAttempts = 0;
+  let statusPollInFlight = false;
+  const STATUS_POLL_INTERVAL_MS = 3000;
+  const STATUS_POLL_MAX_ATTEMPTS = 20;
+  const terminalTransaction = (txn) => !txn || ['DELIVERED', 'FAILED'].includes(txn.status);
+  const stopStatusPolling = () => {
+    clearTimeout(statusPollTimer);
+    statusPollTimer = undefined;
+    statusPollTransactionId = undefined;
+    statusPollAttempts = 0;
+  };
+  const scheduleStatusPoll = (txn) => {
+    if (disposed || terminalTransaction(txn)) {
+      stopStatusPolling();
+      return;
+    }
+    if (statusPollTransactionId !== txn.id) {
+      stopStatusPolling();
+      statusPollTransactionId = txn.id;
+    }
+    if (statusPollTimer || statusPollInFlight || statusPollAttempts >= STATUS_POLL_MAX_ATTEMPTS) return;
+    const transactionId = txn.id;
+    statusPollTimer = setTimeout(async () => {
+      statusPollTimer = undefined;
+      if (disposed || statusPollTransactionId !== transactionId || terminalTransaction(model.state.transaction)) return;
+      statusPollInFlight = true;
+      statusPollAttempts += 1;
+      try {
+        await model.refreshTransaction(transactionId);
+      } catch {
+        // Manual "Check status" remains available if a background refresh fails.
+      } finally {
+        statusPollInFlight = false;
+        if (!disposed && statusPollTransactionId === transactionId && !terminalTransaction(model.state.transaction)) {
+          scheduleStatusPoll(model.state.transaction);
+        }
+      }
+    }, STATUS_POLL_INTERVAL_MS);
+  };
   const pending = () => {
     const txn = model.state.transaction;
     if (!txn) return false;
@@ -163,8 +204,9 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   function update(s, busy, signedIn) {
     if (generation !== model.generation) {
       generation = model.generation; screen = 'number'; fallback = false; selectionKey = undefined;
-      lastTransaction = undefined; repeatedId = undefined; clearTimeout(quoteTimer);
+      lastTransaction = undefined; repeatedId = undefined; clearTimeout(quoteTimer); stopStatusPolling();
     }
+    if (s.transaction) scheduleStatusPoll(s.transaction); else stopStatusPolling();
     if (s.transaction && lastTransaction !== s.transaction.id) {
       lastTransaction = s.transaction.id; screen = 'result';
       queueMicrotask(() => { if (screen === 'result') n.receipt.querySelector('h2')?.focus(); });
@@ -253,5 +295,5 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       if (!s.history.length) recent.append(el('p', { className: 'muted' }, ui('historyEmptyTitle')));
     }
   }
-  return { update, continueToPay, pay, viewTransaction, repeat, dispose() { disposed = true; clearTimeout(quoteTimer); } };
+  return { update, continueToPay, pay, viewTransaction, repeat, dispose() { disposed = true; clearTimeout(quoteTimer); stopStatusPolling(); } };
 }
