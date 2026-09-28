@@ -16,11 +16,33 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   let summarySignature;
   let recentSignature;
   let disposed = false;
+  let statusPollTimer = null;
+  let statusPollStartedAt = 0;
+  let statusPollTarget = '';
+  const stopStatusPoll = () => {
+    if (statusPollTimer) clearTimeout(statusPollTimer);
+    statusPollTimer = null;
+    statusPollStartedAt = 0;
+    statusPollTarget = '';
+  };
+  const scheduleStatusPoll = (transactionId) => {
+    if (disposed || !transactionId) return;
+    if (statusPollTarget !== transactionId) {
+      stopStatusPoll();
+      statusPollTarget = transactionId;
+      statusPollStartedAt = Date.now();
+    }
+    if (statusPollTimer) return;
+    if (Date.now() - statusPollStartedAt > 120000) return;
+    statusPollTimer = setTimeout(() => {
+      statusPollTimer = null;
+      if (!disposed && statusPollTarget === transactionId) void model.refreshTransaction(transactionId, { silent: true });
+    }, 3000);
+  };
   const pending = () => {
     const txn = model.state.transaction;
-    if (!txn) return false;
-    if (['DELIVERED', 'FAILED'].includes(txn.status)) return false;
-    return !['CAPTURED', 'FAILED', 'VOIDED', 'REFUNDED'].includes(txn.paymentStatus);
+    if (!txn) return Boolean(model.state.resumeTransactionId || model.state.attempt);
+    return !['DELIVERED', 'SUCCESS', 'FAILED', 'CANCELLED'].includes(txn.status);
   };
   const locked = () => Boolean(model.state.attempt || model.state.submitting || pending());
   const heading = (key, id) => el('h2', { id, tabindex: '-1' }, ui(key));
@@ -75,7 +97,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   recipientsScreen.append(n.recipientsPanel, useRecipientContinue);
   const home = section('home', 'journeyHomeTitle');
   const recent = el('div', { className: 'recent-list' });
-  home.append(button('journeyRechargeNow', () => show(model.state.transaction ? 'result' : model.state.attempt ? 'pay' : 'number')),
+  home.append(button('journeyRechargeNow', () => show(model.state.transaction || model.state.resumeTransactionId ? 'result' : model.state.attempt ? 'pay' : 'number')),
     el('div', { className: 'section-heading' }, el('h3', {}, ui('journeyRecent')), button('journeyViewAll', () => show('history'), true)), recent);
   n.historyPanel.querySelector('h2').replaceChildren(ui('journeyHistory'));
   n.historyPanel.querySelector('h2').tabIndex = -1;
@@ -148,7 +170,11 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       // getQuote/repeat clears reviewed. A refreshed total must always be reviewed again.
       return;
     }
-    await model.confirm();
+    const session = await model.confirm();
+    const redirectUrl = session?.checkoutSession?.url || session?.checkoutSession?.checkoutUrl || session?.checkoutSession?.redirectUrl;
+    if (redirectUrl && typeof globalThis.location?.assign === 'function') {
+      globalThis.location.assign(redirectUrl);
+    }
   }
   async function viewTransaction(id) {
     await model.refreshTransaction(id);
@@ -163,13 +189,17 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   function update(s, busy, signedIn) {
     if (generation !== model.generation) {
       generation = model.generation; screen = 'number'; fallback = false; selectionKey = undefined;
-      lastTransaction = undefined; repeatedId = undefined; clearTimeout(quoteTimer);
+      lastTransaction = undefined; repeatedId = undefined; clearTimeout(quoteTimer); stopStatusPoll();
     }
     if (s.transaction && lastTransaction !== s.transaction.id) {
       lastTransaction = s.transaction.id; screen = 'result';
       queueMicrotask(() => { if (screen === 'result') n.receipt.querySelector('h2')?.focus(); });
     } else if (!s.transaction) lastTransaction = undefined;
+    if (s.resumeTransactionId && !s.transaction && screen !== 'result') screen = 'result';
     if (s.checkoutSession && ['number', 'amount'].includes(screen)) screen = 'pay';
+    const autoRefreshId = s.transaction?.id || s.resumeTransactionId || s.attempt?.transactionId;
+    if (autoRefreshId && pending()) scheduleStatusPoll(autoRefreshId);
+    else stopStatusPoll();
     ancillary.hidden = !signedIn;
     for (const [name, panel] of Object.entries(screens)) panel.hidden = !signedIn || screen !== name;
     n.selectionFields.hidden = !['number', 'amount', 'pay'].includes(screen);
@@ -220,12 +250,12 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
         quoteTimer = setTimeout(() => { if (!disposed && requestedGeneration === model.generation && screen === 'amount') void action(freshQuote)(); }, 350);
       }
     }
-    const resultKey = JSON.stringify([s.transaction, getLanguage()]);
+    const resultKey = JSON.stringify([s.transaction, s.resumeTransactionId, getLanguage()]);
     if (s.transaction && resultSignature !== resultKey) {
       resultSignature = resultKey;
       const txn = s.transaction;
-      const delivered = txn.status === 'DELIVERED';
-      const failed = txn.status === 'FAILED';
+      const delivered = ['DELIVERED', 'SUCCESS'].includes(txn.status);
+      const failed = ['FAILED', 'CANCELLED'].includes(txn.status);
       const title = delivered ? 'journeySuccess' : failed ? 'journeyFailed' : 'journeyPending';
       const headingNode = heading(title, 'journey-result-title');
       const fullReceipt = el('details', { className: 'journey-full-receipt' }, el('summary', {}, ui('journeyViewReceipt')), ...Array.from(n.receipt.children));
@@ -239,9 +269,19 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
         operatorDetail(txn.operatorName, s.operator?.id === txn.operatorId ? s.operator : s.operators.find(op => op.id === txn.operatorId)),
         el('p', {}, txn.recipientPhone), priceSummary(txn), el('p', { className: 'status-pill' }, String(txn.status)), n.refreshReceipt, again, fullReceipt);
       n.receipt.setAttribute('aria-labelledby', 'journey-result-title');
+    } else if (!s.transaction && s.resumeTransactionId && resultSignature !== resultKey) {
+      resultSignature = resultKey;
+      n.receipt.replaceChildren(
+        el('span', { className: 'journey-result-symbol', 'aria-hidden': 'true' }, '…'),
+        heading('journeyPending', 'journey-result-title'),
+        el('p', { className: 'muted' }, ui('journeyPendingInfo')),
+        el('p', { className: 'status-pill' }, 'AWAITING_PAYMENT'),
+        n.refreshReceipt,
+      );
+      n.receipt.setAttribute('aria-labelledby', 'journey-result-title');
     }
-    if (!s.transaction) resultSignature = undefined;
-    const recentKey = JSON.stringify([s.history, locked(), getLanguage()]);
+    if (!s.transaction && !s.resumeTransactionId) resultSignature = undefined;
+    const recentKey = JSON.stringify([s.history, locked(), getLanguage(), s.resumeTransactionId]);
     if (recentSignature !== recentKey) {
       recentSignature = recentKey;
       recent.replaceChildren(...s.history.slice(0, 3).map(txn => {
@@ -253,5 +293,5 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       if (!s.history.length) recent.append(el('p', { className: 'muted' }, ui('historyEmptyTitle')));
     }
   }
-  return { update, continueToPay, pay, viewTransaction, repeat, dispose() { disposed = true; clearTimeout(quoteTimer); } };
+  return { update, continueToPay, pay, viewTransaction, repeat, dispose() { disposed = true; clearTimeout(quoteTimer); stopStatusPoll(); } };
 }

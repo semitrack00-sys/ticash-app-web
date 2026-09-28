@@ -147,6 +147,9 @@ export function mountRecharge(root, config, dependencies = {}) {
   const resetLocation = new URL(pageWindow.location.href);
   const isResetRoute = /^\/recharge\/reset-password\/?$/.test(resetLocation.pathname);
   let resetToken = isResetRoute ? resetLocation.searchParams.get('token') || '' : '';
+  const resumeTransactionId = ['transactionId', 'orderId', 'rechargeOrderId', 'session_id', 'checkout_session_id']
+    .map((key) => resetLocation.searchParams.get(key) || '')
+    .find((value) => value);
   if (resetLocation.searchParams.has('token')) {
     resetLocation.searchParams.delete('token');
     pageWindow.history.replaceState(null, '', resetLocation.pathname + resetLocation.search + resetLocation.hash);
@@ -403,7 +406,9 @@ export function mountRecharge(root, config, dependencies = {}) {
     flowError = '';
     render();
     try {
-      await flowComponent.confirm({ returnUrl: '/recharge' });
+      const result = await flowComponent.confirm({ returnUrl: '/recharge' });
+      const redirectUrl = result?.redirectUrl || result?.url;
+      if (redirectUrl && typeof globalThis.location?.assign === 'function') globalThis.location.assign(redirectUrl);
     } catch {
       flowError = 'journeyPaymentError';
     } finally {
@@ -853,6 +858,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     configured = false; setLoginError(error.message);
   }
   model = new Recharge(client, { ...dependencies, onChange: render });
+  if (resumeTransactionId) model.state.resumeTransactionId = resumeTransactionId;
   journey = mountRechargeJourney({ root, model, render, el, ui, button, action, money, date, details, icon, operatorDetail,
     nodes: { checkout, selectionFields, destinationPanel, destinationControls, operatorControls, productKinds,
       reviewPanel, reviewContent, quoteButton, confirmButton, confirmPayment, reviewed, reviewCheck, expiry,
