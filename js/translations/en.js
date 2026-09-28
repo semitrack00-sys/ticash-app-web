@@ -306,7 +306,7 @@ export default Object.freeze({
   "reviewInstructions": "Choose a destination, number, operator, and product.",
   "historyEmptyCompact": "No test recharges yet. Your receipts will appear here after your first recharge.",
   "recipientCompact": "Recipient",
-  "checkoutPermanentAccount": "Sign in to a permanent account to use Stripe sandbox card payments.",
+  "checkoutPermanentAccount": "Sign in to a valid account session to use Stripe sandbox card payments.",
   "checkoutUnavailable": "Sandbox card payments are unavailable.",
   "checkoutProfileUnavailable": "Your account profile could not be verified. Retry connection.",
   "checkoutCountryRequired": "Save your account/billing country before paying. It is separate from the recharge destination.",

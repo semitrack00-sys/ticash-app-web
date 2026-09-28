@@ -100,7 +100,7 @@ export class Recharge {
   }
   checkoutBlocked() {
     const s = this.state;
-    if (s.guest || !s.account) return 'Sign in to a permanent account to use Stripe sandbox card payments.';
+    if (!s.account) return 'Sign in to a valid account session to use Stripe sandbox card payments.';
     const card = s.paymentMethods.find((method) => method.type === 'CARD');
     if (!card || card.provider !== 'STRIPE' || card.testMode !== true || card.enabled !== true) {
       return s.paymentMethodsError || (typeof card?.reason === 'string' && card.reason) || 'Sandbox card payments are unavailable.';
@@ -119,7 +119,7 @@ export class Recharge {
     }
   }
   async loadProfile(active) {
-    if (this.state.guest || !this.state.account) return;
+    if (!this.state.account) return;
     try {
       const data = await this.api.request('/users/me');
       const user = data?.user ?? data;
@@ -139,7 +139,7 @@ export class Recharge {
   async saveAccountCountry(value) {
     this.editable();
     return this.run('profile', async (active) => {
-      if (this.state.paymentMode !== checkoutMode || this.state.guest || !this.state.account) throw invalid('Sign in to a permanent account to use Stripe sandbox card payments.');
+      if (this.state.paymentMode !== checkoutMode || !this.state.account) throw invalid('Sign in to a valid account session to use Stripe sandbox card payments.');
       const countryCode = value.trim().toUpperCase();
       if (!/^[A-Z]{2}$/.test(countryCode)) throw invalid('Enter your two-letter account/billing country code.');
       const profile = this.state.userProfile;

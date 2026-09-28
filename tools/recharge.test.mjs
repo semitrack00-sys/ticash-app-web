@@ -50,6 +50,40 @@ async function setupStripeCheckout({ profileCountry = 'CA', paymentSessionHandle
   return { api, model };
 }
 
+test('Stripe checkout allows authenticated guest sessions to complete sandbox payment', async () => {
+  const api = fixtureApi();
+  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /users/me', () => ({ user: { id: 'guest-1', isGuest: true, firstName: 'Guest', lastName: 'Session', countryCode: 'CA' } }));
+  api.overrides.set('POST /mobile-topups/payment-sessions', () => stripePaymentSession());
+
+  const model = new Recharge(api);
+  model.setAccount({ id: 'guest-1', isGuest: true }, true);
+  await model.start();
+  await model.selectCountry('JM');
+  model.setPhone('+1 (876) 555-1234');
+  await model.selectOperator(77);
+  model.selectProduct(products[0].id);
+  await reviewed(model);
+
+  assert.equal(model.checkoutBlocked(), '');
+  await model.confirm();
+  assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 1);
+});
+
+test('Stripe checkout blocks missing or invalid account sessions before sandbox payment', () => {
+  const api = fixtureApi();
+  const model = new Recharge(api);
+  model.state.paymentMode = checkoutMode;
+  model.state.paymentMethods = [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }];
+  model.setAccount(null, true);
+
+  assert.match(model.checkoutBlocked(), /Sign in|valid.*session/i);
+  model.setAccount({ id: 'guest-1', isGuest: true }, true);
+  model.state.account = null;
+  assert.match(model.checkoutBlocked(), /Sign in|valid.*session/i);
+});
+
 test('loads only provider countries and searches name/code without a fixed destination', async () => {
   const { model } = await setup();
   assert.deepEqual(model.state.countries, countries);
