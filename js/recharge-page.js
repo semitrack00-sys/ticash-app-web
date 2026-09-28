@@ -147,7 +147,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const resetLocation = new URL(pageWindow.location.href);
   const isResetRoute = /^\/recharge\/reset-password\/?$/.test(resetLocation.pathname);
   let resetToken = isResetRoute ? resetLocation.searchParams.get('token') || '' : '';
-  const resumeTransactionId = ['transactionId', 'orderId', 'rechargeOrderId', 'session_id', 'checkout_session_id']
+  const resumeTransactionId = ['transactionId', 'orderId', 'rechargeOrderId']
     .map((key) => resetLocation.searchParams.get(key) || '')
     .find((value) => value);
   if (resetLocation.searchParams.has('token')) {
