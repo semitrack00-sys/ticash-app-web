@@ -64,6 +64,7 @@ test('Stripe checkout allows authenticated guest sessions to complete sandbox pa
   model.setPhone('+1 (876) 555-1234');
   await model.selectOperator(77);
   model.selectProduct(products[0].id);
+  model.state.billingCountry = 'CA';
   await reviewed(model);
 
   assert.equal(model.checkoutBlocked(), '');
@@ -279,11 +280,43 @@ test('Stripe checkout reserves payment-session with idempotency and never posts 
 
   const paymentCalls = api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST');
   assert.equal(paymentCalls.length, 1);
-  assert.deepEqual(paymentCalls[0].body, { quoteId: quote.id });
+  assert.deepEqual(paymentCalls[0].body, { quoteId: quote.id, billingCountry: 'CA' });
   assert.match(paymentCalls[0].headers['Idempotency-Key'], /^[0-9a-f-]{36}$/i);
   assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
   assert.equal(model.state.attempt?.transactionId, transaction.id);
 });
+test('guest Stripe checkout requires explicit temporary billing country and never patches profile', async () => {
+  const api = fixtureApi();
+  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /users/me', () => ({ user: { id: 'guest-1', isGuest: true, firstName: 'Guest', lastName: 'Session', countryCode: 'CA' } }));
+  api.overrides.set('POST /mobile-topups/payment-sessions', (path, options) => {
+    assert.equal(options.body.quoteId, quote.id);
+    assert.equal(options.body.billingCountry, 'US');
+    return stripePaymentSession();
+  });
+
+  const model = new Recharge(api);
+  model.setAccount({ id: 'guest-1', isGuest: true }, true);
+  await model.start();
+  await model.selectCountry('JM');
+  model.setPhone('+1 (876) 555-1234');
+  await model.selectOperator(77);
+  model.selectProduct(products[0].id);
+  await reviewed(model);
+
+  model.state.billingCountry = '';
+  assert.match(model.checkoutBlocked(), /billing country/i);
+  await model.confirm();
+  assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 0);
+
+  model.state.billingCountry = 'us';
+  assert.equal(model.checkoutBlocked(), '');
+  await model.confirm();
+  assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 1);
+  assert.equal(api.calls.filter((call) => call.path === '/users/me' && call.method === 'PATCH').length, 0);
+});
+
 test('Stripe checkout uses billing country from account profile, not recharge destination', async () => {
   const blocked = await setupStripeCheckout({ profileCountry: '' });
   await reviewed(blocked.model);
