@@ -90,7 +90,7 @@ export class Recharge {
       category: '', product: null, amount: '', quote: null, reviewed: false, transaction: null, history: [], recipients: [],
       attempt: null, submitting: false, error: '', notice: '', historyError: '', recipientsError: '' };
     Object.assign(this.state, { paymentMode: null, paymentMethods: [], paymentMethodsError: '', account: null,
-      guest: true, profileLoaded: false, profileError: '', accountCountry: '', checkoutSession: null, userProfile: null });
+      guest: true, profileLoaded: false, profileError: '', accountCountry: '', billingCountry: '', checkoutSession: null, userProfile: null });
     this.emit();
   }
   emit() { this.onChange(this.state, this.busy); }
@@ -104,6 +104,13 @@ export class Recharge {
     const card = s.paymentMethods.find((method) => method.type === 'CARD');
     if (!card || card.provider !== 'STRIPE' || card.testMode !== true || card.enabled !== true) {
       return s.paymentMethodsError || (typeof card?.reason === 'string' && card.reason) || 'Sandbox card payments are unavailable.';
+    }
+    if (s.guest) {
+      const billingCountry = (s.billingCountry || '').trim().toUpperCase();
+      if (!/^[A-Z]{2}$/.test(billingCountry)) {
+        return 'Enter the card/account billing country before paying. This is separate from the recharge destination.';
+      }
+      return '';
     }
     if (!s.profileLoaded) return s.profileError || 'Your account profile could not be verified. Retry connection.';
     if (!s.accountCountry) return 'Save your account/billing country before paying. It is separate from the recharge destination.';
@@ -135,6 +142,18 @@ export class Recharge {
         this.state.profileLoaded = false; this.state.accountCountry = ''; this.state.profileError = error.message;
       }
     }
+  }
+  setBillingCountry(value) {
+    this.editable();
+    const normalized = (value ?? '').trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(normalized)) {
+      this.state.billingCountry = ''; this.emit();
+      return false;
+    }
+    this.state.billingCountry = normalized;
+    if (!this.state.guest) this.state.accountCountry = normalized;
+    this.emit();
+    return true;
   }
   async saveAccountCountry(value) {
     this.editable();
@@ -329,12 +348,20 @@ export class Recharge {
     const s = this.state;
     // Checkout has no purchase retry button: even an ambiguous response keeps the same reservation locked.
     if (s.submitting || s.attempt || s.transaction) return;
+    const billingCountry = (s.guest ? s.billingCountry : s.accountCountry).trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(billingCountry)) {
+      s.error = this.checkoutBlocked() || 'Enter the card/account billing country before paying. This is separate from the recharge destination.';
+      this.emit();
+      return;
+    }
+    if (s.guest) s.billingCountry = billingCountry;
+    else s.accountCountry = billingCountry;
     const blocked = this.checkoutBlocked();
     if (blocked || !s.reviewed || !this.quoteValid()) {
       s.error = blocked || 'Review a current quote before confirming.'; this.emit(); return;
     }
     const generation = this.generation;
-    try { s.attempt = { mode: checkoutMode, body: { quoteId: s.quote.id }, key: secureId(this.crypto) }; }
+    try { s.attempt = { mode: checkoutMode, body: { quoteId: s.quote.id, billingCountry }, key: secureId(this.crypto) }; }
     catch (error) { s.error = error.message; this.emit(); return; }
     const attempt = s.attempt;
     s.submitting = true;

@@ -373,6 +373,11 @@ export function mountRecharge(root, config, dependencies = {}) {
   const confirmButton = button('Confirm test recharge', action(() => journey.pay())); confirmButton.id = 'confirm-recharge';
   const recoveryNote = el('p', { className: 'message', hidden: '', role: 'status', id: 'recovery-note' }, ui('Confirmation is unresolved. Keep this page open. Retry uses the same request so it cannot create a second recharge; you can also refresh history to find the receipt.'));
   const billingCountry = el('input', { id: 'billing-country', autocomplete: 'country', required: '', maxlength: '2', pattern: '[A-Za-z]{2}' });
+  billingCountry.addEventListener('input', () => {
+    if (model.state.guest) model.setBillingCountry(billingCountry.value);
+    else model.state.accountCountry = billingCountry.value.trim().toUpperCase();
+    if (model.state.paymentMode === checkoutMode) render();
+  });
   const saveCountry = button('Save account country', action(() => {
     if (billingCountry.reportValidity()) return model.saveAccountCountry(billingCountry.value);
   })); saveCountry.id = 'save-account-country';
@@ -545,13 +550,16 @@ export function mountRecharge(root, config, dependencies = {}) {
     error.textContent = t(s.error); error.hidden = !s.error;
     notice.textContent = t(s.notice); notice.hidden = !s.notice;
     const locked = s.submitting || Boolean(s.attempt);
-    if (billingGeneration !== model.generation) { billingCountry.value = ''; billingGeneration = model.generation; }
+    if (billingGeneration !== model.generation) { billingCountry.value = s.guest ? s.billingCountry : s.accountCountry; billingGeneration = model.generation; }
     const checkoutPayment = s.paymentMode === checkoutMode;
     const paymentBlocked = checkoutPayment ? model.checkoutBlocked() : '';
     paymentAvailability.hidden = !checkoutPayment || !paymentBlocked;
     paymentAvailability.textContent = t(paymentBlocked);
-    billingStep.hidden = !checkoutPayment || s.guest || !s.profileLoaded || Boolean(s.accountCountry);
-    billingCountry.disabled = locked || busy.has('profile'); saveCountry.disabled = billingCountry.disabled;
+    billingStep.hidden = !checkoutPayment || (!s.guest && (!s.profileLoaded || Boolean(s.accountCountry)));
+    billingCountry.value = s.guest ? s.billingCountry : s.accountCountry;
+    billingCountry.disabled = locked || busy.has('profile');
+    saveCountry.hidden = s.guest;
+    saveCountry.disabled = billingCountry.disabled || s.guest;
     profileRetry.hidden = !checkoutPayment || !paymentBlocked || s.guest || locked;
     profileRetry.disabled = busy.has('catalog') || busy.has('profile');
     flowPanel.hidden = !checkoutPayment || !s.attempt;
