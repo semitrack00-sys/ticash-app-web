@@ -5,6 +5,7 @@ import { mountLanguageHeader } from './language-page.js';
 import { mountRechargeJourney } from './recharge-journey.js';
 import { checkoutMode, loadCheckoutFactory, mountCheckoutFlow } from './checkout-flow.js';
 import { createBillingCountryPicker } from './billing-country-picker.js';
+import { consumeCheckoutReturn, mountCheckoutResume } from './checkout-resume.js';
 
 function el(tag, attributes = {}, ...children) {
   const node = document.createElement(tag);
@@ -142,6 +143,12 @@ function details(data) {
 
 // Shared by /login and /recharge. In-page sign-in preserves memory-only tokens.
 export function mountRecharge(root, config, dependencies = {}) {
+  const checkoutReturn = consumeCheckoutReturn(root.ownerDocument.defaultView);
+  if (checkoutReturn.present) {
+    const resume = mountCheckoutResume(root, config, checkoutReturn.token, dependencies);
+    checkoutReturn.token = '';
+    return resume;
+  }
   const flupflapLogin = root.dataset.loginBrand === 'flupflap';
   const pageWindow = root.ownerDocument.defaultView;
   const resetLocation = new URL(pageWindow.location.href);
@@ -403,7 +410,9 @@ export function mountRecharge(root, config, dependencies = {}) {
     flowError = '';
     render();
     try {
-      await flowComponent.confirm({ returnUrl: '/recharge' });
+      const result = await flowComponent.confirm({ returnUrl: '/recharge' });
+      const redirectUrl = result?.redirectUrl || result?.url;
+      if (redirectUrl && typeof globalThis.location?.assign === 'function') globalThis.location.assign(redirectUrl);
     } catch {
       flowError = 'journeyPaymentError';
     } finally {

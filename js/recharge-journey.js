@@ -59,9 +59,8 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   };
   const pending = () => {
     const txn = model.state.transaction;
-    if (!txn) return false;
-    if (['DELIVERED', 'FAILED'].includes(txn.status)) return false;
-    return !['CAPTURED', 'FAILED', 'VOIDED', 'REFUNDED'].includes(txn.paymentStatus);
+    if (!txn) return Boolean(model.state.attempt);
+    return !['DELIVERED', 'SUCCESS', 'FAILED', 'CANCELLED'].includes(txn.status);
   };
   const locked = () => Boolean(model.state.attempt || model.state.submitting || pending());
   const heading = (key, id) => el('h2', { id, tabindex: '-1' }, ui(key));
@@ -189,7 +188,11 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       // getQuote/repeat clears reviewed. A refreshed total must always be reviewed again.
       return;
     }
-    await model.confirm();
+    const session = await model.confirm();
+    const redirectUrl = session?.checkoutSession?.url || session?.checkoutSession?.checkoutUrl || session?.checkoutSession?.redirectUrl;
+    if (redirectUrl && typeof globalThis.location?.assign === 'function') {
+      globalThis.location.assign(redirectUrl);
+    }
   }
   async function viewTransaction(id) {
     await model.refreshTransaction(id);
@@ -266,8 +269,8 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     if (s.transaction && resultSignature !== resultKey) {
       resultSignature = resultKey;
       const txn = s.transaction;
-      const delivered = txn.status === 'DELIVERED';
-      const failed = txn.status === 'FAILED';
+      const delivered = ['DELIVERED', 'SUCCESS'].includes(txn.status);
+      const failed = ['FAILED', 'CANCELLED'].includes(txn.status);
       const title = delivered ? 'journeySuccess' : failed ? 'journeyFailed' : 'journeyPending';
       const headingNode = heading(title, 'journey-result-title');
       const fullReceipt = el('details', { className: 'journey-full-receipt' }, el('summary', {}, ui('journeyViewReceipt')), ...Array.from(n.receipt.children));

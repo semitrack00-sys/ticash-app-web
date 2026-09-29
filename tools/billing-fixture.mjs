@@ -16,7 +16,7 @@ export function billingFixture() {
   api.overrides.set('GET /users/me', () => ({ user: { id: 'test-user', countryCode: 'CA' } }));
   api.overrides.set('POST /mobile-topups/quotes', () => ({ quote: { ...billingQuote } }));
   api.overrides.set('POST /mobile-topups/payment-sessions', () => ({ provider: 'STRIPE', environment: 'SANDBOX', testMode: true,
-    transactionId: '22222222-2222-4222-8222-222222222222', paymentSession: { id: 'pi_fixture', client_secret: 'pi_fixture_secret_fixture' },
-    publicKey: 'pk_test_fixture', amountMinor: 5449, currency: 'USD', paymentStatus: 'SESSION_CREATED' }));
+    transactionId: '22222222-2222-4222-8222-222222222222', checkoutSession: { id: 'cs_test_fixture', url: 'https://checkout.stripe.com/c/pay/cs_test_fixture' },
+    amountMinor: 5449, currency: 'USD', paymentStatus: 'SESSION_CREATED' }));
   return api;
 }

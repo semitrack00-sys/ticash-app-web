@@ -3,68 +3,47 @@ import { ApiError } from './api-client.js';
 export const checkoutMode = 'STRIPE_SANDBOX';
 export const isUuid = (value) => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const record = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
+const checkoutUrlPattern = /^https:\/\/checkout\.stripe\.com\/[\S]+$/i;
+const checkoutSessionIdPattern = /^cs_test_[A-Za-z0-9_]+$/;
+const sensitiveFields = value => record(value) && Object.entries(value).some(([key, item]) =>
+  /^(?:client_?secret|secret_?key|webhook_?secret|access_?token|refresh_?token|checkoutResumeToken)$/i.test(key) || sensitiveFields(item));
+function safeCheckoutUrl(value) {
+  if (typeof value !== 'string' || !checkoutUrlPattern.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return url.origin === 'https://checkout.stripe.com' && !url.username && !url.password &&
+      ![...url.searchParams.keys(), ...new URLSearchParams(url.hash.slice(1)).keys()]
+        .some(key => /token|secret|transaction|order/i.test(key));
+  } catch { return false; }
+}
 
 export function validateCheckoutSession(data) {
-  if (!record(data) || data.provider !== 'STRIPE' || data.environment !== 'SANDBOX' || data.testMode !== true ||
-      !isUuid(data.transactionId) || !record(data.paymentSession) ||
-      typeof data.paymentSession.id !== 'string' || !/^pi_\S+$/.test(data.paymentSession.id) ||
-      typeof data.paymentSession.client_secret !== 'string' || !/^pi_\S+_secret_\S+$/.test(data.paymentSession.client_secret) ||
-      typeof data.publicKey !== 'string' || !/^pk_test_\S+$/.test(data.publicKey) ||
-      !Number.isSafeInteger(data.amountMinor) || data.amountMinor <= 0 || data.currency !== 'USD' || data.paymentStatus !== 'SESSION_CREATED') {
-    throw new ApiError('INVALID_CHECKOUT_SESSION', 'Unable to verify the Stripe sandbox payment session. Keep this page open and refresh transaction status.');
+  const checkoutSession = record(data) ? data.checkoutSession : null;
+  if (!record(data) || sensitiveFields(data) || data.provider !== 'STRIPE' || data.environment !== 'SANDBOX' || data.testMode !== true ||
+      !isUuid(data.transactionId) || !record(checkoutSession) ||
+      typeof checkoutSession.id !== 'string' || !checkoutSessionIdPattern.test(checkoutSession.id) ||
+      !safeCheckoutUrl(checkoutSession.url) ||
+      !Number.isSafeInteger(data.amountMinor) || data.amountMinor <= 0 || data.currency !== 'USD' ||
+      !['SESSION_CREATED', 'AWAITING_PAYMENT'].includes(data.paymentStatus)) {
+    throw new ApiError('INVALID_CHECKOUT_SESSION', 'Unable to verify the Stripe sandbox checkout session. Keep this page open and refresh transaction status.');
   }
   return data;
 }
 
-const libraries = new WeakMap();
-// Stripe.js must be loaded from Stripe's hosted SDK after session validation.
-export function loadCheckoutFactory(pageWindow) {
-  if (!libraries.has(pageWindow)) {
-    const library = new Promise((resolve, reject) => {
-      const script = pageWindow.document.createElement('script');
-      script.src = 'https://js.stripe.com/v3/';
-      script.async = true;
-      const fail = () => reject(new Error('Stripe sandbox payment form unavailable. Refresh transaction status before starting another recharge.'));
-      const timer = pageWindow.setTimeout(fail, 20000);
-      script.onload = () => {
-        pageWindow.clearTimeout(timer);
-        if (typeof pageWindow.Stripe === 'function') resolve(pageWindow.Stripe);
-        else fail();
-      };
-      script.onerror = () => { pageWindow.clearTimeout(timer); fail(); };
-      pageWindow.document.head.append(script);
-    });
-    libraries.set(pageWindow, library);
-    library.catch(() => {
-      if (libraries.get(pageWindow) === library) libraries.delete(pageWindow);
-    });
-  }
-  return libraries.get(pageWindow);
+export function loadCheckoutFactory() {
+  return Promise.resolve(null);
 }
 
 export async function mountCheckoutFlow({ session, container, factory, active, onPaymentCompleted }) {
   validateCheckoutSession(session);
-  const stripe = await factory(session.publicKey);
-  if (!active()) return;
-
-  const elements = stripe.elements({
-    clientSecret: session.paymentSession.client_secret,
-    appearance: {
-      theme: 'stripe',
-      variables: {
-        colorPrimary: '#0f172a',
-      },
-    },
-  });
-
-  const paymentElement = elements.create('payment');
-  if (!active()) {
-    try { paymentElement.unmount?.(); } catch { /* noop */ }
-    try { elements.destroy?.(); } catch { /* noop */ }
-    return;
+  const redirectUrl = session.checkoutSession.url;
+  if (container) {
+    container.replaceChildren();
+    const note = container.ownerDocument.createElement('p');
+    note.className = 'small muted';
+    note.textContent = 'Stripe Checkout will open in a secure hosted page. Keep this tab open so the result screen can refresh automatically when you return.';
+    container.append(note);
   }
-
-  paymentElement.mount(container);
 
   let confirmationInProgress = null;
 
@@ -74,36 +53,25 @@ export async function mountCheckoutFlow({ session, container, factory, active, o
     confirmationInProgress = (async () => {
       try {
         if (!active()) {
-          throw new ApiError('INVALID_CHECKOUT_SESSION', 'The Stripe sandbox payment session is no longer active. Refresh transaction status before retrying.');
+          throw new ApiError('INVALID_CHECKOUT_SESSION', 'The Stripe sandbox checkout session is no longer active. Refresh transaction status before retrying.');
         }
 
-        const confirmParams = {
-          elements,
-          redirect: 'if_required',
-        };
-
-        if (typeof returnUrl === 'string' && /^\//.test(returnUrl)) {
-          const target = new URL(returnUrl, globalThis.location?.origin || 'https://example.invalid');
-          if (target.origin === (globalThis.location?.origin || target.origin)) {
-            // Keep return targets same-origin and strip URL secrets from query/hash.
-            target.search = '';
-            target.hash = '';
-            confirmParams.confirmParams = { return_url: target.toString() };
+        if (typeof returnUrl === 'string') {
+          if (!/^\//.test(returnUrl)) {
+            throw new ApiError('INVALID_CHECKOUT_SESSION', 'The Stripe sandbox checkout return URL is invalid.');
           }
+          const target = new URL(returnUrl, globalThis.location?.origin || 'https://example.invalid');
+          if (target.origin !== (globalThis.location?.origin || target.origin)) {
+            throw new ApiError('INVALID_CHECKOUT_SESSION', 'The Stripe sandbox checkout return URL is invalid.');
+          }
+          target.search = '';
+          target.hash = '';
         }
 
-        const result = await stripe.confirmPayment(confirmParams);
-        if (result.error) {
-          const message = result.error.message || 'Unable to confirm the Stripe sandbox payment.';
-          if (typeof onError === 'function') onError(new ApiError('STRIPE_PAYMENT_CONFIRMATION_FAILED', message));
-          throw new ApiError('STRIPE_PAYMENT_CONFIRMATION_FAILED', message);
-        }
-
-        // Do not treat browser success as authorization; only refresh the existing server-bound transaction.
-        if (typeof onPaymentCompleted === 'function') {
-          await onPaymentCompleted(session.transactionId);
-        }
-        return result;
+        return { redirectUrl, transactionId: session.transactionId };
+      } catch (error) {
+        if (typeof onError === 'function') onError(error);
+        throw error;
       } finally {
         confirmationInProgress = null;
       }
@@ -113,12 +81,9 @@ export async function mountCheckoutFlow({ session, container, factory, active, o
   };
 
   return {
-    elements,
-    paymentElement,
     confirm,
     unmount() {
-      try { paymentElement.unmount?.(); } catch { /* noop */ }
-      try { elements.destroy?.(); } catch { /* noop */ }
+      if (container) container.replaceChildren();
     },
   };
 }

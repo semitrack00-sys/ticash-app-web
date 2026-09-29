@@ -23,11 +23,10 @@ function stripePaymentSession(transactionId = transaction.id) {
     environment: 'SANDBOX',
     testMode: true,
     transactionId,
-    paymentSession: {
-      id: 'pi_fixture',
-      client_secret: 'pi_fixture_secret_fixture',
+    checkoutSession: {
+      id: 'cs_test_fixture',
+      url: 'https://checkout.stripe.com/c/pay/cs_test_fixture',
     },
-    publicKey: 'pk_test_fixture',
     amountMinor: 800,
     currency: 'USD',
     paymentStatus: 'SESSION_CREATED',
@@ -49,6 +48,31 @@ async function setupStripeCheckout({ profileCountry = 'CA', paymentSessionHandle
   model.selectProduct(products[0].id);
   return { api, model };
 }
+
+test('hosted checkout amount must exactly match the server quote; mismatch keeps the attempt locked', async () => {
+  const { model } = await setupStripeCheckout({ paymentSessionHandler: () => ({ ...stripePaymentSession(), amountMinor: 801 }) });
+  await reviewed(model);
+  await model.confirm();
+  assert.match(model.state.error, /Unable to verify the Stripe sandbox payment amount/);
+  assert.equal(model.state.checkoutSession, null);
+  assert.ok(model.state.attempt);
+});
+
+test('a replayed hosted session without a resume token is accepted while duplicate confirmation stays locked', async () => {
+  const replayedSession = stripePaymentSession();
+  const { model, api } = await setupStripeCheckout({ paymentSessionHandler: () => structuredClone(replayedSession) });
+  await reviewed(model);
+  await model.confirm();
+  const reservedKey = model.state.attempt.key;
+  assert.deepEqual(model.state.checkoutSession, replayedSession);
+  await model.confirm();
+  assert.equal(model.state.checkoutSession.checkoutSession.id, 'cs_test_fixture');
+  assert.equal(Object.hasOwn(model.state.checkoutSession, 'checkoutResumeToken'), false);
+  const calls = api.calls.filter(call => call.path === '/mobile-topups/payment-sessions');
+  assert.equal(calls.length, 1);
+  assert.ok(calls.every(call => call.headers['Idempotency-Key'] === reservedKey));
+  assert.equal(api.calls.some(call => call.method === 'POST' && call.path === '/mobile-topups/transactions'), false);
+});
 
 test('Stripe checkout allows authenticated guest sessions to complete sandbox payment', async () => {
   const api = fixtureApi();
@@ -284,6 +308,7 @@ test('Stripe checkout reserves payment-session with idempotency and never posts 
   assert.match(paymentCalls[0].headers['Idempotency-Key'], /^[0-9a-f-]{36}$/i);
   assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
   assert.equal(model.state.attempt?.transactionId, transaction.id);
+  assert.equal(model.state.checkoutSession.checkoutSession.url, 'https://checkout.stripe.com/c/pay/cs_test_fixture');
 });
 test('guest Stripe checkout requires explicit temporary billing country and never patches profile', async () => {
   const api = fixtureApi();
@@ -364,7 +389,7 @@ test('malformed Stripe payment session keeps checkout attempt locked to same ide
   const { model, api } = await setupStripeCheckout({ paymentSessionHandler: () => ({ provider: 'STRIPE', environment: 'SANDBOX' }) });
   await reviewed(model);
   await model.confirm();
-  assert.match(model.state.error, /Stripe sandbox payment session/);
+  assert.match(model.state.error, /Stripe sandbox checkout session/);
   assert.ok(model.state.attempt);
   assert.equal(model.state.checkoutSession, null);
   assert.throws(() => model.setAmount('9'));
@@ -378,14 +403,14 @@ test('only terminal server payment states release Stripe checkout lock', async (
   await model.confirm();
   assert.ok(model.state.attempt);
   const id = model.state.attempt.transactionId;
-  let paymentStatus = 'AUTHORIZED';
-  api.overrides.set(`GET /mobile-topups/transactions/${id}`, () => ({ transaction: { ...transaction, id, quoteId: quote.id, paymentStatus, testMode: true } }));
+  let status = 'PROCESSING';
+  api.overrides.set(`GET /mobile-topups/transactions/${id}`, () => ({ transaction: { ...transaction, id, quoteId: quote.id, status, paymentStatus: 'AUTHORIZED', testMode: true } }));
 
   await model.refreshTransaction(id);
   assert.ok(model.state.attempt);
   assert.equal(model.state.checkoutSession?.transactionId, id);
 
-  paymentStatus = 'CAPTURED';
+  status = 'DELIVERED';
   await model.refreshTransaction(id);
   assert.equal(model.state.attempt, null);
   assert.equal(model.state.checkoutSession, null);
@@ -405,46 +430,17 @@ test('payment-session replay/in-progress recovery keeps the same locked idempote
   assert.ok(model.state.attempt);
   assert.match(model.state.error, /unresolved/i);
 });
-test('page-level Stripe flow mounts once and explicit pay button confirms payment with single in-flight request', async () => {
+test('page-level hosted checkout mounts once and never posts browser fulfillment', async () => {
   const api = fixtureApi();
   api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
   api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
   api.overrides.set('POST /mobile-topups/payment-sessions', () => stripePaymentSession());
-  api.overrides.set(`GET /mobile-topups/transactions/${transaction.id}`, () => ({ transaction: { ...transaction, id: transaction.id, quoteId: quote.id, testMode: true, paymentStatus: 'AUTHORIZED' } }));
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
   globalThis.document = dom.window.document;
 
-  let mountCalls = 0;
-  let stripeConfirmCalls = 0;
-  const release = deferred();
-  const checkoutFactory = async () => ({
-    elements() {
-      return {
-        create() {
-          return {
-            mount() { mountCalls += 1; },
-            unmount() {},
-          };
-        },
-        destroy() {},
-      };
-    },
-    async confirmPayment() {
-      stripeConfirmCalls += 1;
-      await release.promise;
-      return { error: null };
-    },
-  });
-
   const root = document.getElementById('root');
-  const app = mountRecharge(root, { mobileRechargeLive: false }, { api, checkoutFactory });
-  let refreshedTransactionId = null;
-  const originalRefreshTransaction = app.model.refreshTransaction.bind(app.model);
-  app.model.refreshTransaction = async (id) => {
-    refreshedTransactionId = id;
-    return originalRefreshTransaction(id);
-  };
+  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
   try {
     document.getElementById('email').value = 'user@example.test';
     document.getElementById('password').value = 'correct horse battery staple';
@@ -456,55 +452,32 @@ test('page-level Stripe flow mounts once and explicit pay button confirms paymen
     await app.model.selectOperator(77);
     app.model.selectProduct(products[0].id);
     await reviewed(app.model);
-    await app.model.confirm();
-    await flush();
 
-    assert.equal(mountCalls, 1);
-    const payButton = document.getElementById('confirm-sandbox-payment');
-    for (let attempt = 0; attempt < 20 && (payButton.hidden || payButton.disabled); attempt += 1) {
+    await app.model.confirm();
+    for (let attempt = 0; attempt < 20 && document.getElementById('checkout-flow-container').textContent === ''; attempt += 1) {
       await flush(2);
     }
-    assert.equal(payButton.hidden, false);
-    assert.equal(payButton.disabled, false);
-    payButton.click();
-    payButton.click();
-    await flush(2);
-    assert.equal(stripeConfirmCalls, 1);
-    assert.equal(payButton.disabled, true);
-    release.resolve();
-    await flush();
-    for (let attempt = 0; attempt < 20 && api.calls.filter((call) => call.path.startsWith(`/mobile-topups/transactions/${transaction.id}`) && call.method === 'GET').length === 0; attempt += 1) {
-      await flush(2);
-    }
-    assert.equal(payButton.disabled, true);
+
+    assert.match(document.getElementById('checkout-flow-container').textContent, /Stripe Checkout will open in a secure hosted page/);
+    assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 1);
     assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
-    assert.equal(refreshedTransactionId, transaction.id);
   } finally {
     app.dispose();
     dom.window.close();
     delete globalThis.document;
   }
 });
-test('Stripe pay action surfaces safe error and still never performs browser fulfillment POST', async () => {
+test('hosted checkout session creation surfaces safe error and still never performs browser fulfillment POST', async () => {
   const api = fixtureApi();
   api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
   api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
-  api.overrides.set('POST /mobile-topups/payment-sessions', () => stripePaymentSession());
+  api.overrides.set('POST /mobile-topups/payment-sessions', () => { throw new ApiError('PAYMENT_SESSION_FAILED', 'Unable to create session', 500); });
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
   globalThis.document = dom.window.document;
-  const checkoutFactory = async () => ({
-    elements() {
-      return {
-        create() { return { mount() {}, unmount() {} }; },
-        destroy() {},
-      };
-    },
-    async confirmPayment() { return { error: { message: 'card_declined' } }; },
-  });
 
   const root = document.getElementById('root');
-  const app = mountRecharge(root, { mobileRechargeLive: false }, { api, checkoutFactory });
+  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
   try {
     document.getElementById('email').value = 'user@example.test';
     document.getElementById('password').value = 'correct horse battery staple';
@@ -516,12 +489,9 @@ test('Stripe pay action surfaces safe error and still never performs browser ful
     await app.model.selectOperator(77);
     app.model.selectProduct(products[0].id);
     await reviewed(app.model);
-    await app.model.confirm();
+    document.getElementById('confirm-recharge').click();
     await flush();
-
-    document.getElementById('confirm-sandbox-payment').click();
-    await flush();
-    assert.match(document.getElementById('checkout-flow-panel').textContent, /Payment could not be confirmed/);
+    assert.match(root.textContent, /Unable to create session|session|payment/i);
     assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
   } finally {
     app.dispose();

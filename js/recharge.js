@@ -78,6 +78,8 @@ function validateQuote(quote) {
   return quote;
 }
 
+const terminalRechargeStatuses = new Set(['DELIVERED', 'SUCCESS', 'FAILED', 'CANCELLED']);
+
 export class Recharge {
   constructor(api, { onChange = () => {}, crypto = globalThis.crypto, now = Date.now } = {}) {
     this.api = api; this.onChange = onChange; this.crypto = crypto; this.now = now;
@@ -183,13 +185,13 @@ export class Recharge {
     Object.assign(this.state, { quote: null, reviewed: false, transaction: null, error: '', notice: '' });
   }
   clearOperator() { Object.assign(this.state, { operator: null, products: [], category: '', product: null, amount: '' }); }
-  async run(name, action, current = () => true) {
+  async run(name, action, current = () => true, silent = false) {
     if (this.busy.has(name)) return;
     const generation = this.generation;
     const active = () => generation === this.generation && current();
     this.busy.add(name); this.state.error = ''; this.emit();
     try { return await action(active); }
-    catch (error) { if (active()) this.state.error = error.message || 'This request could not be completed.'; }
+    catch (error) { if (active() && !silent) this.state.error = error.message || 'This request could not be completed.'; }
     finally { if (generation === this.generation) { this.busy.delete(name); this.emit(); } }
   }
   async start() {
@@ -365,7 +367,7 @@ export class Recharge {
     catch (error) { s.error = error.message; this.emit(); return; }
     const attempt = s.attempt;
     s.submitting = true;
-    await this.run('confirm', async (active) => {
+    const result = await this.run('confirm', async (active) => {
       const current = () => active() && s.attempt === attempt;
       let requested = false;
       try {
@@ -385,8 +387,10 @@ export class Recharge {
           method: 'POST', body: attempt.body, headers: { 'Idempotency-Key': attempt.key },
         }));
         if (!current()) return;
+        if (session.amountMinor !== Math.round(s.quote.totalChargeUsd * 100)) throw invalid('Unable to verify the Stripe sandbox payment amount. Refresh transaction status before retrying.');
         if (attempt.transactionId && attempt.transactionId !== session.transactionId) throw invalid('Unable to verify the Stripe sandbox payment session. Keep this page open and refresh transaction status.');
         s.checkoutSession = session; attempt.transactionId = session.transactionId;
+        return session;
       } catch (error) {
         if (!current()) return;
         if (current()) {
@@ -399,6 +403,7 @@ export class Recharge {
       }
     });
     if (generation === this.generation) { s.submitting = false; this.emit(); }
+    return result;
   }
   reconcileCheckout(transaction) {
     const attempt = this.state.attempt;
@@ -406,8 +411,8 @@ export class Recharge {
         transaction.quoteId !== attempt.body.quoteId || (attempt.transactionId && attempt.transactionId !== transaction.id)) return false;
     attempt.transactionId = transaction.id;
     this.state.transaction = transaction;
-    // AUTHORIZED, pending/recovery and unknown states must remain locked. Only the server can release payment state.
-    if (['CAPTURED', 'FAILED', 'VOIDED', 'REFUNDED'].includes(transaction.paymentStatus)) {
+    // Authorized, pending/recovery and unknown states must remain locked. Only the server can release payment state.
+    if (terminalRechargeStatuses.has(transaction.status)) {
       Object.assign(this.state, { attempt: null, checkoutSession: null, quote: null, reviewed: false });
     }
     return true;
@@ -446,7 +451,7 @@ export class Recharge {
     this.setPhone(saved.phone);
     if (saved.operatorId) await this.selectOperator(saved.operatorId);
   }
-  async refreshTransaction(id = this.state.attempt?.transactionId || this.state.transaction?.id) {
+  async refreshTransaction(id = this.state.attempt?.transactionId || this.state.transaction?.id, { silent = false } = {}) {
     if (!id) return;
     const revision = this.revision;
     return this.run('receipt', async (active) => {
@@ -458,7 +463,7 @@ export class Recharge {
         } else this.state.transaction = transaction;
         this.state.history = this.state.history.map((t) => t.id === id ? transaction : t);
       }
-    }, () => this.revision === revision);
+    }, () => this.revision === revision, silent);
   }
   async repeat(id) {
     this.editable(); this.invalidate(); this.clearOperator();

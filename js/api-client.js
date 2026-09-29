@@ -6,6 +6,8 @@ export class ApiError extends Error {
   }
 }
 
+export const isCheckoutResumeToken = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43,512}$/.test(value);
+
 export function apiBaseUrl(value, pageUrl = globalThis.location?.href) {
   if (!value || typeof value !== 'string') throw new ApiError('NOT_CONFIGURED', 'Test recharge is not configured yet. Please contact TiCash support.');
   const page = new URL(pageUrl);
@@ -37,9 +39,12 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
     if (notify) onSessionExpired();
   }
 
-  async function send(path, { method = 'GET', body, headers = {} } = {}) {
+  async function send(path, { method = 'GET', body, headers = {}, signal } = {}) {
     if (!path.startsWith('/') || path.startsWith('//')) throw new ApiError('INVALID_PATH', 'Invalid API request.');
     const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (signal?.aborted) abort();
+    else signal?.addEventListener('abort', abort, { once: true });
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetchImpl(baseUrl + path, {
@@ -55,7 +60,7 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw new ApiError('NETWORK_ERROR', 'Could not reach TiCash. Check your connection and try again.');
-    } finally { clearTimeout(timer); }
+    } finally { clearTimeout(timer); signal?.removeEventListener('abort', abort); }
   }
 
   function acceptTokens(data, version) {
@@ -85,6 +90,18 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
 
   return {
     identityDomain,
+    async resumeCheckout(resumeToken, { signal } = {}) {
+      if (!isCheckoutResumeToken(resumeToken)) throw new ApiError('INVALID_RESUME_TOKEN', 'Invalid checkout return link.', 400);
+      try {
+        // Deliberately bypass authenticated request/refresh. This capability grants only a stored status read.
+        return await send(`${flupflap ? '/flupflap' : ''}/mobile-topups/checkout-resume`, {
+          method: 'POST', body: { resumeToken }, signal,
+        });
+      } catch (error) {
+        // Never propagate provider/server error text that could echo a capability.
+        throw new ApiError(error.status === 410 ? 'RESUME_TOKEN_EXPIRED' : 'RESUME_UNAVAILABLE', 'Checkout return link is unavailable.', error.status);
+      } finally { resumeToken = ''; }
+    },
     forgotPassword(email) {
       return send(`${auth}/forgot-password`, { method: 'POST', body: { email } });
     },
