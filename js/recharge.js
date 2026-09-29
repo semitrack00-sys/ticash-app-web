@@ -46,11 +46,11 @@ export function secureId(crypto = globalThis.crypto) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 export function assertTestService(status) {
-  if (status?.environment !== 'SANDBOX' || !['MOCK', checkoutMode].includes(status.paymentMode) || status.testMode !== true ||
-      status.productionEnabled !== false || status.approvedForLiveUse !== false || status.liveRechargeEnabled !== false) {
-    throw new ApiError('UNSAFE_ENVIRONMENT', 'Test recharge is unavailable: this service has not confirmed test mode.');
+  if (status?.environment !== 'PRODUCTION' || status.paymentMode !== checkoutMode || status.testMode !== false ||
+      status.productionEnabled !== true || status.approvedForLiveUse !== true || status.liveRechargeEnabled !== true) {
+    throw new ApiError('UNSAFE_ENVIRONMENT', 'Recharge is unavailable: this service has not confirmed production mode.');
   }
-  if (!status.enabled) throw new ApiError('MOBILE_TOPUP_DISABLED', 'Test recharge is currently disabled. Please try again later.');
+  if (!status.enabled) throw new ApiError('MOBILE_TOPUP_DISABLED', 'Mobile recharge is currently disabled. Please try again later.');
 }
 function array(data, key) {
   if (!Array.isArray(data?.[key])) throw invalid('The service returned an incomplete catalog.');
@@ -102,10 +102,10 @@ export class Recharge {
   }
   checkoutBlocked() {
     const s = this.state;
-    if (!s.account) return 'Sign in to a valid account session to use Stripe sandbox card payments.';
+    if (!s.account) return 'Sign in to a valid account session to use Stripe card payments.';
     const card = s.paymentMethods.find((method) => method.type === 'CARD');
-    if (!card || card.provider !== 'STRIPE' || card.testMode !== true || card.enabled !== true) {
-      return s.paymentMethodsError || (typeof card?.reason === 'string' && card.reason) || 'Sandbox card payments are unavailable.';
+    if (!card || card.provider !== 'STRIPE' || card.testMode !== false || card.enabled !== true) {
+      return s.paymentMethodsError || (typeof card?.reason === 'string' && card.reason) || 'Card payments are unavailable.';
     }
     if (s.guest) {
       const billingCountry = (s.billingCountry || '').trim().toUpperCase();
@@ -338,7 +338,7 @@ export class Recharge {
         }
         throw error;
       }
-      if (!transaction?.id || transaction.testMode !== true || transaction.quoteId !== attempt.body.quoteId) throw invalid('Unable to verify the confirmation. Refresh history before trying again.');
+      if (!transaction?.id || transaction.testMode !== false || transaction.quoteId !== attempt.body.quoteId) throw invalid('Unable to verify the confirmation. Refresh history before trying again.');
       if (active()) {
         this.state.transaction = transaction; this.state.attempt = null; this.state.quote = null; this.state.reviewed = false;
         this.state.history = [transaction, ...this.state.history.filter((t) => t.id !== transaction.id)];
@@ -387,8 +387,8 @@ export class Recharge {
           method: 'POST', body: attempt.body, headers: { 'Idempotency-Key': attempt.key },
         }));
         if (!current()) return;
-        if (session.amountMinor !== Math.round(s.quote.totalChargeUsd * 100)) throw invalid('Unable to verify the Stripe sandbox payment amount. Refresh transaction status before retrying.');
-        if (attempt.transactionId && attempt.transactionId !== session.transactionId) throw invalid('Unable to verify the Stripe sandbox payment session. Keep this page open and refresh transaction status.');
+        if (session.amountMinor !== Math.round(s.quote.totalChargeUsd * 100)) throw invalid('Unable to verify the Stripe payment amount. Refresh transaction status before retrying.');
+        if (attempt.transactionId && attempt.transactionId !== session.transactionId) throw invalid('Unable to verify the Stripe payment session. Keep this page open and refresh transaction status.');
         s.checkoutSession = session; attempt.transactionId = session.transactionId;
         return session;
       } catch (error) {
@@ -407,7 +407,7 @@ export class Recharge {
   }
   reconcileCheckout(transaction) {
     const attempt = this.state.attempt;
-    if (attempt?.mode !== checkoutMode || !isUuid(transaction?.id) || transaction.testMode !== true ||
+    if (attempt?.mode !== checkoutMode || !isUuid(transaction?.id) || transaction.testMode !== false ||
         transaction.quoteId !== attempt.body.quoteId || (attempt.transactionId && attempt.transactionId !== transaction.id)) return false;
     attempt.transactionId = transaction.id;
     this.state.transaction = transaction;
@@ -423,7 +423,7 @@ export class Recharge {
         const transactions = array(await this.api.request(`${root}/transactions`), 'transactions');
         if (active()) {
           this.state.history = transactions; this.state.historyError = '';
-          const match = this.state.attempt && transactions.find((t) => t.quoteId === this.state.attempt.body.quoteId && t.testMode === true);
+          const match = this.state.attempt && transactions.find((t) => t.quoteId === this.state.attempt.body.quoteId && t.testMode === false);
           if (this.state.attempt?.mode === checkoutMode) { if (match) this.reconcileCheckout(match); }
           else if (match) { this.state.transaction = match; this.state.attempt = null; this.state.quote = null; this.state.reviewed = false; }
         }
@@ -456,10 +456,10 @@ export class Recharge {
     const revision = this.revision;
     return this.run('receipt', async (active) => {
       const { transaction } = await this.api.request(`${root}/transactions/${encodeURIComponent(id)}?refresh=true`);
-      if (transaction?.id !== id || transaction.testMode !== true) throw invalid('Unable to verify the test receipt.');
+      if (transaction?.id !== id || transaction.testMode !== false) throw invalid('Unable to verify the receipt.');
       if (active()) {
         if (this.state.attempt?.mode === checkoutMode) {
-          if (!this.reconcileCheckout(transaction)) throw invalid('Unable to verify the test receipt.');
+          if (!this.reconcileCheckout(transaction)) throw invalid('Unable to verify the receipt.');
         } else this.state.transaction = transaction;
         this.state.history = this.state.history.map((t) => t.id === id ? transaction : t);
       }

@@ -273,7 +273,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     email.focus();
   }, true);
   logout.id = 'sign-out';
-  const accountLabel = el('span', {}, 'Signed in · private test session');
+  const accountLabel = el('span', {}, 'Signed in · secure session');
   const guestNote = el('p', { className: 'small muted', id: 'guest-note', hidden: '' }, ui('Guest history is temporary.'));
   const createFromGuest = button('Create account', async () => {
     if (model.state.submitting || model.state.attempt) return;
@@ -856,7 +856,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     setLoginError('Your session expired or account access changed. Sign in again, then check history before repeating a recharge.');
   };
   try {
-    if (config.mobileRechargeLive !== false) throw new Error('This checkout supports test mode only.');
+    if (config.mobileRechargeLive !== true) throw new Error('FlupFlap is not configured for production recharge.');
     client = dependencies.api || createApiClient({ baseUrl: apiBaseUrl(config.apiBaseUrl), identityDomain: flupflapLogin ? 'FLUPFLAP' : 'TICASH', onSessionExpired: expired });
   } catch (error) {
     configured = false; setLoginError(error.message);

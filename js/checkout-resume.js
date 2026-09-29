@@ -10,7 +10,7 @@ const publicFields = ['status', 'testMode', 'recipientPhone', 'operatorName', 'p
 function displayTransaction(data) {
   const value = data?.transaction;
   if (!value || typeof value !== 'object' || Object.keys(value).length !== publicFields.length ||
-      Object.keys(value).some(key => !publicFields.includes(key)) || value.testMode !== true ||
+      Object.keys(value).some(key => !publicFields.includes(key)) || value.testMode !== false ||
       !statuses.has(value.status) || value.providerCurrency !== 'USD' ||
       ![value.providerAmount, value.feeUsd, value.totalChargeUsd].every(n => Number.isFinite(n) && n >= 0) ||
       !['recipientPhone', 'operatorName', 'productName'].every(key => typeof value[key] === 'string' && value[key].length <= 300)) {
@@ -66,7 +66,7 @@ export function mountCheckoutResume(root, config, resumeToken, dependencies = {}
     panel.dataset.checkoutResume = 'readonly';
     const title = transaction ? transaction.status === 'DELIVERED' ? 'journeySuccess' :
       terminal.has(transaction.status) ? 'journeyFailed' : 'journeyPending' : 'checkoutResumeLoading';
-    panel.append(node('p', t('TEST MODE'), 'test-banner'), node('h2', t(message || title)), node('p', t('checkoutResumeReadOnly'), 'muted'));
+    panel.append(node('h2', t(message || title)), node('p', t('checkoutResumeReadOnly'), 'muted'));
     if (transaction) {
       panel.append(node('p', t(transaction.status), 'status-pill'));
       const details = node('dl', undefined, 'details');
