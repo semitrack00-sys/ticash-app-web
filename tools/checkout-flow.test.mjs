@@ -7,12 +7,12 @@ import { ApiError } from '../js/api-client.js';
 
 const session = () => ({
   provider: 'STRIPE',
-  environment: 'SANDBOX',
-  testMode: true,
+  environment: 'PRODUCTION',
+  testMode: false,
   transactionId: '123e4567-e89b-42d3-a456-426614174000',
   checkoutSession: {
-    id: 'cs_test_fixture',
-    url: 'https://checkout.stripe.com/c/pay/cs_test_fixture',
+    id: 'cs_live_fixture',
+    url: 'https://checkout.stripe.com/c/pay/cs_live_fixture',
   },
   amountMinor: 800,
   currency: 'USD',
@@ -21,8 +21,8 @@ const session = () => ({
 
 const invalidSessions = [
   null,
-  { ...session(), environment: 'PRODUCTION' },
-  { ...session(), testMode: false },
+  { ...session(), environment: 'SANDBOX' },
+  { ...session(), testMode: true },
   { ...session(), checkoutSession: { ...session().checkoutSession, id: 'pay_bad' } },
   { ...session(), checkoutSession: { ...session().checkoutSession, url: 'https://example.com' } },
   { ...session(), amountMinor: 0 },
@@ -43,12 +43,12 @@ test('initial and replayed hosted sessions need no resume token; leaked capabili
   }
 });
 
-test('hosted checkout session validation is strict and only allows Stripe sandbox sessions', () => {
+test('hosted checkout session validation is strict and only allows approved Stripe live sessions', () => {
   for (const value of invalidSessions) {
-    assert.throws(() => validateCheckoutSession(value), /Unable to verify the Stripe sandbox checkout session/);
+    assert.throws(() => validateCheckoutSession(value), /Unable to verify the Stripe checkout session/);
   }
   assert.doesNotThrow(() => validateCheckoutSession(session()));
-  assert.ok(/^cs_test_/.test(session().checkoutSession.id));
+  assert.ok(/^cs_live_/.test(session().checkoutSession.id));
   assert.ok(/^https:\/\/checkout\.stripe\.com\//.test(session().checkoutSession.url));
 });
 
@@ -111,7 +111,7 @@ test('hosted checkout helper rejects unsafe external return URLs', async () => {
 
 test('hosted checkout session does not expose secret keys in browser fixtures', () => {
   const payload = session();
-  assert.equal(payload.checkoutSession.id.startsWith('cs_test_'), true);
+  assert.equal(payload.checkoutSession.id.startsWith('cs_live_'), true);
   assert.doesNotMatch(JSON.stringify(payload), /sk_(live|test)_[A-Za-z0-9]+/);
   assert.doesNotMatch(JSON.stringify(payload), /whsec_[A-Za-z0-9]+/);
   assert.doesNotMatch(JSON.stringify(payload), /client_secret/);
