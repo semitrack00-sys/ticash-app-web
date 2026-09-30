@@ -526,7 +526,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     }
     if (!signedIn) { menu.hidden = true; menuButton.setAttribute('aria-expanded', 'false'); accountBar.open = false; }
     const liveRecharge = s.testMode === false && s.paymentMode === checkoutMode;
-    testBanner.hidden = signedIn && liveRecharge;
+    testBanner.hidden = !signedIn || !s.ready || liveRecharge;
     testTitle.hidden = liveRecharge;
     testText.hidden = liveRecharge;
     testTitle.textContent = t(signedIn ? 'You’re in test mode' : 'Secure recharge');
