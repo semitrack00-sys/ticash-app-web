@@ -194,7 +194,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   };
   const button = (label, action, secondary = false) => el('button', { type: 'button', 'data-i18n': label, className: secondary ? 'button secondary' : 'button', onclick: action }, t(label));
   const action = (fn) => async () => {
-    try { await fn(); } catch (error) { model.state.error = error.message; model.emit(); }
+    try { await fn(); } catch (error) { model.state.error = error instanceof Error ? error.message : 'Something went wrong. Please try again.'; model.emit(); }
   };
   const error = el('p', { className: 'message error', role: 'alert', id: 'recharge-error', hidden: '' });
   const notice = el('p', { className: 'message', role: 'status', id: 'recharge-notice', hidden: '' });
@@ -882,7 +882,10 @@ export function mountRecharge(root, config, dependencies = {}) {
       if (!user || disposed) return;
       signedIn = true; guestSession = user.guest === true; model.reset(); model.setAccount(user, guestSession); render();
       await model.start();
-    }).catch(() => { /* No valid cookie means normal signed-out state. */ }).finally(() => { signingIn = false; if (!disposed) render(); });
+    }).catch((restoreError) => {
+      // A restore failure must never crash or leave the page stuck in a loading state.
+      if (restoreError && !(restoreError instanceof Error)) console.warn('FlupFlap session restore failed');
+    }).finally(() => { signingIn = false; if (!disposed) render(); });
   }
   journey = mountRechargeJourney({ root, model, render, el, ui, button, action, money, date, details, icon, operatorDetail,
     nodes: { checkout, selectionFields, destinationPanel, destinationControls, operatorControls, productKinds,
