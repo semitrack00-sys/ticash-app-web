@@ -22,10 +22,26 @@ assert.doesNotMatch(sources, /STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET|RELOADLY_C
 assert.doesNotMatch(sources, /\+509|countryCode:\s*['"]HT['"]/, 'No hardcoded destination');
 for (const file of ['login/index.html', 'recharge/index.html', 'recharge/reset-password/index.html']) {
   const html = readFileSync(file, 'utf8');
-  assert.match(html, /TEST MODE/); assert.match(html, /Content-Security-Policy/); assert.match(html, /form-action 'none'/);
+  assert.match(html, /Content-Security-Policy/); assert.match(html, /form-action 'none'/);
   assert.doesNotMatch(html, /analytics\.js|data-analytics/, 'Do not instrument account or transaction pages');
   assert.doesNotMatch(html, /COMING SOON|No recharge purchases are accepted/);
 }
-assert.match(readFileSync('public-config.js', 'utf8'), /mobileRechargeLive: false/);
-assert.match(readFileSync('public-config.js', 'utf8'), /sendMoneyLive: false/);
-console.log('Browser security and test-mode checks passed.');
+const publicConfig = readFileSync('public-config.js', 'utf8');
+assert.match(publicConfig, /mobileRechargeLive: true/);
+assert.match(publicConfig, /sendMoneyLive: false/);
+
+const render = readFileSync('render.yaml', 'utf8');
+for (const required of [
+  /X-Content-Type-Options[\s\S]*nosniff/,
+  /X-Frame-Options[\s\S]*DENY/,
+  /Referrer-Policy[\s\S]*no-referrer/,
+  /Permissions-Policy/,
+  /Cross-Origin-Opener-Policy[\s\S]*same-origin/,
+  /Strict-Transport-Security[\s\S]*max-age=63072000/,
+  /Content-Security-Policy[\s\S]*frame-ancestors 'none'/,
+  /connect-src 'self' https:\/\/ticash-api\.onrender\.com/,
+  /\/login[\s\S]*Cache-Control[\s\S]*no-store/,
+  /\/recharge[\s\S]*Cache-Control[\s\S]*no-store/,
+]) assert.match(render, required);
+assert.doesNotMatch(render, /connect-src[^\n]*https:\s*;/, 'Production CSP must not allow arbitrary HTTPS API connections');
+console.log('Browser security and production hardening checks passed.');
