@@ -4,6 +4,7 @@ import { t, getLanguage } from './i18n.js';
 // quote, reservation, payment and transaction state; there is no fee calculation here.
 export function mountRechargeJourney({ root, model, render, el, ui, button, action, money, date, details, icon, operatorDetail, nodes: n }) {
   let screen = 'number';
+  const historyMarker = 'flupflapJourney';
   let fallback = false;
   let continuing = false;
   let quoteRequest;
@@ -66,9 +67,31 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   const heading = (key, id) => el('h2', { id, tabindex: '-1' }, ui(key));
   const section = (name, key) => el('section', { id: `journey-${name}`, className: 'journey-screen panel', 'aria-labelledby': `journey-${name}-title`, hidden: '' }, heading(key, `journey-${name}-title`));
   const closeMenu = () => { n.menu.hidden = true; n.menuButton.setAttribute('aria-expanded', 'false'); };
-  function show(next, focus = true) {
-    screen = next; closeMenu(); render();
+  function show(next, focus = true, fromHistory = false) {
+    if (next === screen) return;
+    screen = next;
+    if (!fromHistory && globalThis.history?.pushState) {
+      globalThis.history.pushState({ [historyMarker]: next }, '', globalThis.location?.href);
+    }
+    closeMenu(); render();
     if (focus) root.querySelector(`[data-journey-screen="${next}"] h2`)?.focus();
+  }
+  const onPopState = (event) => {
+    if (disposed) return;
+    const previous = event.state?.[historyMarker];
+    if (previous && screens?.[previous]) {
+      handlingPopState = true;
+      show(previous, true, true);
+      handlingPopState = false;
+      return;
+    }
+    if (screen !== 'number') {
+      show('number', true, true);
+    }
+  };
+  globalThis.addEventListener?.('popstate', onPopState);
+  if (globalThis.history?.replaceState) {
+    globalThis.history.replaceState({ ...(globalThis.history.state || {}), [historyMarker]: 'number' }, '', globalThis.location?.href);
   }
   const numberTitle = heading('journeyNumberTitle', 'journey-number-title');
   n.destinationPanel.querySelector('summary').replaceWith(numberTitle);
@@ -152,6 +175,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       el('p', {}, `${q?.recipientPhone || s.phone} · ${q?.countryCode || s.country}`)), edit);
   }
   const priceSummary = q => details([['Recharge amount', money(q.providerAmount, q.providerCurrency)],
+    ...(q.deliveredValue != null && q.deliveredCurrency ? [['Receiver gets', money(q.deliveredValue, q.deliveredCurrency)]] : []),
     ['FlupFlap fee', money(q.feeUsd, 'USD')], ['Total', money(q.totalChargeUsd, 'USD')]]);
   async function freshQuote() {
     if (quoteRequest) return quoteRequest;
@@ -298,5 +322,5 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       if (!s.history.length) recent.append(el('p', { className: 'muted' }, ui('historyEmptyTitle')));
     }
   }
-  return { update, continueToPay, pay, viewTransaction, repeat, dispose() { disposed = true; clearTimeout(quoteTimer); stopStatusPolling(); } };
+  return { update, continueToPay, pay, viewTransaction, repeat, dispose() { disposed = true; globalThis.removeEventListener?.('popstate', onPopState); clearTimeout(quoteTimer); stopStatusPolling(); } };
 }

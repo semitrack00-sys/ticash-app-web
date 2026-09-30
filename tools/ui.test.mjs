@@ -122,6 +122,17 @@ test('destination labels, search and phone hints show backend calling codes and 
   assert.equal(query('#phone').value, '+33'); assert.match(query('#phone-hint').textContent, /calling code: \+33/);
 }));
 
+test('quote displays backend receiver value in destination currency without browser conversion', async () => {
+  const api = fixtureApi(); api.overrides.set('POST /mobile-topups/quotes', () => ({ quote: { ...quote, providerAmount: 5, providerCurrency: 'USD', deliveredValue: 625, deliveredCurrency: 'HTG', feeUsd: 0.99, totalChargeUsd: 5.99 } }));
+  await page(async ({ app, query, login }) => {
+    await login(); await app.model.selectCountry('JM'); app.model.setPhone(quote.recipientPhone); await app.model.selectOperator(77);
+    app.model.selectProduct(products[0].id); await app.model.getQuote();
+    assert.match(query('#quote-details').textContent, /Recharge amount\$5\.00/);
+    assert.match(query('#quote-details').textContent, /Receiver getsHTG\s*625\.00|Receiver gets625\.00\s*HTG/);
+    assert.match(query('#quote-details').textContent, /Total\$5\.99/);
+  }, { api });
+});
+
 test('quote displays a backend 3.50 fee and 8.50 total without deriving charges', async () => {
   const api = fixtureApi(); api.overrides.set('POST /mobile-topups/quotes', () => ({ quote: { ...quote, providerAmount: 5, feeUsd: 3.5, totalChargeUsd: 8.5 } }));
   await page(async ({ app, query, login }) => {
