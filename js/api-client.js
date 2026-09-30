@@ -9,7 +9,7 @@ export class ApiError extends Error {
 export const isCheckoutResumeToken = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43,512}$/.test(value);
 
 export function apiBaseUrl(value, pageUrl = globalThis.location?.href) {
-  if (!value || typeof value !== 'string') throw new ApiError('NOT_CONFIGURED', 'Test recharge is not configured yet. Please contact TiCash support.');
+  if (!value || typeof value !== 'string') throw new ApiError('NOT_CONFIGURED', 'Recharge is not configured yet. Please contact TiCash support.');
   const page = new URL(pageUrl);
   let url;
   try { url = new URL(value, page); } catch { throw new ApiError('INVALID_CONFIG', 'The recharge service address is invalid.'); }

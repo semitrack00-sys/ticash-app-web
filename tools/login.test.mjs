@@ -14,7 +14,7 @@ async function loginPage(run, api = fixtureApi(), route = 'login') {
   globalThis.location = dom.window.location;
   globalThis.history = dom.window.history;
   const root = document.querySelector('[data-recharge-root]');
-  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
+  const app = mountRecharge(root, { mobileRechargeLive: true }, { api });
   const query = selector => document.querySelector(selector);
   const submit = selector => query(selector).dispatchEvent(new dom.window.Event('submit', { cancelable: true, bubbles: true }));
   try { await run({ dom, root, app, query, submit }); }
