@@ -152,6 +152,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       el('p', {}, `${q?.recipientPhone || s.phone} · ${q?.countryCode || s.country}`)), edit);
   }
   const priceSummary = q => details([['Recharge amount', money(q.providerAmount, q.providerCurrency)],
+    ...(q.deliveredValue != null && q.deliveredCurrency ? [['Receiver gets', money(q.deliveredValue, q.deliveredCurrency)]] : []),
     ['FlupFlap fee', money(q.feeUsd, 'USD')], ['Total', money(q.totalChargeUsd, 'USD')]]);
   async function freshQuote() {
     if (quoteRequest) return quoteRequest;
