@@ -472,8 +472,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     alt: 'FlupFlap — Worldwide Mobile Recharge by TiCash-App', width: '2172', height: '724',
   });
   const topbar = el('div', { className: 'recharge-topbar', hidden: '' },
-    el('div', { className: 'recharge-brand-group' }, menuButton,
-      el('a', { className: 'brand ticash-wordmark', href: '/' }, el('span', { className: 'ticash-emblem', 'aria-hidden': 'true' }, icon('globe')), 'TiCash-App')),
+    el('div', { className: 'recharge-brand-group' }, menuButton),
     accountBar);
   topbar.addEventListener('keydown', closeMenus);
   menu.addEventListener('keydown', closeMenus);
