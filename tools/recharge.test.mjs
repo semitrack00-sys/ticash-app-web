@@ -6,6 +6,8 @@ import { checkoutMode } from '../js/checkout-flow.js';
 import { mountRecharge } from '../js/recharge-page.js';
 import { ApiError } from '../js/api-client.js';
 import { fixtureApi, countries, operator, products, quote, transaction, status } from './fixtures.mjs';
+const liveStatus = { ...status, environment: 'PRODUCTION', paymentMode: checkoutMode, testMode: false,
+  productionEnabled: true, approvedForLiveUse: true, liveRechargeEnabled: true };
 
 async function setup() {
   const api = fixtureApi(); const model = new Recharge(api);
@@ -20,12 +22,12 @@ async function flush(times = 6) { for (let index = 0; index < times; index += 1)
 function stripePaymentSession(transactionId = transaction.id) {
   return {
     provider: 'STRIPE',
-    environment: 'SANDBOX',
-    testMode: true,
+    environment: 'PRODUCTION',
+    testMode: false,
     transactionId,
     checkoutSession: {
-      id: 'cs_test_fixture',
-      url: 'https://checkout.stripe.com/c/pay/cs_test_fixture',
+      id: 'cs_live_fixture',
+      url: 'https://checkout.stripe.com/c/pay/cs_live_fixture',
     },
     amountMinor: 800,
     currency: 'USD',
@@ -35,8 +37,8 @@ function stripePaymentSession(transactionId = transaction.id) {
 
 async function setupStripeCheckout({ profileCountry = 'CA', paymentSessionHandler } = {}) {
   const api = fixtureApi();
-  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
-  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /mobile-topups/status', () => (structuredClone(liveStatus)));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: true }] }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: profileCountry } }));
   api.overrides.set('POST /mobile-topups/payment-sessions', paymentSessionHandler || (() => stripePaymentSession()));
   const model = new Recharge(api);
@@ -53,7 +55,7 @@ test('hosted checkout amount must exactly match the server quote; mismatch keeps
   const { model } = await setupStripeCheckout({ paymentSessionHandler: () => ({ ...stripePaymentSession(), amountMinor: 801 }) });
   await reviewed(model);
   await model.confirm();
-  assert.match(model.state.error, /Unable to verify the Stripe sandbox payment amount/);
+  assert.match(model.state.error, /Unable to verify the Stripe payment amount/);
   assert.equal(model.state.checkoutSession, null);
   assert.ok(model.state.attempt);
 });
@@ -66,7 +68,7 @@ test('a replayed hosted session without a resume token is accepted while duplica
   const reservedKey = model.state.attempt.key;
   assert.deepEqual(model.state.checkoutSession, replayedSession);
   await model.confirm();
-  assert.equal(model.state.checkoutSession.checkoutSession.id, 'cs_test_fixture');
+  assert.equal(model.state.checkoutSession.checkoutSession.id, 'cs_live_fixture');
   assert.equal(Object.hasOwn(model.state.checkoutSession, 'checkoutResumeToken'), false);
   const calls = api.calls.filter(call => call.path === '/mobile-topups/payment-sessions');
   assert.equal(calls.length, 1);
@@ -74,10 +76,10 @@ test('a replayed hosted session without a resume token is accepted while duplica
   assert.equal(api.calls.some(call => call.method === 'POST' && call.path === '/mobile-topups/transactions'), false);
 });
 
-test('Stripe checkout allows authenticated guest sessions to complete sandbox payment', async () => {
+test('Stripe checkout allows authenticated guest sessions to complete live payment', async () => {
   const api = fixtureApi();
-  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
-  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /mobile-topups/status', () => (structuredClone(liveStatus)));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: true }] }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'guest-1', isGuest: true, firstName: 'Guest', lastName: 'Session', countryCode: 'CA' } }));
   api.overrides.set('POST /mobile-topups/payment-sessions', () => stripePaymentSession());
 
@@ -96,11 +98,11 @@ test('Stripe checkout allows authenticated guest sessions to complete sandbox pa
   assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 1);
 });
 
-test('Stripe checkout blocks missing or invalid account sessions before sandbox payment', () => {
+test('Stripe checkout blocks missing or invalid account sessions before live payment', () => {
   const api = fixtureApi();
   const model = new Recharge(api);
   model.state.paymentMode = checkoutMode;
-  model.state.paymentMethods = [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }];
+  model.state.paymentMethods = [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: true }];
   model.setAccount(null, true);
 
   assert.match(model.checkoutBlocked(), /Sign in|valid.*session/i);
@@ -109,10 +111,10 @@ test('Stripe checkout blocks missing or invalid account sessions before sandbox 
   assert.match(model.checkoutBlocked(), /Sign in|valid.*session/i);
 });
 
-test('expired or invalid guest session fails closed before Stripe sandbox payment', () => {
+test('expired or invalid guest session fails closed before Stripe live payment', () => {
   const model = new Recharge(fixtureApi());
   model.state.paymentMode = checkoutMode;
-  model.state.paymentMethods = [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }];
+  model.state.paymentMethods = [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: true }];
   model.state.profileLoaded = true;
   model.state.accountCountry = 'CA';
   model.setAccount(null, true);
@@ -131,13 +133,13 @@ test('unavailable Stripe payment method fails closed', () => {
   model.state.accountCountry = 'CA';
   model.setAccount({ id: 'user-1' }, false);
 
-  assert.match(model.checkoutBlocked(), /Sandbox card payments are unavailable|test mode|enabled/i);
+  assert.match(model.checkoutBlocked(), /Card payments are unavailable|test mode|enabled/i);
 });
 
 test('backend payment-session failure fails closed and does not report payment success', async () => {
   const api = fixtureApi();
-  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
-  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /mobile-topups/status', () => (structuredClone(liveStatus)));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: true }] }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
   api.overrides.set('POST /mobile-topups/payment-sessions', () => {
     throw new ApiError('PAYMENT_SESSION_FAILED', 'Payment session failed', 500);
@@ -170,9 +172,9 @@ test('normalizes international input and rejects local or malformed phone number
   assert.equal(internationalPhone('00 1 (876) 555-1234'), '+18765551234');
   for (const phone of ['8765551234', '+0 123456789', '+1<script>', '+12']) assert.throws(() => internationalPhone(phone));
 });
-test('test safety gates accept only MOCK and Stripe sandbox payment modes', () => {
+test('test safety gates accept only MOCK and Stripe live payment modes', () => {
   assert.doesNotThrow(() => assertTestService({ ...status, paymentMode: 'MOCK' }));
-  assert.doesNotThrow(() => assertTestService({ ...status, paymentMode: checkoutMode }));
+  assert.doesNotThrow(() => assertTestService(structuredClone(liveStatus)));
   for (const unsafe of ['LIVE', 'CARD', '', null]) {
     assert.throws(() => assertTestService({ ...status, paymentMode: unsafe }));
   }
@@ -308,12 +310,12 @@ test('Stripe checkout reserves payment-session with idempotency and never posts 
   assert.match(paymentCalls[0].headers['Idempotency-Key'], /^[0-9a-f-]{36}$/i);
   assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
   assert.equal(model.state.attempt?.transactionId, transaction.id);
-  assert.equal(model.state.checkoutSession.checkoutSession.url, 'https://checkout.stripe.com/c/pay/cs_test_fixture');
+  assert.equal(model.state.checkoutSession.checkoutSession.url, 'https://checkout.stripe.com/c/pay/cs_live_fixture');
 });
 test('guest Stripe checkout requires explicit temporary billing country and never patches profile', async () => {
   const api = fixtureApi();
-  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
-  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /mobile-topups/status', () => (structuredClone(liveStatus)));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: true }] }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'guest-1', isGuest: true, firstName: 'Guest', lastName: 'Session', countryCode: 'CA' } }));
   api.overrides.set('POST /mobile-topups/payment-sessions', (path, options) => {
     assert.equal(options.body.quoteId, quote.id);
@@ -356,7 +358,7 @@ test('Stripe checkout uses billing country from account profile, not recharge de
 });
 test('Stripe checkout accepts CARD payment methods from backend type contract and proceeds without unavailable message', async () => {
   const api = fixtureApi();
-  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
+  api.overrides.set('GET /mobile-topups/status', () => (structuredClone(liveStatus)));
   api.overrides.set('GET /mobile-topups/payment-methods', () => ({
     methods: [{
       type: 'CARD',
@@ -379,11 +381,11 @@ test('Stripe checkout accepts CARD payment methods from backend type contract an
   await reviewed(model);
 
   assert.equal(model.checkoutBlocked(), '');
-  assert.doesNotMatch(model.state.paymentMethodsError, /Sandbox card payments are unavailable\./);
+  assert.doesNotMatch(model.state.paymentMethodsError, /Card payments are unavailable\./);
 
   await model.confirm();
   assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 1);
-  assert.doesNotMatch(model.state.error, /Sandbox card payments are unavailable\./);
+  assert.doesNotMatch(model.state.error, /Card payments are unavailable\./);
 });
 test('malformed Stripe payment session keeps checkout attempt locked to same idempotent reservation', async () => {
   const { model, api } = await setupStripeCheckout({ paymentSessionHandler: () => ({ provider: 'STRIPE', environment: 'SANDBOX' }) });
@@ -432,8 +434,8 @@ test('payment-session replay/in-progress recovery keeps the same locked idempote
 });
 test('page-level hosted checkout mounts once and never posts browser fulfillment', async () => {
   const api = fixtureApi();
-  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
-  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /mobile-topups/status', () => (structuredClone(liveStatus)));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: true }] }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
   api.overrides.set('POST /mobile-topups/payment-sessions', () => stripePaymentSession());
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
@@ -469,8 +471,8 @@ test('page-level hosted checkout mounts once and never posts browser fulfillment
 });
 test('hosted checkout session creation surfaces safe error and still never performs browser fulfillment POST', async () => {
   const api = fixtureApi();
-  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: checkoutMode }));
-  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /mobile-topups/status', () => (structuredClone(liveStatus)));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: true }] }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
   api.overrides.set('POST /mobile-topups/payment-sessions', () => { throw new ApiError('PAYMENT_SESSION_FAILED', 'Unable to create session', 500); });
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
