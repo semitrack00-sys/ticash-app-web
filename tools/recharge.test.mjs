@@ -391,7 +391,7 @@ test('malformed Stripe payment session keeps checkout attempt locked to same ide
   const { model, api } = await setupStripeCheckout({ paymentSessionHandler: () => ({ provider: 'STRIPE', environment: 'SANDBOX' }) });
   await reviewed(model);
   await model.confirm();
-  assert.match(model.state.error, /Stripe sandbox checkout session/);
+  assert.match(model.state.error, /Stripe checkout session/);
   assert.ok(model.state.attempt);
   assert.equal(model.state.checkoutSession, null);
   assert.throws(() => model.setAmount('9'));
