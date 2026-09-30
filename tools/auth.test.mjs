@@ -221,6 +221,16 @@ test('FlupFlap detection preserves encoded international phone query parameters'
 });
 
 
+test('FlupFlap silent restore does not show session-expired alert when no cookie session exists', async () => {
+  let expired=0;
+  const api=createApiClient({baseUrl:'https://test.example/api',identityDomain:'FLUPFLAP',onSessionExpired:()=>expired++,fetchImpl:async(url)=>{
+    if(url.endsWith('/refresh')) return json({code:'INVALID_REFRESH',error:'No active session'},401);
+    throw new Error('unexpected request');
+  }});
+  assert.equal(await api.restore(),null);
+  assert.equal(expired,0);
+});
+
 test('FlupFlap web session uses credentialed HttpOnly-cookie refresh without browser token storage', async () => {
   const calls=[]; const flup={accessToken:'fresh-access',refreshToken:'rotated-server-token',user:{id:'flup',domain:'FLUPFLAP',guest:false}};
   const api=createApiClient({baseUrl:'https://test.example/api',identityDomain:'FLUPFLAP',fetchImpl:async(url,options)=>{calls.push({url,...options}); if(url.endsWith('/refresh')) return json(flup); if(url.endsWith('/me')) return json({user:flup.user}); return json(flup);}});

@@ -73,13 +73,13 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
     refreshToken = data.refreshToken;
   }
 
-  async function refresh(version) {
+  async function refresh(version, { notifyOnFailure = true } = {}) {
     if (!refreshToken && !flupflap) throw new ApiError('UNAUTHENTICATED', 'Please sign in to continue.', 401);
     if (!refreshFlight) {
       const pending = send(`${auth}/refresh`, { method: 'POST', body: flupflap && !refreshToken ? {} : { refreshToken } })
         .then((data) => acceptTokens(data, version))
         .catch(() => {
-          if (version === sessionVersion) clear(true);
+          if (version === sessionVersion) clear(notifyOnFailure);
           throw new ApiError('SESSION_EXPIRED', 'Your session expired. Please sign in again.', 401);
         });
       refreshFlight = pending;
@@ -143,7 +143,7 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
       if (!flupflap) return null;
       const version = sessionVersion;
       try {
-        await refresh(version);
+        await refresh(version, { notifyOnFailure: false });
         return (await send('/flupflap/auth/me', { headers: { Authorization: `Bearer ${accessToken}` } })).user;
       } catch { return null; }
     },
