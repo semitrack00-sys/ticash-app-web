@@ -425,7 +425,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const reviewPanel = el('section', { className: 'panel checkout-step review-panel', open: '', 'data-checkout-step': '3', 'aria-labelledby': 'review-title' },
     cardHeading('receipt', '3. REVIEW & CONFIRM', 'Review & Pay', 'review-title'),
     reviewContent, expiry, billingStep, paymentAvailability, profileRetry, reviewCheck, confirmButton, recoveryNote, flowPanel,
-    el('p', { className: 'review-helper small muted' }, icon('info'), ui('TEST MODE · No real payment is collected. Prices, fees, and availability are supplied by TiCash.')));
+    el('p', { className: 'review-helper small muted' }, icon('info'), ui('LIVE RECHARGE · Secure payment is processed by Stripe. Prices, fees, and availability are supplied by TiCash.')));
   // Keep existing fieldsets and event bindings; only group their presentation.
   destinationPanel.append(operatorControls);
   const coverageList = el('div', { className: 'coverage-list' });
