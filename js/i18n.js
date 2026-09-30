@@ -3,14 +3,34 @@ import ht from './translations/ht.js';
 import fr from './translations/fr.js';
 import es from './translations/es.js';
 import pt from './translations/pt.js';
+import ar from './translations/ar.js';
+import de from './translations/de.js';
+import it from './translations/it.js';
+import hi from './translations/hi.js';
+import zh from './translations/zh.js';
+import ja from './translations/ja.js';
+import ko from './translations/ko.js';
+import ru from './translations/ru.js';
+import tr from './translations/tr.js';
+import sw from './translations/sw.js';
 
-export const translations = Object.freeze({ en, ht, fr, es, pt });
+export const translations = Object.freeze({ en, ht, fr, es, pt, ar, de, it, hi, zh, ja, ko, ru, tr, sw });
 const languages = Object.freeze([
   { code: 'en', name: 'English', locale: 'en-US' },
   { code: 'ht', name: 'Kreyòl Ayisyen', locale: 'ht-HT' },
   { code: 'fr', name: 'Français', locale: 'fr-FR' },
   { code: 'es', name: 'Español', locale: 'es-ES' },
   { code: 'pt', name: 'Português', locale: 'pt-BR' },
+  { code: 'ar', name: 'العربية', locale: 'ar' },
+  { code: 'de', name: 'Deutsch', locale: 'de-DE' },
+  { code: 'it', name: 'Italiano', locale: 'it-IT' },
+  { code: 'hi', name: 'हिन्दी', locale: 'hi-IN' },
+  { code: 'zh', name: '简体中文', locale: 'zh-CN' },
+  { code: 'ja', name: '日本語', locale: 'ja-JP' },
+  { code: 'ko', name: '한국어', locale: 'ko-KR' },
+  { code: 'ru', name: 'Русский', locale: 'ru-RU' },
+  { code: 'tr', name: 'Türkçe', locale: 'tr-TR' },
+  { code: 'sw', name: 'Kiswahili', locale: 'sw-KE' },
 ].map(Object.freeze));
 const englishKeys = new Map(Object.entries(en).map(([key, value]) => [value, key]));
 const listeners = new Set();
@@ -34,14 +54,20 @@ export function initializeLanguage(doc = globalThis.document) {
     saved = preferenceStorage?.getItem('ticash.language');
   } catch { /* Storage may be blocked; language switching still works in memory. */ }
   language = detectLanguage(saved, doc?.defaultView?.navigator?.languages || []);
-  if (doc) doc.documentElement.lang = language;
+  if (doc) {
+    doc.documentElement.lang = language;
+    doc.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+  }
 }
 export function supportedLanguages() { return languages; }
 export function getLanguage() { return language; }
 export function languageLocale() { return languages.find((item) => item.code === language).locale; }
 export function setLanguage(code) {
   language = supported(code) || 'en';
-  if (languageDocument) languageDocument.documentElement.lang = language;
+  if (languageDocument) {
+    languageDocument.documentElement.lang = language;
+    languageDocument.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+  }
   try { preferenceStorage?.setItem('ticash.language', language); } catch { /* Nonessential preference. */ }
   for (const listener of listeners) listener();
 }
