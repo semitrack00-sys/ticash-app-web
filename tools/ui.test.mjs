@@ -23,7 +23,7 @@ async function page(callback, { api = fixtureApi(), config = { mobileRechargeLiv
 }
 
 test('UI renders backend mode, legitimate sign-in and no card inputs', async () => page(async ({ query, root, login }) => {
-  assert.match(root.textContent, /TEST MODE/); assert.equal(query('#checkout').hidden, true);
+  assert.match(root.textContent, /Secure recharge/); assert.equal(query('#checkout').hidden, true);
   assert.equal(root.querySelectorAll('input[type=password]').length, 4);
   assert.doesNotMatch(root.textContent, /CVV|card number/i);
   await login(); assert.equal(query('#checkout').hidden, false); assert.equal(query('#password').value, '');
