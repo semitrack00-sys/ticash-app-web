@@ -102,8 +102,16 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     n.operatorControls.querySelector('.operator-actions'), n.operatorPicker.closest('.field'));
   n.destinationControls.append(fallbackControls);
   const backButton = button('Back', () => {
-    if (typeof globalThis.history?.back === 'function') globalThis.history.back();
-    else if (screen !== 'number') show('number');
+    const previousScreen = screen === 'pay' ? 'amount' : screen === 'amount' ? 'number' : null;
+    if (previousScreen) {
+      show(previousScreen);
+      return;
+    }
+    if (typeof globalThis.history?.back === 'function' && globalThis.history.length > 1) {
+      globalThis.history.back();
+    } else {
+      globalThis.location?.assign?.('/');
+    }
   }, true);
   backButton.id = 'journey-back';
   backButton.classList.add('text-action', 'journey-back');
