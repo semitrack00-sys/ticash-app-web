@@ -107,6 +107,8 @@ test('guest enters protected checkout, sees temporary history notice and can cho
     assert.match(root.textContent, /Guest/); assert.equal(query('#guest-note').hidden, false);
     assert.match(query('#guest-note').textContent, /Guest history is temporary/);
     assert.ok(api.calls.some((c) => c.path === '/mobile-topups/countries'));
+    assert.equal(query('.test-banner').contains(query('#guest-create-account')), false);
+    assert.equal(query('.account-dropdown').contains(query('#guest-create-account')), true);
     query('#guest-create-account').click(); await tick();
     assert.equal(logouts, 1); assert.equal(query('#checkout').hidden, true); assert.equal(query('#register-form').hidden, false);
   }, { api });
