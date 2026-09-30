@@ -287,7 +287,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const accountMode = el('small');
   const accountBar = el('details', { className: 'account-bar', hidden: '' },
     el('summary', { className: 'account-summary' }, icon('user'), el('span', {}, accountLabel, accountMode), icon('chevron')),
-    el('div', { className: 'account-dropdown' }, logout));
+    el('div', { className: 'account-dropdown' }, createFromGuest, logout));
   const countrySearchInput = el('input', { id: 'country-search', type: 'search', 'aria-label': t('Search countries'), 'data-i18n-aria-label': 'Search countries', placeholder: t('Country, ISO code, or calling code'), 'data-i18n-placeholder': 'Country, ISO code, or calling code', autocomplete: 'off' });
   const country = el('select', { id: 'country', required: '', className: 'country-native-select', tabindex: '-1', 'aria-hidden': 'true' });
   const countryPickerButton = el('button', {
@@ -500,7 +500,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const testTitle = el('strong'); const testText = el('span');
   const testIcon = el('span', { className: 'test-icon' }, el('img', { src: '/brand/flupflap/icon.svg', alt: 'FlupFlap', width: '18', height: '18' }));
   const testBanner = el('div', { className: 'test-banner', role: 'note' }, testIcon,
-    el('div', { className: 'test-copy' }, testTitle, testText), createFromGuest);
+    el('div', { className: 'test-copy' }, testTitle, testText));
   const mainArea = el('div', { className: 'flupflap-main-content' }, hero, testBanner, error, notice, loginPanel, checkout);
   const shell = el('div', { className: 'flupflap-app-shell' }, topbar, menu, sidebar, mainArea);
   root.replaceChildren(shell);
@@ -526,6 +526,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     }
     if (!signedIn) { menu.hidden = true; menuButton.setAttribute('aria-expanded', 'false'); accountBar.open = false; }
     const liveRecharge = s.testMode === false && s.paymentMode === checkoutMode;
+    testBanner.hidden = signedIn && liveRecharge;
     testTitle.hidden = liveRecharge;
     testText.hidden = liveRecharge;
     testTitle.textContent = t(signedIn ? 'You’re in test mode' : 'Secure recharge');
