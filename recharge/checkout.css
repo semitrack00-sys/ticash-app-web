@@ -382,3 +382,47 @@ body:has(.recharge-journey.recharge-active){background:#f1f6fd}
 .recharge-journey.recharge-active .flupflap-app-shell:has(>.recharge-navigation:not([hidden]))>.flupflap-main-content,.recharge-journey.recharge-active .flupflap-app-shell:has(>.recharge-navigation:not([hidden]))>.flupflap-sidebar{display:none}
 .recharge-journey.recharge-active .recharge-navigation{min-height:540px;justify-content:flex-start;background:#f8fbff}
 .recharge-journey.recharge-active .recharge-navigation .language-picker{margin-top:12px}
+
+
+/* Compact mobile recharge journey only. Keep the approved signed-out login surface unchanged. */
+@media(max-width:480px){
+  .recharge-journey.recharge-active .flupflap-main-content{padding:8px 10px;gap:8px}
+  .recharge-journey.recharge-active .journey-brand{padding:6px 10px 4px;border-radius:12px}
+  .recharge-journey.recharge-active .journey-brand .recharge-brand-logo{width:230px}
+  .recharge-journey.recharge-active .journey-brand p{margin-top:2px;font-size:11px;line-height:1.35}
+  .recharge-journey.recharge-active .checkout-progress{margin:2px 0 10px}
+  .recharge-journey.recharge-active .checkout-progress li{gap:3px;font-size:10px}
+  .recharge-journey.recharge-active .checkout-progress .progress-number{width:25px;height:25px;font-size:12px}
+  .recharge-journey.recharge-active .checkout-progress li:not(:last-child):after{top:12px}
+  .recharge-journey.recharge-active .checkout-step,
+  .recharge-journey.recharge-active .journey-screen,
+  .recharge-journey.recharge-active .receipt{padding:12px}
+  .recharge-journey.recharge-active h2{font-size:20px;margin-bottom:8px}
+  .recharge-journey.recharge-active .field{margin-bottom:10px;gap:4px}
+  .recharge-journey.recharge-active .saved-recipients{margin-bottom:4px}
+  .recharge-journey.recharge-active .operator-actions{margin-bottom:8px}
+  .recharge-journey.recharge-active .product-kinds{margin-bottom:8px}
+  .recharge-journey.recharge-active .product-tiles{gap:6px;margin-bottom:10px}
+  .recharge-journey.recharge-active .product-tile{min-height:76px;padding:8px 5px}
+  .recharge-journey.recharge-active .journey-recipient{padding:7px 0 10px;margin-bottom:10px}
+  .recharge-journey.recharge-active .details{margin:8px 0;padding:7px 10px 0}
+  .recharge-journey.recharge-active .details>div{padding:4px 0;font-size:13px}
+  .recharge-journey.recharge-active #amount-summary .details>div:last-child,
+  .recharge-journey.recharge-active #quote-details .details>div:last-child{padding:9px 0 3px;margin-top:4px;font-size:18px}
+  .recharge-journey.recharge-active .review-check{margin:8px 0}
+  .recharge-journey.recharge-active #continue-number{margin-top:12px}
+  .recharge-journey.recharge-active .message{padding:8px 10px}
+  .recharge-journey.recharge-active .journey-result-symbol{width:54px;height:54px;font-size:29px;margin-bottom:10px}
+  .recharge-journey.recharge-active .journey-full-receipt{margin-top:8px}
+  .recharge-journey.recharge-active .receipt>.button{margin:5px 0}
+  .recharge-journey.recharge-active .history-view{padding:10px 12px}
+}
+/* Preserve accessible touch targets even with the tighter visual rhythm. */
+@media(max-width:480px){
+  .recharge-journey.recharge-active button,
+  .recharge-journey.recharge-active .button,
+  .recharge-journey.recharge-active input,
+  .recharge-journey.recharge-active select,
+  .recharge-journey.recharge-active .country-picker-button,
+  .recharge-journey.recharge-active .operator-picker-button{min-height:44px}
+}
