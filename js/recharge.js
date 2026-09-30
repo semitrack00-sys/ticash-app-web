@@ -45,13 +45,17 @@ export function secureId(crypto = globalThis.crypto) {
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
-export function assertTestService(status) {
-  if (status?.environment !== 'PRODUCTION' || status.paymentMode !== checkoutMode || status.testMode !== false ||
-      status.productionEnabled !== true || status.approvedForLiveUse !== true || status.liveRechargeEnabled !== true) {
-    throw new ApiError('UNSAFE_ENVIRONMENT', 'Recharge is unavailable: this service has not confirmed production mode.');
+export function assertRechargeService(status) {
+  const sandboxMock = status?.environment === 'SANDBOX' && status.paymentMode === 'MOCK' && status.testMode === true &&
+    status.productionEnabled === false && status.approvedForLiveUse === false && status.liveRechargeEnabled === false;
+  const productionLive = status?.environment === 'PRODUCTION' && status.paymentMode === checkoutMode && status.testMode === false &&
+    status.productionEnabled === true && status.approvedForLiveUse === true && status.liveRechargeEnabled === true;
+  if (!sandboxMock && !productionLive) {
+    throw new ApiError('UNSAFE_ENVIRONMENT', 'Recharge is unavailable: the service configuration is not a coherent approved environment.');
   }
   if (!status.enabled) throw new ApiError('MOBILE_TOPUP_DISABLED', 'Mobile recharge is currently disabled. Please try again later.');
 }
+export const assertTestService = assertRechargeService;
 function array(data, key) {
   if (!Array.isArray(data?.[key])) throw invalid('The service returned an incomplete catalog.');
   return data[key];
@@ -92,7 +96,7 @@ export class Recharge {
       category: '', product: null, amount: '', quote: null, reviewed: false, transaction: null, history: [], recipients: [],
       attempt: null, submitting: false, error: '', notice: '', historyError: '', recipientsError: '' };
     Object.assign(this.state, { paymentMode: null, paymentMethods: [], paymentMethodsError: '', account: null,
-      guest: true, profileLoaded: false, profileError: '', accountCountry: '', billingCountry: '', checkoutSession: null, userProfile: null });
+      guest: true, profileLoaded: false, profileError: '', accountCountry: '', billingCountry: '', checkoutSession: null, userProfile: null, environment: null, testMode: null });
     this.emit();
   }
   emit() { this.onChange(this.state, this.busy); }
@@ -121,7 +125,7 @@ export class Recharge {
   async loadPaymentMethods(active) {
     try {
       const methods = array(await this.api.request(`${root}/payment-methods`), 'methods');
-      if (methods.some((method) => !method || typeof method.type !== 'string')) throw invalid('Sandbox card payments are unavailable.');
+      if (methods.some((method) => !method || typeof method.type !== 'string')) throw invalid('Card payments are unavailable.');
       if (active()) { this.state.paymentMethods = methods; this.state.paymentMethodsError = ''; }
     } catch (error) {
       if (active()) { this.state.paymentMethods = []; this.state.paymentMethodsError = error.message; }
@@ -160,7 +164,7 @@ export class Recharge {
   async saveAccountCountry(value) {
     this.editable();
     return this.run('profile', async (active) => {
-      if (this.state.paymentMode !== checkoutMode || !this.state.account) throw invalid('Sign in to a valid account session to use Stripe sandbox card payments.');
+      if (this.state.paymentMode !== checkoutMode || !this.state.account) throw invalid('Sign in to a valid account session to use Stripe card payments.');
       const countryCode = value.trim().toUpperCase();
       if (!/^[A-Z]{2}$/.test(countryCode)) throw invalid('Enter your two-letter account/billing country code.');
       const profile = this.state.userProfile;
@@ -197,10 +201,10 @@ export class Recharge {
   async start() {
     await this.run('catalog', async (active) => {
       const status = await this.api.request(`${root}/status`);
-      assertTestService(status);
+      assertRechargeService(status);
       if (!active()) return;
       if (this.state.attempt && this.state.paymentMode !== status.paymentMode) throw invalid('Payment mode changed. Refresh transaction status before starting another recharge.');
-      this.state.paymentMode = status.paymentMode;
+      this.state.paymentMode = status.paymentMode; this.state.environment = status.environment; this.state.testMode = status.testMode;
       await this.loadPaymentMethods(active);
       if (!active()) return;
       if (status.paymentMode === checkoutMode) await this.loadProfile(active);
@@ -325,7 +329,7 @@ export class Recharge {
       let transaction;
       try {
         const status = await this.api.request(`${root}/status`);
-        assertTestService(status);
+        assertRechargeService(status);
         if (status.paymentMode !== 'MOCK') throw new ApiError('UNSAFE_ENVIRONMENT', 'Payment mode changed. Retry connection before confirming.');
         ({ transaction } = await this.api.request(`${root}/transactions`, {
           method: 'POST', body: attempt.body, headers: { 'Idempotency-Key': attempt.key },
