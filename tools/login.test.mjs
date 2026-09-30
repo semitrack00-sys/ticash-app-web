@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { mountRecharge } from '../js/recharge-page.js';
 import { fixtureApi } from './fixtures.mjs';
@@ -8,6 +8,21 @@ import { setLanguage, t } from '../js/i18n.js';
 
 const pages = Object.fromEntries(['login', 'recharge'].map(route => [route, readFileSync(new URL(`../${route}/index.html`, import.meta.url), 'utf8')]));
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+
+test('login illustration reuses production artwork and remains decorative with no account controls', () => {
+  const css = readFileSync(new URL('../login/login.css', import.meta.url), 'utf8');
+  const assets = [...css.matchAll(/url\(['"]?(\/brand\/[^)'"\s]+)['"]?\)/g)].map(match => match[1]);
+  assert.ok(assets.length > 0);
+  for (const asset of assets) assert.ok(existsSync(new URL(`..${asset}`, import.meta.url)), `Missing production asset ${asset}`);
+  for (const html of Object.values(pages)) {
+    const dom = new JSDOM(html);
+    const art = dom.window.document.querySelector('.login-world-art');
+    assert.equal(art.getAttribute('aria-hidden'), 'true');
+    assert.equal(art.querySelectorAll('a,button,input,[tabindex]').length, 0);
+    assert.equal(art.querySelectorAll('span').length, 4);
+    dom.window.close();
+  }
+});
 async function loginPage(run, api = fixtureApi(), route = 'login') {
   const dom = new JSDOM(pages[route], { url: `https://website.example/${route}` });
   globalThis.document = dom.window.document;
@@ -22,6 +37,25 @@ async function loginPage(run, api = fixtureApi(), route = 'login') {
 }
 
 for (const route of ['login', 'recharge']) {
+test(`${route}: strict login visual order preserves labelled fields, account actions and authenticated transition`, async () => {
+  const api = fixtureApi();
+  await loginPage(async ({ dom, query, submit }) => {
+    const order = ['.site-header','.login-service','.login-world-art','#login-title','.auth-intro',
+      'label[for=email]','#email','label[for=password]','#password','#forgot-password',
+      '#login-form button[type=submit]','.login-divider','#continue-guest','#choose-register'];
+    for (let i = 1; i < order.length; i++) {
+      assert.ok(query(order[i - 1]).compareDocumentPosition(query(order[i])) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING,
+        `${order[i]} must follow ${order[i - 1]}`);
+    }
+    assert.equal(query('#password-visibility').getAttribute('aria-controls'), 'password');
+    assert.equal(query('.login-service img').getAttribute('alt'), 'FlupFlap');
+    query('#email').value = 'tester@example.com'; query('#password').value = 'test-password';
+    submit('#login-form'); await tick();
+    assert.equal(query('.checkout-main').classList.contains('recharge-active'), true);
+    assert.equal(query('.login-panel').hidden, true);
+    assert.equal(query('#checkout').hidden, false);
+  }, api, route);
+});
 test(`${route}: real login markup preserves credentials, busy state, in-memory transition and redirect`, async () => {
   const api = fixtureApi(); let resolveLogin; let credentials;
   api.login = (...args) => { credentials = args; return new Promise(resolve => { resolveLogin = resolve; }); };

@@ -24,19 +24,26 @@ body:not(:has(.recharge-active)) .site-header .language-picker select{width:112p
 .login-service img{display:block;width:100%;height:auto;clip-path:polygon(0 0,100% 0,100% 75%,24% 75%,24% 100%,0 100%);margin-bottom:-17px}
 .login-service span{display:block;margin-inline-start:27px;position:relative;color:#7983a6;font-size:12px;line-height:1.4;white-space:nowrap}
 /* Crop the existing production artwork in CSS, without copying a screenshot into the page. */
-.login-world-art{position:relative;width:232px;height:145px;margin:6px auto 4px;transform:scale(.9);transform-origin:center top;pointer-events:none;isolation:isolate}
-.login-world-art::before{content:'';position:absolute;inset:9px 3px 10px;border-radius:46%;background:radial-gradient(ellipse at 18% 58%,#9adefb99,transparent 65%),radial-gradient(ellipse at 85% 45%,#ffc3f299,transparent 65%)}
-.login-world-art>span{position:absolute;display:block;background-image:url('/brand/flupflap/flupflap-login-phone-globe-mobile.png');background-repeat:no-repeat}
-.login-art-phone{width:81px;height:157px;left:76px;top:0;background-size:224px 224px;background-position:-73px -57px;clip-path:polygon(12% 1%,90% 3%,94% 6%,100% 94%,95% 98%,5% 99%,0 95%,2% 8%);filter:drop-shadow(0 3px 3px #25245925)}
-.login-art-call{width:39px;height:39px;left:29px;top:30px;background-size:204px 204px;background-position:-25px -16px;border-radius:50%}
-.login-art-mobile{width:41px;height:41px;right:27px;top:26px;background-size:213px 213px;background-position:-155px -22px;border-radius:50%}
-.login-art-network{width:42px;height:42px;right:19px;top:86px;background-size:215px 215px;background-position:-170px -102px;border-radius:50%}
+.login-world-art{position:relative;width:220px;height:143px;margin:4px auto 5px;pointer-events:none;isolation:isolate}
+.login-world-art::before{content:'';position:absolute;inset:3px 5px 4px;border-radius:46%;background:radial-gradient(ellipse at 20% 57%,#b2e7fb9c,transparent 64%),radial-gradient(ellipse at 88% 47%,#ffd0f69c,transparent 64%)}
+.login-world-art>span{position:absolute;display:block}
+/* Reuse only the phone from the production artwork. The surrounding icons are
+   crisp CSS/SVG decorations, so no fragments of the old globe show at their edges. */
+.login-art-phone{width:74px;height:143px;left:73px;top:0;background:url('/brand/flupflap/flupflap-login-phone-globe-mobile.png') -67px -52px/204px 204px no-repeat;clip-path:polygon(12% 1%,90% 3%,94% 6%,100% 94%,95% 98%,5% 99%,0 95%,2% 8%)}
+.login-art-call,.login-art-mobile,.login-art-network{border-radius:50%;box-shadow:0 3px 7px #244f8c1f}
+.login-art-call{width:35px;height:35px;left:32px;top:27px;background:linear-gradient(145deg,#00c9ff,#0077ff 75%)}
+.login-art-mobile{width:35px;height:35px;right:34px;top:22px;background:linear-gradient(145deg,#ff40c4,#e900b5 75%)}
+.login-art-network{width:38px;height:38px;right:27px;top:77px;background:linear-gradient(145deg,#9745ff,#7100ee 75%)}
+.login-art-call::before,.login-art-mobile::before,.login-art-network::before{content:'';position:absolute;inset:8px;background:#fff;mask-position:center;mask-size:contain;mask-repeat:no-repeat}
+.login-art-call::before{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M5 2 1 6c1 9 8 16 17 17l4-4-6-5-3 3c-3-1-5-3-6-6l3-3Z'/%3E%3C/svg%3E")}
+.login-art-mobile::before{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect x='5' y='1' width='14' height='22' rx='2'/%3E%3Cpath d='M6 15h12M8 18h1m3 0h1m3 0h1M8 21h1m3 0h1m3 0h1'/%3E%3C/svg%3E")}
+.login-art-network::before{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='6' r='1'/%3E%3Cpath d='m12 8-5 14m5-14 5 14M9 17l6 4m0-4-6 4M8 2a6 6 0 0 0 0 8m8-8a6 6 0 0 1 0 8M5 1a9 9 0 0 0 0 12M19 1a9 9 0 0 1 0 12'/%3E%3C/svg%3E")}
 .login-layout .checkout-main:not(.recharge-active){width:100%;min-width:0;max-width:none;padding:0;margin:0}
 .login-layout .checkout-main:not(.recharge-active) .flupflap-main-content{padding:0;display:flex;flex-direction:column;gap:0}
 .login-layout .checkout-main:not(.recharge-active) .test-banner{display:none} /* Only the redundant signed-out prompt; authenticated TEST MODE remains untouched. */
 .login-layout .checkout-main:not(.recharge-active) .login-panel{display:block;max-width:none;width:100%;margin:0;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent}
-.login-layout .checkout-main:not(.recharge-active) .login-panel h1{font:800 30px/1.2 Manrope,sans-serif;text-align:center;color:#080e47;margin:0 0 4px;letter-spacing:-.035em}
-.login-layout .checkout-main:not(.recharge-active) .auth-intro{font-size:13px;line-height:1.5;text-align:center;color:#7b85a8;margin:0 -10px 20px}
+.login-layout .checkout-main:not(.recharge-active) .login-panel h1{font:800 28px/1.2 Manrope,sans-serif;text-align:center;color:#080e47;margin:0 0 4px;letter-spacing:-.035em}
+.login-layout .checkout-main:not(.recharge-active) .auth-intro{font-size:13px;line-height:1.5;text-align:center;color:#7b85a8;margin:0 -10px 16px}
 .login-layout .checkout-main:not(.recharge-active) .field{position:relative;display:block;margin-bottom:12px}
 .login-layout .checkout-main:not(.recharge-active) .field label{display:block;font-size:13px;font-weight:500;color:#080e47;margin:0 0 4px}
 .login-layout .checkout-main:not(.recharge-active) input{width:100%;min-height:44px;border:1px solid #cad3e8;background:#ffffffaa;border-radius:10px;padding:10px 12px;color:#080e47;font:400 13px 'DM Sans',sans-serif;box-shadow:none}
@@ -47,7 +54,7 @@ body:not(:has(.recharge-active)) .site-header .language-picker select{width:112p
 .login-layout .checkout-main:not(.recharge-active) .password-control:has(#password)::before{z-index:1;mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6'%3E%3Crect x='4' y='10' width='16' height='12' rx='2'/%3E%3Cpath d='M7 10V7a5 5 0 0 1 10 0v3M12 15v4'/%3E%3C/svg%3E")}
 .login-layout .checkout-main:not(.recharge-active) .password-control input{padding-inline-end:70px}
 .login-layout .checkout-main:not(.recharge-active) .password-control .button{position:absolute;inset-inline-end:4px;top:0;border:0;box-shadow:none;background:transparent;color:#0077ff;min-height:44px;font-size:13px;font-weight:700;padding:8px}
-.login-layout .checkout-main:not(.recharge-active) #forgot-password{display:block;width:auto;color:#0077ff;margin:-5px 0 9px auto;font-size:13px;font-weight:400;text-decoration:underline;box-shadow:none;background:transparent;border:0;border-radius:4px;min-height:30px;padding:3px 0}
+.login-layout .checkout-main:not(.recharge-active) #forgot-password{display:block;width:auto;color:#0077ff;margin:-8px 0 9px auto;font-size:13px;font-weight:400;text-decoration:underline;box-shadow:none;background:transparent;border:0;border-radius:4px;min-height:32px;padding:3px 0}
 .login-layout .checkout-main:not(.recharge-active) button[type=submit]{position:relative;width:100%;min-height:46px;margin:0;background:linear-gradient(110deg,#00bbed,#0874ff 80%,#00b4f4);color:white;border:0;border-radius:16px;font-size:16px;font-weight:700;box-shadow:none;padding:10px 42px}
 .login-layout .checkout-main:not(.recharge-active) #login-form button[type=submit]::after{content:'→';position:absolute;inset-inline-end:20px;top:50%;transform:translateY(-52%);font:300 27px/1 sans-serif}
 .login-divider{display:flex;align-items:center;gap:12px;color:#7b85a8;font-size:13px;margin:14px 0}
@@ -60,6 +67,7 @@ body:not(:has(.recharge-active)) .site-header .language-picker select{width:112p
 .login-layout .checkout-main:not(.recharge-active) .message{font-size:13px;overflow-wrap:anywhere}
 .login-layout .checkout-main:not(.recharge-active) :focus-visible{outline:3px solid #92cbff;outline-offset:3px}
 .login-layout .checkout-main:not(.recharge-active) button:disabled{opacity:.55;cursor:not-allowed}
+.login-layout .checkout-main:not(.recharge-active) button.button:hover:not(:disabled),.login-layout .checkout-main:not(.recharge-active) button.button:active:not(:disabled){transform:none;box-shadow:none}
 body:not(:has(.recharge-active)) .site-footer{display:none}
 @media(min-width:768px){.login-layout:not(:has(.recharge-active)){max-width:480px;margin-top:12px;padding:0 28px}.login-service{width:260px}.login-world-art{margin-top:18px;margin-bottom:12px}.login-layout .checkout-main:not(.recharge-active) .auth-intro{font-size:15px}.login-layout .checkout-main:not(.recharge-active) .field label{font-size:14px}.login-layout .checkout-main:not(.recharge-active) input{min-height:48px}.login-layout .checkout-main:not(.recharge-active) .password-control .button{min-height:48px}.login-layout .checkout-main:not(.recharge-active) .auth-choices .button{font-size:14px}}
 @media(max-width:374px){.login-layout:not(:has(.recharge-active)){padding:0 22px}.login-layout .checkout-main:not(.recharge-active) .auth-choices{gap:8px}.login-layout .checkout-main:not(.recharge-active) .auth-choices .button{font-size:11px;gap:5px}}
