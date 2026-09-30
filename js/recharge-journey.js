@@ -220,7 +220,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     n.selectionFields.hidden = !['number', 'amount', 'pay'].includes(screen);
     n.progress.hidden = !['number', 'amount', 'pay'].includes(screen);
     n.hero.hidden = !signedIn || !['number', 'home'].includes(screen);
-    if (signedIn) { n.testTitle.textContent = t('Test mode'); n.testText.textContent = t('No real payment is collected.'); }
+    if (signedIn) { n.testTitle.textContent = t('Live recharge'); n.testText.textContent = t('Secure payment by Stripe. Recharge is sent after payment confirmation.'); }
     fallbackControls.hidden = !fallback;
     n.destinationPanel.open = true; n.reviewPanel.open = true;
     const index = ['number', 'amount', 'pay'].indexOf(screen);
