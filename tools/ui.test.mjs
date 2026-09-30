@@ -8,7 +8,7 @@ import { ApiError } from '../js/api-client.js';
 import { fixtureApi, operator, products, quote, transaction } from './fixtures.mjs';
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-async function page(callback, { api = fixtureApi(), config = { mobileRechargeLive: false }, url = 'https://website.example/recharge' } = {}) {
+async function page(callback, { api = fixtureApi(), config = { mobileRechargeLive: true }, url = 'https://website.example/recharge' } = {}) {
   const dom = new JSDOM('<header><nav><a data-i18n="mobileRecharge">Mobile Recharge</a></nav></header><main id="root"></main>', { url });
   globalThis.document = dom.window.document;
   const root = document.getElementById('root'); const app = mountRecharge(root, config, { api });
@@ -22,7 +22,7 @@ async function page(callback, { api = fixtureApi(), config = { mobileRechargeLiv
   finally { app.dispose(); dom.window.close(); delete globalThis.document; }
 }
 
-test('UI renders TEST MODE, legitimate sign-in and no card inputs', async () => page(async ({ query, root, login }) => {
+test('UI renders backend mode, legitimate sign-in and no card inputs', async () => page(async ({ query, root, login }) => {
   assert.match(root.textContent, /TEST MODE/); assert.equal(query('#checkout').hidden, true);
   assert.equal(root.querySelectorAll('input[type=password]').length, 4);
   assert.doesNotMatch(root.textContent, /CVV|card number/i);
