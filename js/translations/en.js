@@ -77,7 +77,7 @@ export default Object.freeze({
   "loginFeatureAnytime": "Top Up Anytime",
   "loginAccess": "Sign in to manage your recharge account.",
   "loginFlupFlapSignIn": "Sign in to FlupFlap",
-  "loginWelcome": "Welcome back",
+  "loginWelcome": "Welcome",
   "loginBrandTitle": "Worldwide Mobile Recharge",
   "loginBrandDescription": "Top up mobile phones for family and friends around the world with FlupFlap, a service offered by TiCash-App.",
   "loginServiceCaption": "Powered by TiCash-App",
