@@ -281,8 +281,9 @@ export function mountRecharge(root, config, dependencies = {}) {
     try { await client.logout(); } catch { /* Local tokens are already cleared. */ }
     (flupflapLogin ? registerEmail : firstName).focus();
   }, true); createFromGuest.id = 'guest-create-account';
+  const accountMode = el('small');
   const accountBar = el('details', { className: 'account-bar', hidden: '' },
-    el('summary', { className: 'account-summary' }, icon('user'), el('span', {}, accountLabel, el('small', {}, ui('Test mode'))), icon('chevron')),
+    el('summary', { className: 'account-summary' }, icon('user'), el('span', {}, accountLabel, accountMode), icon('chevron')),
     el('div', { className: 'account-dropdown' }, logout));
   const countrySearchInput = el('input', { id: 'country-search', type: 'search', 'aria-label': t('Search countries'), 'data-i18n-aria-label': 'Search countries', placeholder: t('Country, ISO code, or calling code'), 'data-i18n-placeholder': 'Country, ISO code, or calling code', autocomplete: 'off' });
   const country = el('select', { id: 'country', required: '', className: 'country-native-select', tabindex: '-1', 'aria-hidden': 'true' });
@@ -378,7 +379,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const expiry = el('p', { className: 'small', role: 'status', id: 'quote-expiry' });
   const reviewed = el('input', { type: 'checkbox', id: 'reviewed' });
   const reviewCheck = el('label', { className: 'review-check', for: 'reviewed' }, reviewed, el('span', {}, ui('I checked the phone number, operator, product, and quoted total.')));
-  const confirmButton = button('Confirm test recharge', action(() => journey.pay())); confirmButton.id = 'confirm-recharge';
+  const confirmButton = button('Continue to payment', action(() => journey.pay())); confirmButton.id = 'confirm-recharge';
   const recoveryNote = el('p', { className: 'message', hidden: '', role: 'status', id: 'recovery-note' }, ui('Confirmation is unresolved. Keep this page open. Retry uses the same request so it cannot create a second recharge; you can also refresh history to find the receipt.'));
   const billingCountry = el('input', { id: 'billing-country', autocomplete: 'country', required: '', maxlength: '2', pattern: '[A-Za-z]{2}' });
   billingCountry.addEventListener('input', () => {
@@ -419,9 +420,9 @@ export function mountRecharge(root, config, dependencies = {}) {
       flowConfirmPending = false;
       render();
     }
-  }); confirmPayment.id = 'confirm-sandbox-payment';
-  const flowPanel = el('section', { id: 'checkout-flow-panel', hidden: '', 'aria-label': t('Sandbox card payment'), 'data-i18n-aria-label': 'Sandbox card payment' },
-    el('h3', {}, ui('Sandbox card payment')), flowMessage, flowContainer, confirmPayment, retryFlow, refreshPayment);
+  }); confirmPayment.id = 'confirm-card-payment';
+  const flowPanel = el('section', { id: 'checkout-flow-panel', hidden: '', 'aria-label': t('Secure card payment'), 'data-i18n-aria-label': 'Secure card payment' },
+    el('h3', {}, ui('Secure card payment')), flowMessage, flowContainer, confirmPayment, retryFlow, refreshPayment);
   const reviewPanel = el('section', { className: 'panel checkout-step review-panel', open: '', 'data-checkout-step': '3', 'aria-labelledby': 'review-title' },
     cardHeading('receipt', '3. REVIEW & CONFIRM', 'Review & Pay', 'review-title'),
     reviewContent, expiry, billingStep, paymentAvailability, profileRetry, reviewCheck, confirmButton, recoveryNote, flowPanel,
@@ -445,7 +446,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   operatorsRetry.removeAttribute('data-i18n');
   operatorsRetry.replaceChildren(icon('refresh'), ui('Reload operators'));
   const historyPanel = el('section', { className: 'panel history-panel' },
-    el('div', { className: 'section-heading' }, el('div', { className: 'history-heading' }, el('span', { className: 'card-icon' }, icon('clock')), el('div', {}, el('span', { className: 'step' }, ui('YOUR ACTIVITY')), el('h2', {}, ui('Test recharge history')))), historyRefresh),
+    el('div', { className: 'section-heading' }, el('div', { className: 'history-heading' }, el('span', { className: 'card-icon' }, icon('clock')), el('div', {}, el('span', { className: 'step' }, ui('YOUR ACTIVITY')), el('h2', {}, ui('Recharge history')))), historyRefresh),
     historyIntro, guestNote, historyError, historyList);
   const progressItems = ['Destination', 'Operator & Product', 'Review & Confirm'].map((label, index) =>
     el('li', { 'data-step': String(index + 1) }, el('span', { className: 'progress-number', 'aria-hidden': 'true' }, String(index + 1)), ui(label)));
@@ -521,8 +522,10 @@ export function mountRecharge(root, config, dependencies = {}) {
       if (headerLanguage.parentElement !== languageParent) languageParent.append(headerLanguage);
     }
     if (!signedIn) { menu.hidden = true; menuButton.setAttribute('aria-expanded', 'false'); accountBar.open = false; }
-    testTitle.textContent = t(signedIn ? 'You’re in test mode' : 'TEST MODE');
-    testText.textContent = t(signedIn ? 'No real payment is collected.' : 'No real money · No live recharge');
+    const liveRecharge = s.testMode === false && s.paymentMode === checkoutMode;
+    testTitle.textContent = t(signedIn ? (liveRecharge ? 'Live recharge' : 'You’re in test mode') : 'Secure recharge');
+    testText.textContent = t(signedIn ? (liveRecharge ? 'Secure payment by Stripe. Recharge is sent after payment confirmation.' : 'No real payment is collected.') : 'Sign in to continue.');
+    accountMode.textContent = t(liveRecharge ? 'Live recharge' : 'Test mode');
     let destinationComplete = false;
     try { model.normalizedPhone(); destinationComplete = Boolean(s.country); } catch { /* A prefix alone is not a complete destination. */ }
     const currentStep = s.quote || s.attempt || s.transaction ? 3 : destinationComplete ? 2 : 1;
@@ -530,7 +533,7 @@ export function mountRecharge(root, config, dependencies = {}) {
       if (index + 1 === currentStep) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current');
       item.dataset.complete = String(index + 1 < currentStep);
     });
-    historyIntro.textContent = t('Your recent test recharges.'); historyIntro.hidden = guestSession;
+    historyIntro.textContent = t(liveRecharge ? 'Your recent recharges.' : 'Your recent test recharges.'); historyIntro.hidden = guestSession;
     const recovering = ['forgot', 'reset'].includes(authMode);
     loginTitle.textContent = t(authMode === 'forgot' ? 'Forgot your password?' : authMode === 'reset' ? 'Reset your password' : authMode === 'register' ? (flupflapLogin ? 'Create FlupFlap account' : 'Create TiCash account') : 'Sign in to TiCash');
     loginIntro.textContent = t(authMode === 'forgot' ? 'Enter your email to request reset instructions.' : authMode === 'reset' ? (flupflapLogin ? 'Choose a new password for your FlupFlap account.' : 'Choose a new password for your TiCash account.') : authMode === 'register' ? 'authRegisterIntro' : 'Sign in to continue your mobile recharge.');
@@ -577,7 +580,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     profileRetry.hidden = !checkoutPayment || !paymentBlocked || s.guest || locked;
     profileRetry.disabled = busy.has('catalog') || busy.has('profile');
     flowPanel.hidden = !checkoutPayment || !s.attempt;
-    flowMessage.textContent = t(flowError || 'Use test payment details only. Payment status is confirmed by TiCash, not by this form. Keep this page open.');
+    flowMessage.textContent = t(flowError || (liveRecharge ? 'Stripe handles payment on its secure hosted checkout. TiCash confirms payment from the server before recharge fulfillment.' : 'Use test payment details only. Payment status is confirmed by TiCash, not by this form. Keep this page open.'));
     confirmPayment.hidden = !flowComponent;
     confirmPayment.disabled = flowConfirmPending || s.submitting || !flowComponent || Boolean(s.transaction);
     confirmPayment.textContent = t(flowConfirmPending ? 'Confirming…' : 'confirmSandboxCardPayment');
@@ -812,7 +815,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     reviewed.disabled = !model.quoteValid() || locked;
     confirmButton.disabled = s.submitting || Boolean(s.transaction) || (!s.attempt && (!s.reviewed || !model.quoteValid()));
     if (checkoutPayment) confirmButton.disabled ||= Boolean(s.attempt) || Boolean(paymentBlocked) || busy.has('profile') || busy.has('catalog');
-    confirmButton.textContent = t(s.submitting ? 'Confirming…' : checkoutPayment ? 'Continue to sandbox payment' : s.attempt ? 'Retry same confirmation' : 'Confirm test recharge');
+    confirmButton.textContent = t(s.submitting ? 'Confirming…' : checkoutPayment ? 'Continue to secure payment' : s.attempt ? 'Retry same confirmation' : 'Confirm test recharge');
     recoveryNote.hidden = !s.attempt || s.submitting;
     recoveryNote.textContent = t(checkoutPayment
       ? 'Payment confirmation is unresolved. Keep this page open and refresh history or transaction status. Do not start another payment.'
@@ -822,9 +825,10 @@ export function mountRecharge(root, config, dependencies = {}) {
       receiptSignature = nextReceiptSignature; receipt.hidden = !s.transaction;
       if (s.transaction) {
         const txn = s.transaction;
-        receipt.replaceChildren(el('span', { className: 'eyebrow' }, ui('TEST RECEIPT')), el('h2', {}, t('receiptHeading', { status: t(String(txn.status || 'pending').toLowerCase()) })),
-          el('p', { className: 'muted' }, ui('This is a test transaction. No real money or airtime was transferred.')),
-          details([['Reference', txn.id], ['Status', txn.status], ['Test payment status', txn.paymentStatus], ['Phone number', txn.recipientPhone],
+        const liveReceipt = txn.testMode === false;
+        receipt.replaceChildren(el('span', { className: 'eyebrow' }, ui(liveReceipt ? 'RECEIPT' : 'TEST RECEIPT')), el('h2', {}, t('receiptHeading', { status: t(String(txn.status || 'pending').toLowerCase()) })),
+          el('p', { className: 'muted' }, ui(liveReceipt ? 'Payment and recharge status are confirmed by TiCash.' : 'This is a test transaction. No real money or airtime was transferred.')),
+          details([['Reference', txn.id], ['Status', txn.status], [liveReceipt ? 'Payment status' : 'Test payment status', txn.paymentStatus], ['Phone number', txn.recipientPhone],
             ['Destination', `${countryFlag(txn.countryCode)} ${txn.countryCode}`.trim()], ['Operator', operatorDetail(txn.operatorName, s.operator?.id === txn.operatorId ? s.operator : s.operators.find((op) => op.id === txn.operatorId))], ['Product', el('div', {}, txn.productName, planDetails(txn.productSnapshot))],
             ['Recharge', money(txn.providerAmount, txn.providerCurrency)], ['Fee', money(txn.feeUsd, 'USD')], ['Total', money(txn.totalChargeUsd, 'USD')],
             ['Recipient value', txn.deliveredValue === undefined ? t('Awaiting confirmation') : money(txn.deliveredValue, txn.deliveredCurrency)],
