@@ -13,8 +13,20 @@ import ko from './translations/ko.js';
 import ru from './translations/ru.js';
 import tr from './translations/tr.js';
 import sw from './translations/sw.js';
+import bn from './translations/bn.js';
+import id from './translations/id.js';
+import vi from './translations/vi.js';
+import th from './translations/th.js';
+import ur from './translations/ur.js';
+import fa from './translations/fa.js';
+import pl from './translations/pl.js';
+import nl from './translations/nl.js';
+import el from './translations/el.js';
+import uk from './translations/uk.js';
+import fil from './translations/fil.js';
+import ms from './translations/ms.js';
 
-export const translations = Object.freeze({ en, ht, fr, es, pt, ar, de, it, hi, zh, ja, ko, ru, tr, sw });
+export const translations = Object.freeze({ en, ht, fr, es, pt, ar, de, it, hi, zh, ja, ko, ru, tr, sw, bn, id, vi, th, ur, fa, pl, nl, el, uk, fil, ms });
 const languages = Object.freeze([
   { code: 'en', name: 'English', locale: 'en-US' },
   { code: 'ht', name: 'Kreyòl Ayisyen', locale: 'ht-HT' },
@@ -31,6 +43,18 @@ const languages = Object.freeze([
   { code: 'ru', name: 'Русский', locale: 'ru-RU' },
   { code: 'tr', name: 'Türkçe', locale: 'tr-TR' },
   { code: 'sw', name: 'Kiswahili', locale: 'sw-KE' },
+  { code: 'bn', name: 'বাংলা', locale: 'bn-BD' },
+  { code: 'id', name: 'Bahasa Indonesia', locale: 'id-ID' },
+  { code: 'vi', name: 'Tiếng Việt', locale: 'vi-VN' },
+  { code: 'th', name: 'ไทย', locale: 'th-TH' },
+  { code: 'ur', name: 'اردو', locale: 'ur-PK' },
+  { code: 'fa', name: 'فارسی', locale: 'fa-IR' },
+  { code: 'pl', name: 'Polski', locale: 'pl-PL' },
+  { code: 'nl', name: 'Nederlands', locale: 'nl-NL' },
+  { code: 'el', name: 'Ελληνικά', locale: 'el-GR' },
+  { code: 'uk', name: 'Українська', locale: 'uk-UA' },
+  { code: 'fil', name: 'Filipino', locale: 'fil-PH' },
+  { code: 'ms', name: 'Bahasa Melayu', locale: 'ms-MY' },
 ].map(Object.freeze));
 const englishKeys = new Map(Object.entries(en).map(([key, value]) => [value, key]));
 const listeners = new Set();
@@ -56,7 +80,7 @@ export function initializeLanguage(doc = globalThis.document) {
   language = detectLanguage(saved, doc?.defaultView?.navigator?.languages || []);
   if (doc) {
     doc.documentElement.lang = language;
-    doc.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    doc.documentElement.dir = ['ar','ur','fa'].includes(language) ? 'rtl' : 'ltr';
   }
 }
 export function supportedLanguages() { return languages; }
@@ -66,7 +90,7 @@ export function setLanguage(code) {
   language = supported(code) || 'en';
   if (languageDocument) {
     languageDocument.documentElement.lang = language;
-    languageDocument.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    languageDocument.documentElement.dir = ['ar','ur','fa'].includes(language) ? 'rtl' : 'ltr';
   }
   try { preferenceStorage?.setItem('ticash.language', language); } catch { /* Nonessential preference. */ }
   for (const listener of listeners) listener();
