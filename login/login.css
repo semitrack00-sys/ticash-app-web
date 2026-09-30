@@ -1,74 +1,77 @@
-/* Shared logged-out presentation. Every rule is isolated from the authenticated recharge layout. */
+/* Approved FlupFlap login. All form rules exclude the authenticated checkout. */
 .login-layout{display:contents}
 .login-layout:has(.recharge-active) .login-story{display:none}
+.login-layout:has(.recharge-active) .login-features{display:none}
+.login-layout:has([data-checkout-resume]) .login-features{display:none}
 body:has(.login-layout):not(:has(.recharge-active)){
-  color:#080e47;background:radial-gradient(ellipse at 0 0,#e4f3ff 0,transparent 29%),radial-gradient(ellipse at 100% 90%,#e6f4ff 0,transparent 32%),#fff;
+  color:#090d43;
+  background:radial-gradient(ellipse at 16% 31%,#c9e8ff 0,transparent 47%),radial-gradient(ellipse at 90% 86%,#c8e7ff 0,transparent 43%),linear-gradient(125deg,#eaf6ff,#f7fbff 58%,#e4f3ff);
+  position:relative;isolation:isolate;
 }
 body:has(.login-layout):not(:has(.recharge-active))::before{
-  content:'';position:absolute;z-index:-1;pointer-events:none;inset:0;min-height:690px;
-  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 780' preserveAspectRatio='none'%3E%3Cpath d='M0 178C90 207 94 313 209 328S340 305 390 273V312C323 357 270 365 184 349S61 228 0 222Z' fill='%23d5efff' opacity='.48'/%3E%3Cpath d='M0 211C84 238 117 349 208 353S344 321 390 305V332C312 374 246 389 170 359S68 249 0 235Z' fill='%23fbe5fa' opacity='.36'/%3E%3Cpath d='M390 700C322 758 198 802 0 765V780H390Z' fill='%23d5efff' opacity='.55'/%3E%3C/svg%3E") center top/100% 780px no-repeat;
+  content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1536' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='b' x2='1' y2='1'%3E%3Cstop stop-color='%2378bcff'/%3E%3Cstop offset='1' stop-color='%23d9f0ff' stop-opacity='.1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 0H435C340 122 172 224 0 286Z' fill='url(%23b)'/%3E%3Cpath d='M0 0H215C150 105 75 157 0 192Z' fill='%23c4e5ff'/%3E%3Cpath d='M1024 725C780 810 649 965 665 1160C807 1135 936 1030 1024 953Z' fill='url(%23b)' opacity='.8'/%3E%3Cpath d='M1024 1382C911 1423 863 1481 779 1536H1024Z' fill='%2397ceff' opacity='.5'/%3E%3C/svg%3E") center/100% 100% no-repeat;
 }
-body:not(:has(.recharge-active)) .site-header{width:100%;max-width:560px;height:48px;min-height:48px;padding:10px 20px;justify-content:flex-end;gap:16px;flex-wrap:nowrap}
+body:not(:has(.recharge-active)) .site-header{width:100%;max-width:680px;height:52px;min-height:52px;padding:10px 24px;justify-content:flex-end;gap:14px;flex-wrap:nowrap}
 body:not(:has(.recharge-active)) .site-header>.brand,body:not(:has(.recharge-active)) .site-header nav a:not([href='/support']){display:none}
-body:not(:has(.recharge-active)) .site-header nav{font-size:13px;font-weight:500;color:#080e47}
+body:not(:has(.recharge-active)) .site-header nav{display:flex;font-size:14px;font-weight:500;color:#090d43;border-inline-end:1px solid #b9cbe2;padding-inline-end:14px}
 body:not(:has(.recharge-active)) .site-header a[href='/support']{display:flex;align-items:center;gap:7px;min-height:36px}
-body:not(:has(.recharge-active)) .site-header a[href='/support']::before{content:'';display:block;width:18px;height:18px;background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'%3E%3Cpath d='M4 14v-3a8 8 0 0 1 16 0v3M4 12H2v7h4v-7H4m16 0h2v7h-4v-7h2m0 7c0 3-3 3-7 3'/%3E%3C/svg%3E") center/contain no-repeat}
-body:not(:has(.recharge-active)) .site-header .language-picker{position:relative;font:600 13px/1.2 'DM Sans',sans-serif}
+body:not(:has(.recharge-active)) .site-header a[href='/support']::before{content:'';display:block;width:20px;height:20px;background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'%3E%3Cpath d='M4 14v-3a8 8 0 0 1 16 0v3M4 12H2v7h4v-7H4m16 0h2v7h-4v-7h2m0 7c0 3-3 3-7 3'/%3E%3C/svg%3E") center/contain no-repeat}
+body:not(:has(.recharge-active)) .site-header .language-picker{position:relative;font:600 14px/1.2 'DM Sans',sans-serif}
 body:not(:has(.recharge-active)) .site-header .language-picker>span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
-body:not(:has(.recharge-active)) .site-header .language-picker::before{content:'';position:absolute;inset-inline-start:10px;width:18px;height:18px;pointer-events:none;background:#080e47;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M2 12h20M4 6h16M4 18h16M12 2c-7 7-7 13 0 20 7-7 7-13 0-20'/%3E%3C/svg%3E") center/contain no-repeat}
-body:not(:has(.recharge-active)) .site-header .language-picker select{width:112px;max-width:158px;min-height:36px;border:1px solid #d2daec;border-radius:10px;padding:6px 8px;padding-inline-start:34px;background:#ffffffb8;color:#080e47}
-.login-layout:not(:has(.recharge-active)){display:block;position:relative;isolation:isolate;max-width:440px;margin:0 auto 28px;padding:0 36px;background:transparent}
-.login-story{display:flex;flex-direction:column;align-items:center;min-width:0}
-.login-service{display:block;position:relative;width:210px;max-width:90%;text-decoration:none;text-align:center}
-/* The official PNG includes an old caption. Clip only that caption and replace it with localized text. */
-.login-service img{display:block;width:100%;height:auto;clip-path:polygon(0 0,100% 0,100% 75%,24% 75%,24% 100%,0 100%);margin-bottom:-17px}
-.login-service span{display:block;margin-inline-start:27px;position:relative;color:#7983a6;font-size:12px;line-height:1.4;white-space:nowrap}
-/* Crop the existing production artwork in CSS, without copying a screenshot into the page. */
-.login-world-art{position:relative;width:220px;height:143px;margin:4px auto 5px;pointer-events:none;isolation:isolate}
-.login-world-art::before{content:'';position:absolute;inset:3px 5px 4px;border-radius:46%;background:radial-gradient(ellipse at 20% 57%,#b2e7fb9c,transparent 64%),radial-gradient(ellipse at 88% 47%,#ffd0f69c,transparent 64%)}
-.login-world-art>span{position:absolute;display:block}
-/* Reuse only the phone from the production artwork. The surrounding icons are
-   crisp CSS/SVG decorations, so no fragments of the old globe show at their edges. */
-.login-art-phone{width:74px;height:143px;left:73px;top:0;background:url('/brand/flupflap/flupflap-login-phone-globe-mobile.png') -67px -52px/204px 204px no-repeat;clip-path:polygon(12% 1%,90% 3%,94% 6%,100% 94%,95% 98%,5% 99%,0 95%,2% 8%)}
-.login-art-call,.login-art-mobile,.login-art-network{border-radius:50%;box-shadow:0 3px 7px #244f8c1f}
-.login-art-call{width:35px;height:35px;left:32px;top:27px;background:linear-gradient(145deg,#00c9ff,#0077ff 75%)}
-.login-art-mobile{width:35px;height:35px;right:34px;top:22px;background:linear-gradient(145deg,#ff40c4,#e900b5 75%)}
-.login-art-network{width:38px;height:38px;right:27px;top:77px;background:linear-gradient(145deg,#9745ff,#7100ee 75%)}
-.login-art-call::before,.login-art-mobile::before,.login-art-network::before{content:'';position:absolute;inset:8px;background:#fff;mask-position:center;mask-size:contain;mask-repeat:no-repeat}
-.login-art-call::before{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M5 2 1 6c1 9 8 16 17 17l4-4-6-5-3 3c-3-1-5-3-6-6l3-3Z'/%3E%3C/svg%3E")}
-.login-art-mobile::before{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect x='5' y='1' width='14' height='22' rx='2'/%3E%3Cpath d='M6 15h12M8 18h1m3 0h1m3 0h1M8 21h1m3 0h1m3 0h1'/%3E%3C/svg%3E")}
-.login-art-network::before{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='6' r='1'/%3E%3Cpath d='m12 8-5 14m5-14 5 14M9 17l6 4m0-4-6 4M8 2a6 6 0 0 0 0 8m8-8a6 6 0 0 1 0 8M5 1a9 9 0 0 0 0 12M19 1a9 9 0 0 1 0 12'/%3E%3C/svg%3E")}
+body:not(:has(.recharge-active)) .site-header .language-picker::before{content:'';position:absolute;inset-inline-start:11px;width:20px;height:20px;pointer-events:none;background:#090d43;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M2 12h20M4 6h16M4 18h16M12 2c-7 7-7 13 0 20 7-7 7-13 0-20'/%3E%3C/svg%3E") center/contain no-repeat}
+body:not(:has(.recharge-active)) .site-header .language-picker select{width:124px;max-width:154px;min-height:38px;border:1px solid #c7d4e9;border-radius:11px;padding:6px 8px;padding-inline-start:36px;background:#fffffff0;color:#090d43}
+.login-layout:not(:has(.recharge-active)){display:block;max-width:550px;margin:4px auto 0;padding:0 28px 28px}
+.login-story{display:flex;justify-content:center;padding:6px 0 18px}
+.login-service{display:block;width:232px;max-width:74%;text-decoration:none}
+/* The official PNG contains an old caption: exclude that caption without altering the logo pixels. */
+.login-service img{display:block;width:100%;height:auto;clip-path:polygon(0 0,100% 0,100% 75%,24% 75%,24% 100%,0 100%);margin-bottom:-8px}
 .login-layout .checkout-main:not(.recharge-active){width:100%;min-width:0;max-width:none;padding:0;margin:0}
 .login-layout .checkout-main:not(.recharge-active) .flupflap-main-content{padding:0;display:flex;flex-direction:column;gap:0}
-.login-layout .checkout-main:not(.recharge-active) .test-banner{display:none} /* Only the redundant signed-out prompt; authenticated TEST MODE remains untouched. */
-.login-layout .checkout-main:not(.recharge-active) .login-panel{display:block;max-width:none;width:100%;margin:0;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent}
-.login-layout .checkout-main:not(.recharge-active) .login-panel h1{font:800 28px/1.2 Manrope,sans-serif;text-align:center;color:#080e47;margin:0 0 4px;letter-spacing:-.035em}
-.login-layout .checkout-main:not(.recharge-active) .auth-intro{font-size:13px;line-height:1.5;text-align:center;color:#7b85a8;margin:0 -10px 16px}
+.login-layout .checkout-main:not(.recharge-active) .test-banner{display:none}
+.login-layout .checkout-main:not(.recharge-active) .login-panel{display:block;max-width:none;width:100%;margin:0;padding:24px 24px 22px;border:1px solid #ffffffc9;border-radius:18px;box-shadow:0 18px 52px #468bba15;background:#fffffffa}
+.login-layout .checkout-main:not(.recharge-active) .login-panel h1{font:800 clamp(25px,6.4vw,34px)/1.2 Manrope,sans-serif;text-align:start;color:#090d43;margin:0 0 5px;letter-spacing:-.045em}
+.login-layout .checkout-main:not(.recharge-active) .auth-intro{font-size:14px;line-height:1.5;text-align:start;color:#697499;margin:0 0 18px}
 .login-layout .checkout-main:not(.recharge-active) .field{position:relative;display:block;margin-bottom:12px}
-.login-layout .checkout-main:not(.recharge-active) .field label{display:block;font-size:13px;font-weight:500;color:#080e47;margin:0 0 4px}
-.login-layout .checkout-main:not(.recharge-active) input{width:100%;min-height:44px;border:1px solid #cad3e8;background:#ffffffaa;border-radius:10px;padding:10px 12px;color:#080e47;font:400 13px 'DM Sans',sans-serif;box-shadow:none}
-.login-layout .checkout-main:not(.recharge-active) input::placeholder{color:#a1abc7;opacity:1}
+.login-layout .checkout-main:not(.recharge-active) .field label{display:block;font-size:14px;font-weight:600;color:#090d43;margin:0 0 6px}
+.login-layout .checkout-main:not(.recharge-active) input{width:100%;min-height:44px;border:1px solid #c9d1e7;background:#fff;border-radius:10px;padding:10px 12px;color:#090d43;font:400 14px 'DM Sans',sans-serif;box-shadow:none}
+.login-layout .checkout-main:not(.recharge-active) input::placeholder{color:#818eb1;opacity:1}
 .login-layout .checkout-main:not(.recharge-active) #email,.login-layout .checkout-main:not(.recharge-active) #password{padding-inline-start:43px}
-.login-layout .checkout-main:not(.recharge-active) .field:has(>#email)::after,.login-layout .checkout-main:not(.recharge-active) .password-control:has(#password)::before{content:'';position:absolute;inset-inline-start:14px;bottom:12px;width:20px;height:20px;background:#080e47;pointer-events:none;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='1'/%3E%3Cpath d='m2 5 10 8L22 5'/%3E%3C/svg%3E") center/contain no-repeat}
+.login-layout .checkout-main:not(.recharge-active) .field:has(>#email)::after,.login-layout .checkout-main:not(.recharge-active) .password-control:has(#password)::before{content:'';position:absolute;inset-inline-start:14px;bottom:12px;width:20px;height:20px;background:#090d43;pointer-events:none;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='1'/%3E%3Cpath d='m2 5 10 8L22 5'/%3E%3C/svg%3E") center/contain no-repeat}
 .login-layout .checkout-main:not(.recharge-active) .password-control{position:relative;display:block}
 .login-layout .checkout-main:not(.recharge-active) .password-control:has(#password)::before{z-index:1;mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6'%3E%3Crect x='4' y='10' width='16' height='12' rx='2'/%3E%3Cpath d='M7 10V7a5 5 0 0 1 10 0v3M12 15v4'/%3E%3C/svg%3E")}
-.login-layout .checkout-main:not(.recharge-active) .password-control input{padding-inline-end:70px}
-.login-layout .checkout-main:not(.recharge-active) .password-control .button{position:absolute;inset-inline-end:4px;top:0;border:0;box-shadow:none;background:transparent;color:#0077ff;min-height:44px;font-size:13px;font-weight:700;padding:8px}
-.login-layout .checkout-main:not(.recharge-active) #forgot-password{display:block;width:auto;color:#0077ff;margin:-8px 0 9px auto;font-size:13px;font-weight:400;text-decoration:underline;box-shadow:none;background:transparent;border:0;border-radius:4px;min-height:32px;padding:3px 0}
-.login-layout .checkout-main:not(.recharge-active) button[type=submit]{position:relative;width:100%;min-height:46px;margin:0;background:linear-gradient(110deg,#00bbed,#0874ff 80%,#00b4f4);color:white;border:0;border-radius:16px;font-size:16px;font-weight:700;box-shadow:none;padding:10px 42px}
-.login-layout .checkout-main:not(.recharge-active) #login-form button[type=submit]::after{content:'→';position:absolute;inset-inline-end:20px;top:50%;transform:translateY(-52%);font:300 27px/1 sans-serif}
-.login-divider{display:flex;align-items:center;gap:12px;color:#7b85a8;font-size:13px;margin:14px 0}
-.login-divider::before,.login-divider::after{content:'';height:1px;flex:1;background:#d6ddeb}
-.login-layout .checkout-main:not(.recharge-active) .auth-choices{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0;padding:0;background:transparent;border:0;border-radius:0}
-.login-layout .checkout-main:not(.recharge-active) .auth-choices .button{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:44px;padding:8px 5px;border:1px solid #0077ff;border-radius:11px;background:#ffffffaa;color:#0077ff;box-shadow:none;font-size:12px;font-weight:600;line-height:1.3;white-space:normal}
-.login-layout .checkout-main:not(.recharge-active) .auth-choices .button::before{content:'';flex:none;width:21px;height:21px;background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='6' r='4'/%3E%3Cpath d='M3 22v-3c0-7 18-7 18 0v3z'/%3E%3C/svg%3E") center/contain no-repeat}
-.login-layout .checkout-main:not(.recharge-active) #choose-register::before{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='9' cy='6' r='4'/%3E%3Cpath d='M1 22v-3c0-7 16-7 16 0v3M19 8v8M15 12h8'/%3E%3C/svg%3E")}
-.login-layout .checkout-main:not(.recharge-active) .login-panel [hidden]{display:none!important}
+.login-layout .checkout-main:not(.recharge-active) .password-control input{padding-inline-end:50px}
+.login-layout .checkout-main:not(.recharge-active) .password-control .button{position:absolute;inset-inline-end:2px;top:0;width:44px;min-height:44px;border:0;box-shadow:none;background:transparent;color:#687599;padding:10px;font-size:0}
+.login-layout .checkout-main:not(.recharge-active) .password-control .button::after{content:'';display:block;width:23px;height:23px;background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M3 3l18 18M4.5 6.5 2 12c5 9 15 9 20 0l-3-4c-4-4-7-4-10-3M9 9a4 4 0 0 0 6 6'/%3E%3C/svg%3E") center/contain no-repeat}
+.login-layout .checkout-main:not(.recharge-active) .password-control .button[aria-pressed=true]::after{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M2 12c5-9 15-9 20 0-5 9-15 9-20 0Z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E")}
+.login-layout .checkout-main:not(.recharge-active) #forgot-password{display:block;width:auto;color:#0065ed;margin:-8px 0 8px auto;font-size:14px;font-weight:400;text-decoration:underline;box-shadow:none;background:transparent;border:0;border-radius:4px;min-height:32px;padding:3px 0}
+.login-layout .checkout-main:not(.recharge-active) button[type=submit]{position:relative;width:100%;min-height:48px;margin:0;background:linear-gradient(110deg,#00b7f0,#0062ff);color:white;border:0;border-radius:13px;font-size:18px;font-weight:700;box-shadow:0 5px 14px #0078ff0b;padding:12px 40px}
+.login-layout .checkout-main:not(.recharge-active) #login-form button[type=submit]::after{content:'→';position:absolute;inset-inline-end:18px;top:50%;transform:translateY(-52%);font:300 28px/1 sans-serif}
+.login-divider{display:flex;align-items:center;gap:15px;color:#697499;font-size:14px;margin:12px 0}
+.login-divider::before,.login-divider::after{content:'';height:1px;flex:1;background:#ccd6e7}
+.login-layout .checkout-main:not(.recharge-active) .auth-choices{display:block;margin:0;padding:0;background:transparent;border:0;border-radius:0}
+.login-layout .checkout-main:not(.recharge-active) .auth-choices .button{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:44px;padding:10px 8px;border:1px solid #0067ff;border-radius:13px;background:#fff;color:#0065ed;box-shadow:none;font-size:15px;font-weight:600;line-height:1.3;white-space:normal}
+.login-layout .checkout-main:not(.recharge-active) #choose-register::before{content:'';flex:none;width:27px;height:27px;background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='9' cy='6' r='4'/%3E%3Cpath d='M1 22v-3c0-7 16-7 16 0v3M19 8v8M15 12h8'/%3E%3C/svg%3E") center/contain no-repeat}
+.login-layout .checkout-main:not(.recharge-active) .login-guest-link{text-align:center;margin:4px 0 0}
+.login-layout .checkout-main:not(.recharge-active) .login-guest-link .button{min-height:32px;padding:4px 12px;border:0;box-shadow:none;background:transparent;color:#195ab5;font-size:12px;font-weight:500;text-decoration:underline}
+.login-layout .checkout-main:not(.recharge-active) [hidden]{display:none!important}
 .login-layout .checkout-main:not(.recharge-active) .message{font-size:13px;overflow-wrap:anywhere}
-.login-layout .checkout-main:not(.recharge-active) :focus-visible{outline:3px solid #92cbff;outline-offset:3px}
+.login-layout .checkout-main:not(.recharge-active) :focus-visible,body:not(:has(.recharge-active)) .site-header :focus-visible{outline:3px solid #337fdb;outline-offset:3px}
 .login-layout .checkout-main:not(.recharge-active) button:disabled{opacity:.55;cursor:not-allowed}
-.login-layout .checkout-main:not(.recharge-active) button.button:hover:not(:disabled),.login-layout .checkout-main:not(.recharge-active) button.button:active:not(:disabled){transform:none;box-shadow:none}
+.login-layout .checkout-main:not(.recharge-active) button.button:hover:not(:disabled){transform:none;box-shadow:none;filter:brightness(.97)}
+.login-layout .checkout-main:not(.recharge-active) button.button:active:not(:disabled){transform:none;box-shadow:none;filter:brightness(.92)}
+.login-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0 0}
+.login-feature{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;font:500 14px/1.2 'DM Sans',sans-serif;color:#090d43;min-width:0}
+.login-feature>span:last-child{max-width:90px;overflow-wrap:break-word;text-wrap:balance}
+.login-feature+.login-feature::before{content:'';position:absolute;inset-inline-start:-5px;top:22px;height:25px;border-inline-start:1px solid #aabfdf}
+.login-feature-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:50%}
+.login-feature-icon::before{content:'';display:block;width:27px;height:27px;background:currentColor;mask-position:center;mask-size:contain;mask-repeat:no-repeat}
+.login-feature-recharge{color:#0068ff;background:#bde3ff}
+.login-feature-recharge::before{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M14 1 3 14h8l-1 9 11-14h-8Z'/%3E%3C/svg%3E")}
+.login-feature-worldwide{color:#8000ec;background:#e0cdff}
+.login-feature-worldwide::before{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M2 12h20M4 6h16M4 18h16M12 2c-7 7-7 13 0 20 7-7 7-13 0-20'/%3E%3C/svg%3E")}
+.login-feature-security{color:#00ae79;background:#b4f1dd}
+.login-feature-security::before{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath fill-rule='evenodd' d='M12 1 2 5v7c0 5 6 9 10 11 4-2 10-6 10-11V5L12 1Zm-2 15-5-5 2-2 3 3 7-7 2 2-9 9Z'/%3E%3C/svg%3E")}
 body:not(:has(.recharge-active)) .site-footer{display:none}
-@media(min-width:768px){.login-layout:not(:has(.recharge-active)){max-width:480px;margin-top:12px;padding:0 28px}.login-service{width:260px}.login-world-art{margin-top:18px;margin-bottom:12px}.login-layout .checkout-main:not(.recharge-active) .auth-intro{font-size:15px}.login-layout .checkout-main:not(.recharge-active) .field label{font-size:14px}.login-layout .checkout-main:not(.recharge-active) input{min-height:48px}.login-layout .checkout-main:not(.recharge-active) .password-control .button{min-height:48px}.login-layout .checkout-main:not(.recharge-active) .auth-choices .button{font-size:14px}}
-@media(max-width:374px){.login-layout:not(:has(.recharge-active)){padding:0 22px}.login-layout .checkout-main:not(.recharge-active) .auth-choices{gap:8px}.login-layout .checkout-main:not(.recharge-active) .auth-choices .button{font-size:11px;gap:5px}}
-@media(max-width:330px){.login-layout .checkout-main:not(.recharge-active) .auth-choices{grid-template-columns:1fr}}
+@media(min-width:768px){.login-layout:not(:has(.recharge-active)){padding:0 20px 36px;margin-top:16px}.login-story{padding-bottom:24px}.login-service{width:300px}.login-layout .checkout-main:not(.recharge-active) .login-panel{padding:34px 34px 30px;border-radius:20px}.login-layout .checkout-main:not(.recharge-active) .auth-intro{font-size:16px}.login-features{margin-top:18px}.login-feature{font-size:16px}.login-feature-icon{width:54px;height:54px}}
+@media(max-width:359px){body:not(:has(.recharge-active)) .site-header{padding-inline:16px;gap:10px}.login-layout:not(:has(.recharge-active)){padding-inline:18px}.login-layout .checkout-main:not(.recharge-active) .login-panel{padding:22px 18px}.login-layout .checkout-main:not(.recharge-active) .auth-intro{font-size:13px}.login-layout .checkout-main:not(.recharge-active) input{font-size:13px}.login-feature{font-size:13px}}

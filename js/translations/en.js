@@ -1,4 +1,5 @@
 export default Object.freeze({
+  "loginFeatureRecharge": "Mobile Recharge",
   "loginEmailPlaceholder": "Enter your email address",
   "loginPasswordPlaceholder": "Enter your password",
   "loginOr": "or",
@@ -72,7 +73,7 @@ export default Object.freeze({
   "loginTrustPassword": "Password protected",
   "loginFeatureSafe": "Safe & Secure",
   "loginFeatureFamily": "For Family & Friends",
-  "loginFeatureGlobal": "Global Coverage",
+  "loginFeatureGlobal": "Worldwide Coverage",
   "loginFeatureAnytime": "Top Up Anytime",
   "loginAccess": "Sign in to manage your recharge account.",
   "loginFlupFlapSignIn": "Sign in to FlupFlap",
