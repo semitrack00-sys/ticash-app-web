@@ -50,7 +50,7 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
       const response = await fetchImpl(baseUrl + path, {
         method, headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        mode: 'cors', credentials: 'omit', cache: 'no-store', redirect: 'error',
+        mode: 'cors', credentials: flupflap ? 'include' : 'omit', cache: 'no-store', redirect: 'error',
         referrerPolicy: 'no-referrer', signal: controller.signal,
       });
       const data = response.status === 204 ? null : await response.json().catch(() => null);
@@ -74,9 +74,9 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
   }
 
   async function refresh(version) {
-    if (!refreshToken) throw new ApiError('UNAUTHENTICATED', 'Please sign in to continue.', 401);
+    if (!refreshToken && !flupflap) throw new ApiError('UNAUTHENTICATED', 'Please sign in to continue.', 401);
     if (!refreshFlight) {
-      const pending = send(`${auth}/refresh`, { method: 'POST', body: { refreshToken } })
+      const pending = send(`${auth}/refresh`, { method: 'POST', body: flupflap && !refreshToken ? {} : { refreshToken } })
         .then((data) => acceptTokens(data, version))
         .catch(() => {
           if (version === sessionVersion) clear(true);
@@ -139,6 +139,14 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
       else if (token) await send(`${auth}/logout`, { method: 'POST', body: { refreshToken: token } });
     },
     clear,
+    async restore() {
+      if (!flupflap) return null;
+      const version = sessionVersion;
+      try {
+        await refresh(version);
+        return (await send('/flupflap/auth/me', { headers: { Authorization: `Bearer ${accessToken}` } })).user;
+      } catch { return null; }
+    },
     async request(path, options = {}) {
       if (flupflap) {
         if (path === '/users/me') path = '/flupflap/auth/me';

@@ -876,6 +876,14 @@ export function mountRecharge(root, config, dependencies = {}) {
     configured = false; setLoginError(error.message);
   }
   model = new Recharge(client, { ...dependencies, onChange: render });
+  if (configured && flupflapLogin && typeof client.restore === 'function' && !isResetRoute) {
+    signingIn = true; render();
+    void client.restore().then(async (user) => {
+      if (!user || disposed) return;
+      signedIn = true; guestSession = user.guest === true; model.reset(); model.setAccount(user, guestSession); render();
+      await model.start();
+    }).catch(() => { /* No valid cookie means normal signed-out state. */ }).finally(() => { signingIn = false; if (!disposed) render(); });
+  }
   journey = mountRechargeJourney({ root, model, render, el, ui, button, action, money, date, details, icon, operatorDetail,
     nodes: { checkout, selectionFields, destinationPanel, destinationControls, operatorControls, productKinds,
       reviewPanel, reviewContent, quoteButton, confirmButton, confirmPayment, reviewed, reviewCheck, expiry,
@@ -1043,7 +1051,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   amount.addEventListener('input', action(() => model.setAmount(amount.value)));
   reviewed.addEventListener('change', () => model.review(reviewed.checked));
   recipientsSelect.addEventListener('change', action(() => model.useRecipient(recipientsSelect.value)));
-  const pageHide = () => { resetToken = ''; client?.clear(); signedIn = false; guestSession = false; clearPasswords(); model.reset(); render(); };
+  const pageHide = () => { resetToken = ''; clearPasswords(); };
   globalThis.addEventListener?.('pagehide', pageHide);
   const timer = setInterval(() => { if (signedIn && model.state.quote) render(); }, 1000);
   const removeLanguageListener = onLanguageChange(render);
