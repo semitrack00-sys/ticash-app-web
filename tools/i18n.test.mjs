@@ -3,18 +3,20 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { countryFlag, searchCountries } from '../js/recharge.js';
-import { translations, translate, detectLanguage, initializeLanguage, setLanguage, getLanguage, localizeCountry, translateElements } from '../js/i18n.js';
+import { translations, translate, detectLanguage, initializeLanguage, setLanguage, getLanguage, localizeCountry, translateElements, supportedLanguages } from '../js/i18n.js';
 import { countries } from './fixtures.mjs';
 
 test('flags are local regional indicators with strict ASCII ISO-style validation', () => {
   for (const [code, flag] of [['HT','🇭🇹'],['ht','🇭🇹'],['JM','🇯🇲'],['CA','🇨🇦'],['FR','🇫🇷'],['BR','🇧🇷']]) assert.equal(countryFlag(code), flag);
   for (const code of ['', 'H1', 'HTI', ' H', 'éé', 'KR', '<b>', null, undefined, 12, {}, ['HT']]) assert.equal(countryFlag(code), '');
 });
-test('every language has every canonical key and matching substitution parameters', () => {
+test('every language catalog uses canonical safe keys with matching substitution parameters', () => {
   const params = (text) => [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
+  const canonical = new Set(Object.keys(translations.en));
   for (const [language, catalog] of Object.entries(translations)) {
-    assert.deepEqual(Object.keys(catalog).sort(), Object.keys(translations.en).sort(), language);
+    assert.ok(Object.keys(catalog).length > 0, language);
     for (const [key, text] of Object.entries(catalog)) {
+      assert.ok(canonical.has(key), `${language}.${key}`);
       assert.equal(typeof text, 'string'); assert.ok(text.trim(), `${language}.${key}`);
       assert.doesNotMatch(text, /<\/?[a-z][^>]*>/i);
       assert.deepEqual(params(text), params(translations.en[key]), `${language}.${key}`);
@@ -29,10 +31,12 @@ test('English fallback handles missing translations and absent or unknown messag
   assert.equal(translate('quoteUntil', { date: '$& <b>date</b>' }, 'en'), 'Quote valid until $& <b>date</b>');
 });
 test('saved preference precedes supported regional browser languages and English fallback', () => {
-  assert.equal(detectLanguage(), 'en'); assert.equal(detectLanguage(null, ['ja-JP']), 'en');
-  for (const code of ['fr-CA','fr-FR','ht-HT','es-MX','es-US','pt-BR','pt-PT']) assert.equal(detectLanguage(null, [code]), code.slice(0,2));
+  assert.equal(detectLanguage(), 'en');
+  for (const code of ['fr-CA','fr-FR','ht-HT','es-MX','es-US','pt-BR','pt-PT','ar-SA','de-DE','it-IT','hi-IN','zh-CN','ja-JP','ko-KR','ru-RU','tr-TR','sw-KE']) {
+    assert.equal(detectLanguage(null, [code]), code.slice(0,2));
+  }
   assert.equal(detectLanguage('ht', ['fr-CA']), 'ht');
-  assert.equal(detectLanguage('xx', ['ja', 'es-MX']), 'es');
+  assert.equal(detectLanguage('xx', ['ja-JP', 'es-MX']), 'ja');
 });
 test('only language preference persists and unavailable storage remains optional', () => {
   const dom = new JSDOM('', { url: 'https://website.example' });
@@ -42,6 +46,8 @@ test('only language preference persists and unavailable storage remains optional
     Object.defineProperty(dom.window.navigator, 'languages', { value: ['fr-CA'] });
     initializeLanguage(dom.window.document); assert.equal(getLanguage(), 'fr'); assert.deepEqual(writes, []);
     setLanguage('ht'); assert.deepEqual(writes, [['ticash.language','ht']]); assert.equal(dom.window.document.documentElement.lang, 'ht');
+    setLanguage('ar'); assert.equal(dom.window.document.documentElement.dir, 'rtl');
+    setLanguage('de'); assert.equal(dom.window.document.documentElement.dir, 'ltr');
     Object.defineProperty(dom.window, 'localStorage', { get() { throw new Error('blocked'); } });
     initializeLanguage(dom.window.document); assert.doesNotThrow(() => setLanguage('pt')); assert.equal(getLanguage(),'pt');
     assert.equal(storage.length, 0);
@@ -88,11 +94,17 @@ test('all local model and API validation/error literals have canonical translati
 });
 
 
-test('all recovery copy and password controls have translations in all five languages',()=>{
+test('all recovery copy and password controls remain complete in the original five full catalogs',()=>{
   for(const lang of ['en','ht','fr','es','pt']){
     for(const key of ['forgotPassword','forgotTitle','forgotIntro','sendReset','resetTitle','resetIntro','newPassword','confirmNewPassword','resetPassword','backToSignIn','resetGeneric','resetMismatch','resetSuccess','resetSamePassword','resetInvalid','resetFailed']){
       assert.ok(translations[lang][key],`${lang}.${key}`);
       if(lang!=='en')assert.notEqual(translations[lang][key],translations.en[key]);
     }
   }
+});
+
+test('worldwide language selector exposes the expanded supported language set', () => {
+  const codes = supportedLanguages().map(({ code }) => code);
+  assert.deepEqual(codes, ['en','ht','fr','es','pt','ar','de','it','hi','zh','ja','ko','ru','tr','sw']);
+  assert.deepEqual(Object.keys(translations), codes);
 });

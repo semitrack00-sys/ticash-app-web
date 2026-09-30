@@ -4,9 +4,9 @@ The shared header and the complete recharge/account interface support English (`
 
 ## Translation architecture
 
-`js/i18n.js` owns language selection, plain-text translation, country display names and locale selection. The five dictionaries in `js/translations/` share stable keys; English is canonical and is the fallback for missing translations. Existing English website error messages also resolve to those keys, so the API client and recharge model do not need translated state or changed error handling. Unknown server messages and raw error codes pass through as text.
+`js/i18n.js` owns language selection, plain-text translation, country display names and locale selection. English is the canonical dictionary. The original English, Haitian Creole, French, Spanish, and Portuguese catalogs remain complete; additional worldwide language catalogs may translate the customer-facing core while safely falling back to English for untranslated low-frequency copy. Existing English website error messages also resolve to those keys, so the API client and recharge model do not need translated state or changed error handling. Unknown server messages and raw error codes pass through as text.
 
-Add a dictionary and a language entry in `i18n.js` to introduce another language. Keep the English keys and named interpolation parameters identical. Tests reject missing/empty keys, mismatched parameters and HTML tags. Use `t(key, params)` for dynamic text and `data-i18n`, `data-i18n-aria-label`, `data-i18n-placeholder` or `data-i18n-title` for static labels. Render with text nodes or textContent, never an HTML parser. Do not translate operator/product names, user-entered names, identifiers, raw status/error codes, currencies or request values.
+Add a dictionary and a language entry in `i18n.js` to introduce another language. Keep every translated key canonical and keep named interpolation parameters identical. Tests reject unknown/empty keys, mismatched parameters and HTML tags. Missing optional keys fall back to canonical English. Use `t(key, params)` for dynamic text and `data-i18n`, `data-i18n-aria-label`, `data-i18n-placeholder` or `data-i18n-title` for static labels. Render with text nodes or textContent, never an HTML parser. Do not translate operator/product names, user-entered names, identifiers, raw status/error codes, currencies or request values.
 
 The header and checkout selectors use language names, not flags. Switching updates `html.lang`, labels, accessibility text, country options, hints, errors, quote/receipt/history presentation and Intl money/date formatting. Form controls stay mounted, preserving focus and password visibility. The render-only listener does not call authentication or recharge APIs, renew a session, request a quote or submit a confirmation. Amounts and fee totals come directly from the existing backend response.
 
@@ -32,3 +32,10 @@ npm audit
 Tests use local deterministic fixtures, with no real payment or provider calls. Coverage includes dictionary parity/fallback, language detection/storage, flags/search, separate shared-calling-code countries, localized hints, account and guest state preservation, registration/password controls, unresolved confirmation/idempotency, safe provider text and the existing authentication, phone, quote, sandbox and fee regressions. The backend-authoritative $5.00 recharge + $3.50 fee = $8.50 example remains covered.
 
 Browser smoke checks use a separate loopback-only fixture server. Verify desktop and mobile selectors, all five languages, the selected destination and phone, quote preservation and keyboard focus. No backend, Render configuration, deployment, payment mode, API contract or live-mode flag is changed by this feature.
+
+
+## Worldwide language set
+
+FlupFlap currently exposes these language choices: English, Kreyòl Ayisyen, Français, Español, Português, العربية, Deutsch, Italiano, हिन्दी, 简体中文, 日本語, 한국어, Русский, Türkçe, and Kiswahili.
+
+Arabic switches the document direction to RTL. All other current locales use LTR. Country names continue to use `Intl.DisplayNames` where supported, while operator/product names, identifiers, currencies, and provider data are never translated.
