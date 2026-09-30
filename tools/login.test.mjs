@@ -29,8 +29,8 @@ test(`${route}: real login markup preserves credentials, busy state, in-memory t
     assert.equal(root.dataset.loginBrand, 'flupflap');
     assert.doesNotMatch(query('.login-panel').textContent, /Sign in to TiCash/);
     assert.equal(query('#checkout').hidden, true);
-    assert.equal(query('#login-title').textContent, 'Welcome back');
-    assert.equal(query('.login-subheading').textContent, 'Sign in to FlupFlap');
+    assert.equal(query('#login-title').textContent, 'Sign in');
+    assert.equal(query('.auth-intro').textContent, 'Sign in to manage your recharge account.');
     assert.equal(query('.login-world-art').getAttribute('aria-hidden'), 'true');
     assert.equal(query('#email').type, 'email');
     assert.equal(query('#email').autocomplete, 'username');
@@ -57,20 +57,20 @@ test(`${route}: login branding localizes without replacing registration, recover
   query('#register-password').value = 'test-password'; query('#register-password-visibility').click();
   for (const code of ['ht', 'fr', 'es', 'pt', 'en']) {
     setLanguage(code);
-    assert.equal(query('#login-welcome').textContent, t('loginBrandTitle'));
-    assert.equal(query('.login-story-description').textContent, t('loginBrandDescription'));
+    assert.equal(query('.login-service span').textContent, t('loginServiceCaption'));
+    assert.equal(query('.login-story-description'), null);
     assert.equal(query('#register-email').value, 'tester@example.com');
     assert.equal(query('#register-password').value, 'test-password');
     assert.equal(query('#register-password').type, 'text');
     assert.equal(query('#register-form').hidden, false);
-    assert.equal(query('.login-subheading').hidden, true);
+    assert.equal(query('.login-subheading'), null);
   }
   query('#choose-login').click(); assert.equal(query('#register-password').value, '');
   assert.equal(query('#email').required, true); assert.equal(query('#password').minLength, 8);
   query('#forgot-password').click();
   assert.equal(query('#forgot-form').hidden, false); assert.equal(query('#login-form').hidden, true);
   assert.equal(query('#login-title').textContent, 'Forgot your password?');
-  assert.equal(query('.login-subheading').hidden, true);
+  assert.equal(query('.login-subheading'), null);
   query('#back-to-login').click(); assert.equal(query('#login-form').hidden, false);
   assert.equal(query('#continue-guest').hidden, false);
   assert.equal(query('input[autocomplete=one-time-code]'), null); // No invented OTP or social controls.
@@ -133,7 +133,7 @@ test('recharge FlupFlap recovery and guest entry retain their existing flows', a
     assert.equal(query('#recovery-status').textContent, 'If an account exists for this email, we sent password reset instructions.');
     assert.equal(query('#checkout').hidden, true);
     query('#back-to-login').click();
-    assert.equal(query('.login-subheading').textContent, 'Sign in to FlupFlap');
+    assert.equal(query('.auth-intro').textContent, 'Sign in to manage your recharge account.');
     query('#continue-guest').click(); query('#continue-guest').click(); await tick();
     assert.equal(guests, 1);
     assert.equal(query('#checkout').hidden, false);
@@ -143,8 +143,60 @@ test('recharge FlupFlap recovery and guest entry retain their existing flows', a
     assert.ok(api.calls.every(call => !call.method || call.method === 'GET'));
     query('#sign-out').click(); await tick();
     assert.equal(query('#checkout').hidden, true);
-    assert.equal(query('#login-title').textContent, 'Welcome back');
+    assert.equal(query('#login-title').textContent, 'Sign in');
     assert.equal(root.classList.contains('recharge-active'), false);
     assert.equal(dom.window.localStorage.length, 0); assert.equal(dom.window.sessionStorage.length, 0);
   }, api, 'recharge');
 });
+
+for (const route of ['login', 'recharge']) {
+  test(`${route}: final design preserves the real guest handler and has no extra marketing sections`, async () => {
+    const api = fixtureApi(); let guests = 0;
+    api.guest = async () => { guests++; return { id: 'guest-user', role: 'CUSTOMER' }; };
+    await loginPage(async ({ query, submit }) => {
+      assert.equal(query('.login-service span').textContent, 'Powered by TiCash-App');
+      assert.equal(query('#login-title').textContent, 'Sign in');
+      assert.equal(query('.auth-intro').textContent, 'Sign in to manage your recharge account.');
+      assert.equal(query('#email').placeholder, 'Enter your email address');
+      assert.equal(query('#password').placeholder, 'Enter your password');
+      assert.equal(query('#continue-guest').textContent, 'Continue as Guest');
+      assert.equal(query('#choose-register').textContent, 'Create an account');
+      assert.equal(query('#continue-guest').parentNode, query('#choose-register').parentNode);
+      assert.equal(query('#choose-login').hidden, true);
+      for (const selector of ['.login-features', '.login-trust', '.login-subheading', '.login-story-copy', '.auth-help']) assert.equal(query(selector), null);
+      assert.doesNotMatch(query('.login-layout').textContent, /A service offered by TiCash-App|Sign in to FlupFlap/);
+      assert.equal(query('.site-header a[href="/support"]').getAttribute('href'), '/support');
+      query('#continue-guest').click(); query('#continue-guest').click(); await tick();
+      assert.equal(guests, 1); assert.equal(query('#checkout').hidden, false);
+      assert.equal(query('.login-panel').hidden, true);
+    }, api, route);
+  });
+
+  test(`${route}: password visibility, keyboard form submission and language changes preserve entered credentials`, async () => {
+    const api = fixtureApi(); let submitted;
+    api.login = async (...credentials) => { submitted = credentials; return { id: 'user' }; };
+    await loginPage(async ({ query, dom, submit }) => {
+      query('#email').value = 'tester@example.com'; query('#password').value = 'test-password';
+      const toggle = query('#password-visibility'); toggle.click();
+      assert.equal(query('#password').type, 'text'); assert.equal(toggle.getAttribute('aria-pressed'), 'true');
+      assert.equal(toggle.getAttribute('aria-controls'), 'password');
+      for (const option of query('#header-language').options) {
+        query('#header-language').value = option.value;
+        query('#header-language').dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+        assert.equal(query('#login-title').textContent, t('Sign in'));
+        assert.equal(query('.auth-intro').textContent, t('loginAccess'));
+        assert.equal(query('.login-service span').textContent, t('loginServiceCaption'));
+        assert.equal(query('#email').placeholder, t('loginEmailPlaceholder'));
+        assert.equal(query('#continue-guest').textContent, t('loginGuest'));
+        assert.equal(query('#choose-register').textContent, t('loginCreate'));
+        assert.equal(query('#email').value, 'tester@example.com'); assert.equal(query('#password').value, 'test-password');
+        assert.equal(query('#password').type, 'text');
+      }
+      setLanguage('en'); toggle.click();
+      assert.equal(query('#password').type, 'password'); assert.equal(toggle.textContent, 'Show');
+      submit('#login-form'); await tick();
+      assert.deepEqual(submitted, ['tester@example.com', 'test-password']);
+      assert.equal(query('#checkout').hidden, false);
+    }, api, route);
+  });
+}

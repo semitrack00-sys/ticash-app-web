@@ -255,17 +255,20 @@ export function mountRecharge(root, config, dependencies = {}) {
   const backToLogin = button('Back to Sign in', () => chooseAuth('login'), true); backToLogin.id = 'back-to-login';
   const loginTitle = el('h1', { id: 'login-title' });
   const loginIntro = el('p', { className: 'muted auth-intro' });
-  // Presentation opt-in on /login only; the shared authentication lifecycle is unchanged.
-  const loginSubtitle = flupflapLogin ? el('p', { className: 'login-subheading' }, ui('loginFlupFlapSignIn')) : null;
-  const loginTrust = flupflapLogin ? el('div', { className: 'login-trust' },
-    [['info', 'loginTrustPassword'], ['user', 'loginTrustAccount'], ['recipient', 'support']].map(([symbol, label]) =>
-      el('div', {}, icon(symbol), ui(label)))) : null;
+  // Shared login presentation only; the authentication lifecycle and callbacks stay unchanged.
+  if (flupflapLogin) {
+    email.setAttribute('data-i18n-placeholder', 'loginEmailPlaceholder');
+    password.setAttribute('data-i18n-placeholder', 'loginPasswordPlaceholder');
+    registerChoice.dataset.i18n = 'loginCreate';
+    authChoices.prepend(guestButton);
+  }
+  const authDivider = flupflapLogin ? el('div', { className: 'login-divider', 'aria-hidden': 'true' }, ui('loginOr')) : null;
   const loginPanel = el('section', { className: 'panel login-panel', 'aria-labelledby': 'login-title' },
-    el('span', { className: 'step' }, ui('YOUR TICASH ACCOUNT')), loginTitle, loginSubtitle, loginIntro,
+    flupflapLogin ? null : el('span', { className: 'step' }, ui('YOUR TICASH ACCOUNT')), loginTitle, loginIntro,
     flupflapLogin ? null : authChoices, loginError, recoveryStatus, loginForm, registerForm, forgotForm, resetForm, backToLogin,
-    flupflapLogin ? authChoices : null,
-    el('div', { className: 'auth-secondary' }, guestButton),
-    el('a', { className: 'auth-help', href: '/support' }, ui('Need help signing in?')), loginTrust);
+    authDivider, flupflapLogin ? authChoices : null,
+    flupflapLogin ? null : el('div', { className: 'auth-secondary' }, guestButton),
+    flupflapLogin ? null : el('a', { className: 'auth-help', href: '/support' }, ui('Need help signing in?')));
   const logout = button('Sign out', async () => {
     signedIn = false; guestSession = false; clearPasswords(); model.reset(); render();
     try { await client.logout(); }
@@ -539,9 +542,12 @@ export function mountRecharge(root, config, dependencies = {}) {
     const recovering = ['forgot', 'reset'].includes(authMode);
     loginTitle.textContent = t(authMode === 'forgot' ? 'Forgot your password?' : authMode === 'reset' ? 'Reset your password' : authMode === 'register' ? (flupflapLogin ? 'Create FlupFlap account' : 'Create TiCash account') : 'Sign in to TiCash');
     loginIntro.textContent = t(authMode === 'forgot' ? 'Enter your email to request reset instructions.' : authMode === 'reset' ? (flupflapLogin ? 'Choose a new password for your FlupFlap account.' : 'Choose a new password for your TiCash account.') : authMode === 'register' ? 'authRegisterIntro' : 'Sign in to continue your mobile recharge.');
-    if (loginSubtitle) {
-      loginSubtitle.hidden = recovering || authMode === 'register';
-      if (!loginSubtitle.hidden) { loginTitle.textContent = t('loginWelcome'); loginIntro.textContent = t('loginAccess'); }
+    if (flupflapLogin) {
+      loginPanel.dataset.authMode = authMode;
+      if (!recovering && authMode !== 'register') { loginTitle.textContent = t('Sign in'); loginIntro.textContent = t('loginAccess'); }
+      signInChoice.hidden = authMode !== 'register';
+      registerChoice.hidden = authMode === 'register';
+      authDivider.hidden = recovering;
     }
     authChoices.hidden = recovering; guestButton.hidden = recovering; backToLogin.hidden = !recovering;
     forgotForm.hidden = authMode !== 'forgot'; resetForm.hidden = authMode !== 'reset';
@@ -560,7 +566,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     for (const control of [email, password, firstName, lastName, registerEmail, registerPassword, registerCountry]) control.disabled = signingIn;
     signInChoice.setAttribute('aria-pressed', String(authMode === 'login'));
     registerChoice.setAttribute('aria-pressed', String(authMode === 'register'));
-    guestButton.textContent = t(signingIn && authMode === 'guest' ? 'Starting guest session…' : 'Continue as guest');
+    guestButton.textContent = t(signingIn && authMode === 'guest' ? 'Starting guest session…' : flupflapLogin ? 'loginGuest' : 'Continue as guest');
     registerButton.textContent = t(signingIn && authMode === 'register' ? 'Creating account…' : flupflapLogin ? 'Create FlupFlap account' : 'Create TiCash account');
     loginButton.disabled = !configured || signingIn;
     loginButton.textContent = t(signingIn ? 'Signing in…' : 'Sign in');

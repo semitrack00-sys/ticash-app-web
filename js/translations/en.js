@@ -1,4 +1,9 @@
 export default Object.freeze({
+  "loginEmailPlaceholder": "Enter your email address",
+  "loginPasswordPlaceholder": "Enter your password",
+  "loginOr": "or",
+  "loginGuest": "Continue as Guest",
+  "loginCreate": "Create an account",
   "checkoutResumeInvalid": "Invalid checkout return link.",
   "checkoutResumeError": "Checkout return link is unavailable.",
   "checkoutAmountMismatch": "Unable to verify the Stripe payment amount. Refresh transaction status before retrying.",
@@ -69,12 +74,12 @@ export default Object.freeze({
   "loginFeatureFamily": "For Family & Friends",
   "loginFeatureGlobal": "Global Coverage",
   "loginFeatureAnytime": "Top Up Anytime",
-  "loginAccess": "Access worldwide mobile recharge and all your TiCash-App services.",
+  "loginAccess": "Sign in to manage your recharge account.",
   "loginFlupFlapSignIn": "Sign in to FlupFlap",
   "loginWelcome": "Welcome back",
   "loginBrandTitle": "Worldwide Mobile Recharge",
   "loginBrandDescription": "Top up mobile phones for family and friends around the world with FlupFlap, a service offered by TiCash-App.",
-  "loginServiceCaption": "A service offered by TiCash-App",
+  "loginServiceCaption": "Powered by TiCash-App",
 
   "mobileNumberPlaceholder": "Enter mobile number",
   "quoteEmptyInstruction": "Choose a destination, number, operator, and product to see the exact total.",
@@ -348,7 +353,8 @@ export default Object.freeze({
   "stayConnected": "Stay connected",
   "flupDataPlans": "Data Plans",
   "flupComboPlans": "Combo Plans",
-  "continueRecharge": "Continue",
+  "continueRecharge": "Continue"
+,
   "billingCountryLabel": "Billing country",
   "billingCountryPlaceholder": "Select billing country",
   "billingCountrySearch": "Search billing countries",
