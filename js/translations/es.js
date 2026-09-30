@@ -1,4 +1,9 @@
 export default Object.freeze({
+  "loginEmailPlaceholder": "Introduce tu correo electrónico",
+  "loginPasswordPlaceholder": "Introduce tu contraseña",
+  "loginOr": "o",
+  "loginGuest": "Continuar como invitado",
+  "loginCreate": "Crear una cuenta",
   "checkoutResumeInvalid": "Enlace de regreso del pago no válido.",
   "checkoutResumeError": "El enlace de regreso del pago no está disponible.",
   "checkoutAmountMismatch": "No se pudo verificar el importe del pago de Stripe. Actualiza el estado de la transacción antes de reintentar.",
@@ -69,12 +74,12 @@ export default Object.freeze({
   "loginFeatureFamily": "Para familiares y amigos",
   "loginFeatureGlobal": "Cobertura internacional",
   "loginFeatureAnytime": "Recarga en cualquier momento",
-  "loginAccess": "Accede a recargas móviles internacionales y a todos tus servicios TiCash-App.",
+  "loginAccess": "Inicia sesión para gestionar tu cuenta de recargas.",
   "loginFlupFlapSignIn": "Inicia sesión en FlupFlap",
   "loginWelcome": "Te damos la bienvenida",
   "loginBrandTitle": "Recargas móviles internacionales",
   "loginBrandDescription": "Recarga los móviles de familiares y amigos en todo el mundo con FlupFlap, un servicio de TiCash-App.",
-  "loginServiceCaption": "Un servicio de TiCash-App",
+  "loginServiceCaption": "Con tecnología de TiCash-App",
 
   "mobileNumberPlaceholder": "Introduce el número de móvil",
   "quoteEmptyInstruction": "Elige un destino, número, operador y producto para ver el total exacto.",
@@ -348,7 +353,8 @@ export default Object.freeze({
   "stayConnected": "Mantente conectado",
   "flupDataPlans": "Planes de datos",
   "flupComboPlans": "Planes combinados",
-  "continueRecharge": "Continuar",
+  "continueRecharge": "Continuar"
+,
   "billingCountryLabel": "País de facturación",
   "billingCountryPlaceholder": "Selecciona el país de facturación",
   "billingCountrySearch": "Buscar países de facturación",

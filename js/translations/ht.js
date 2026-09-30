@@ -1,4 +1,9 @@
 export default Object.freeze({
+  "loginEmailPlaceholder": "Antre adrès imèl ou",
+  "loginPasswordPlaceholder": "Antre modpas ou",
+  "loginOr": "oswa",
+  "loginGuest": "Kontinye kòm envite",
+  "loginCreate": "Kreye kont",
   "checkoutResumeInvalid": "Lyen retou peman an pa valab.",
   "checkoutResumeError": "Lyen retou peman an pa disponib.",
   "checkoutAmountMismatch": "Nou pa kapab verifye kantite peman Stripe la. Rafrechi estati tranzaksyon an anvan ou eseye ankò.",
@@ -69,12 +74,12 @@ export default Object.freeze({
   "loginFeatureFamily": "Pou fanmi ak zanmi",
   "loginFeatureGlobal": "Kouvèti entènasyonal",
   "loginFeatureAnytime": "Rechaje nenpòt lè",
-  "loginAccess": "Jwenn aksè nan rechaj mobil atravè lemond ak tout sèvis TiCash-App ou yo.",
+  "loginAccess": "Konekte pou jere kont rechaj ou.",
   "loginFlupFlapSignIn": "Konekte nan FlupFlap",
   "loginWelcome": "Byenveni ankò",
   "loginBrandTitle": "Rechaj mobil atravè lemond",
   "loginBrandDescription": "Rechaje telefòn mobil fanmi ak zanmi toupatou nan mond lan ak FlupFlap, yon sèvis TiCash-App ofri.",
-  "loginServiceCaption": "Yon sèvis TiCash-App ofri",
+  "loginServiceCaption": "TiCash-App ap sipòte sèvis la",
 
   "mobileNumberPlaceholder": "Antre nimewo mobil la",
   "quoteEmptyInstruction": "Chwazi yon destinasyon, nimewo, operatè ak pwodwi pou wè montan total egzak la.",
@@ -348,7 +353,8 @@ export default Object.freeze({
   "stayConnected": "Rete konekte",
   "flupDataPlans": "Plan done",
   "flupComboPlans": "Plan konbine",
-  "continueRecharge": "Kontinye",
+  "continueRecharge": "Kontinye"
+,
   "billingCountryLabel": "Peyi pou fakti",
   "billingCountryPlaceholder": "Chwazi peyi pou fakti",
   "billingCountrySearch": "Chèche peyi pou fakti",
