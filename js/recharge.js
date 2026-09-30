@@ -367,7 +367,7 @@ export class Recharge {
       s.error = blocked || 'Review a current quote before confirming.'; this.emit(); return;
     }
     const generation = this.generation;
-    try { s.attempt = { mode: checkoutMode, body: { quoteId: s.quote.id, billingCountry }, key: secureId(this.crypto) }; }
+    try { s.attempt = { mode: checkoutMode, body: { quoteId: s.quote.id, ...(s.guest ? { billingCountry } : {}) }, key: secureId(this.crypto) }; }
     catch (error) { s.error = error.message; this.emit(); return; }
     const attempt = s.attempt;
     s.submitting = true;
