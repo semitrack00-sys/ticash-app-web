@@ -36,6 +36,6 @@ Browser smoke checks use a separate loopback-only fixture server. Verify desktop
 
 ## Worldwide language set
 
-FlupFlap currently exposes these language choices: English, Kreyòl Ayisyen, Français, Español, Português, العربية, Deutsch, Italiano, हिन्दी, 简体中文, 日本語, 한국어, Русский, Türkçe, and Kiswahili.
+FlupFlap currently exposes these language choices: English, Kreyòl Ayisyen, Français, Español, Português, العربية, Deutsch, Italiano, हिन्दी, 简体中文, 日本語, 한국어, Русский, Türkçe, Kiswahili, বাংলা, Bahasa Indonesia, Tiếng Việt, ไทย, اردو, فارسی, Polski, Nederlands, Ελληνικά, Українська, Filipino, and Bahasa Melayu.
 
-Arabic switches the document direction to RTL. All other current locales use LTR. Country names continue to use `Intl.DisplayNames` where supported, while operator/product names, identifiers, currencies, and provider data are never translated.
+Arabic, Urdu, and Persian switch the document direction to RTL. All other current locales use LTR. Country names continue to use `Intl.DisplayNames` where supported, while operator/product names, identifiers, currencies, and provider data are never translated.
