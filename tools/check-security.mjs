@@ -17,12 +17,13 @@ assert.deepEqual([...preferences.matchAll(/preferenceStorage\?\.([^(]+)\(([^)]*)
   ['getItem', "'ticash.language'"], ['setItem', "'ticash.language', language"],
 ], 'Only the non-sensitive language preference may be persisted');
 assert.doesNotMatch(sources, /console\.(log|debug|info|warn|error)\(/, 'No sensitive browser logging');
+assert.doesNotMatch(sources, /window\.open\s*\(|target\s*=\s*['\"]_blank['\"]|target=['\"]_blank['\"]/, 'Do not open untrusted browsing contexts from account or payment code');
 assert.doesNotMatch(sources, /https?:\/\/[^\s'"<>]*reloadly\./i, 'Browser must not contact provider');
 assert.doesNotMatch(sources, /STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET|RELOADLY_CLIENT_SECRET|JWT_ACCESS_SECRET|DATABASE_URL|DWOLLA_CLIENT_SECRET|DIDIT_API_KEY|BEGIN (RSA |EC )?PRIVATE KEY|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/, 'Potential browser secret');
 assert.doesNotMatch(sources, /\+509|countryCode:\s*['"]HT['"]/, 'No hardcoded destination');
 for (const file of ['login/index.html', 'recharge/index.html', 'recharge/reset-password/index.html']) {
   const html = readFileSync(file, 'utf8');
-  assert.match(html, /Content-Security-Policy/); assert.match(html, /form-action 'none'/);
+  assert.match(html, /Content-Security-Policy/); assert.match(html, /form-action 'none'/); assert.match(html, /object-src 'none'/); assert.match(html, /base-uri 'none'/);
   assert.doesNotMatch(html, /analytics\.js|data-analytics/, 'Do not instrument account or transaction pages');
   assert.doesNotMatch(html, /COMING SOON|No recharge purchases are accepted/);
 }
@@ -38,6 +39,9 @@ for (const required of [
   /Permissions-Policy/,
   /Cross-Origin-Opener-Policy[\s\S]*same-origin/,
   /Strict-Transport-Security[\s\S]*max-age=63072000/,
+  /Content-Security-Policy[\s\S]*object-src 'none'/,
+  /Content-Security-Policy[\s\S]*base-uri 'none'/,
+  /Content-Security-Policy[\s\S]*form-action 'none'/,
   /Content-Security-Policy[\s\S]*frame-ancestors 'none'/,
   /connect-src 'self' https:\/\/ticash-api\.onrender\.com/,
   /\/login[\s\S]*Cache-Control[\s\S]*no-store/,
