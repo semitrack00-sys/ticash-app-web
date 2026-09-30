@@ -151,7 +151,7 @@ test(`${route}: real login markup preserves credentials, busy state, in-memory t
     assert.equal(root.dataset.loginBrand, 'flupflap');
     assert.doesNotMatch(query('.login-panel').textContent, /Sign in to TiCash/);
     assert.equal(query('#checkout').hidden, true);
-    assert.equal(query('#login-title').textContent, 'Welcome back');
+    assert.equal(query('#login-title').textContent, 'Welcome');
     assert.equal(query('.auth-intro').textContent, 'Sign in to manage your recharge account.');
     assert.equal(query('.login-world-art'), null);
     assert.equal(query('#email').type, 'email');
@@ -265,7 +265,7 @@ test('recharge FlupFlap recovery and guest entry retain their existing flows', a
     assert.ok(api.calls.every(call => !call.method || call.method === 'GET'));
     query('#sign-out').click(); await tick();
     assert.equal(query('#checkout').hidden, true);
-    assert.equal(query('#login-title').textContent, 'Welcome back');
+    assert.equal(query('#login-title').textContent, 'Welcome');
     assert.equal(root.classList.contains('recharge-active'), false);
     assert.equal(dom.window.localStorage.length, 0); assert.equal(dom.window.sessionStorage.length, 0);
   }, api, 'recharge');
@@ -277,7 +277,7 @@ for (const route of ['login', 'recharge']) {
     api.guest = async () => { guests++; return { id: 'guest-user', role: 'CUSTOMER' }; };
     await loginPage(async ({ query, submit }) => {
       assert.equal(query('.login-service span'), null);
-      assert.equal(query('#login-title').textContent, 'Welcome back');
+      assert.equal(query('#login-title').textContent, 'Welcome');
       assert.equal(query('.auth-intro').textContent, 'Sign in to manage your recharge account.');
       assert.equal(query('#email').placeholder, 'Enter your email address');
       assert.equal(query('#password').placeholder, 'Enter your password');
