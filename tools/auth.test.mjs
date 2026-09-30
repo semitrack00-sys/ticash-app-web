@@ -131,6 +131,27 @@ test('guest entry requires explicit guest CUSTOMER response and normal tokens, n
   }
 });
 
+test('FlupFlap guest keeps server scope denials and cannot access TiCash/admin services', async () => {
+  const calls = [];
+  const api = createApiClient({ baseUrl: 'https://test.example/api', identityDomain: 'FLUPFLAP', fetchImpl: async (url, options) => {
+    calls.push({ url, ...options });
+    if (url.endsWith('/auth/guest')) return json({ ...session, guest: true, user: { id: 'guest-only', domain: 'FLUPFLAP', isGuest: true } });
+    return json({ code: 'GUEST_SCOPE_RESTRICTED', error: 'Sign in or create an account to continue.' }, 403);
+  } });
+  const guest = await api.guest();
+  assert.equal(guest.isGuest, true);
+  assert.equal(calls[0].url, 'https://test.example/api/flupflap/auth/guest');
+  assert.equal(calls[0].body, undefined);
+  await assert.rejects(api.request('/users/me', { method: 'PATCH', body: { countryCode: 'US' } }), { status: 403, code: 'GUEST_SCOPE_RESTRICTED' });
+  assert.equal(calls.length, 2); // No retry with elevated credentials or alternate identity.
+  for (const path of ['/admin/analytics', '/transfers', '/funding/accounts']) {
+    await assert.rejects(api.request(path), { code: 'INVALID_PATH' });
+  }
+  assert.equal(calls.length, 2);
+  api.clear();
+  await assert.rejects(api.request('/mobile-topups/history'), { code: 'UNAUTHENTICATED' });
+});
+
 test('all authentication choices avoid persistent browser storage and token URLs', async () => {
   const original = ['localStorage', 'sessionStorage'].map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]);
   for (const [key] of original) Object.defineProperty(globalThis, key, { configurable: true, get() { throw new Error('Browser storage accessed'); } });

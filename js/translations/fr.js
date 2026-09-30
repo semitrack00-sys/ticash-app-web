@@ -1,4 +1,5 @@
 export default Object.freeze({
+  "loginFeatureRecharge": "Recharge mobile",
   "loginEmailPlaceholder": "Saisissez votre adresse e-mail",
   "loginPasswordPlaceholder": "Saisissez votre mot de passe",
   "loginOr": "ou",

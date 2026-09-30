@@ -260,7 +260,6 @@ export function mountRecharge(root, config, dependencies = {}) {
     email.setAttribute('data-i18n-placeholder', 'loginEmailPlaceholder');
     password.setAttribute('data-i18n-placeholder', 'loginPasswordPlaceholder');
     registerChoice.dataset.i18n = 'loginCreate';
-    authChoices.prepend(guestButton);
   }
   const authDivider = flupflapLogin ? el('div', { className: 'login-divider', 'aria-hidden': 'true' }, ui('loginOr')) : null;
   const loginPanel = el('section', { className: 'panel login-panel', 'aria-labelledby': 'login-title' },
@@ -269,6 +268,8 @@ export function mountRecharge(root, config, dependencies = {}) {
     authDivider, flupflapLogin ? authChoices : null,
     flupflapLogin ? null : el('div', { className: 'auth-secondary' }, guestButton),
     flupflapLogin ? null : el('a', { className: 'auth-help', href: '/support' }, ui('Need help signing in?')));
+  // Keep the existing guest handler, as a quiet secondary action outside the card.
+  const loginGuestLink = flupflapLogin ? el('div', { className: 'login-guest-link' }, guestButton) : null;
   const logout = button('Sign out', async () => {
     signedIn = false; guestSession = false; clearPasswords(); model.reset(); render();
     try { await client.logout(); }
@@ -501,7 +502,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const testIcon = el('span', { className: 'test-icon' }, el('img', { src: '/brand/flupflap/icon.svg', alt: 'FlupFlap', width: '18', height: '18' }));
   const testBanner = el('div', { className: 'test-banner', role: 'note' }, testIcon,
     el('div', { className: 'test-copy' }, testTitle, testText));
-  const mainArea = el('div', { className: 'flupflap-main-content' }, hero, testBanner, error, notice, loginPanel, checkout);
+  const mainArea = el('div', { className: 'flupflap-main-content' }, hero, testBanner, error, notice, loginPanel, loginGuestLink, checkout);
   const shell = el('div', { className: 'flupflap-app-shell' }, topbar, menu, sidebar, mainArea);
   root.replaceChildren(shell);
 
@@ -545,12 +546,13 @@ export function mountRecharge(root, config, dependencies = {}) {
     loginIntro.textContent = t(authMode === 'forgot' ? 'Enter your email to request reset instructions.' : authMode === 'reset' ? (flupflapLogin ? 'Choose a new password for your FlupFlap account.' : 'Choose a new password for your TiCash account.') : authMode === 'register' ? 'authRegisterIntro' : 'Sign in to continue your mobile recharge.');
     if (flupflapLogin) {
       loginPanel.dataset.authMode = authMode;
-      if (!recovering && authMode !== 'register') { loginTitle.textContent = t('Sign in'); loginIntro.textContent = t('loginAccess'); }
+      if (!recovering && authMode !== 'register') { loginTitle.textContent = t('loginWelcome'); loginIntro.textContent = t('loginAccess'); }
       signInChoice.hidden = authMode !== 'register';
       registerChoice.hidden = authMode === 'register';
       authDivider.hidden = recovering;
     }
     authChoices.hidden = recovering; guestButton.hidden = recovering; backToLogin.hidden = !recovering;
+    if (loginGuestLink) loginGuestLink.hidden = signedIn || recovering;
     forgotForm.hidden = authMode !== 'forgot'; resetForm.hidden = authMode !== 'reset';
     recoveryStatus.textContent = t(recoveryMessage); recoveryStatus.hidden = !recoveryMessage;
     forgotSubmit.textContent = t(signingIn ? 'Sending…' : 'Send reset instructions');
