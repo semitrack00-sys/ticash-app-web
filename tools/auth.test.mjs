@@ -219,3 +219,14 @@ test('FlupFlap detection preserves encoded international phone query parameters'
  assert.equal(calls.at(-1),'https://test.example/api/flupflap/mobile-topups/operators/detect?country=JM&phone=%2B18765551234');
  await assert.rejects(api.request('/mobile-topups/%2e%2e/transfers'),{code:'INVALID_PATH'});
 });
+
+
+test('FlupFlap web session uses credentialed HttpOnly-cookie refresh without browser token storage', async () => {
+  const calls=[]; const flup={accessToken:'fresh-access',refreshToken:'rotated-server-token',user:{id:'flup',domain:'FLUPFLAP',guest:false}};
+  const api=createApiClient({baseUrl:'https://test.example/api',identityDomain:'FLUPFLAP',fetchImpl:async(url,options)=>{calls.push({url,...options}); if(url.endsWith('/refresh')) return json(flup); if(url.endsWith('/me')) return json({user:flup.user}); return json(flup);}});
+  assert.deepEqual(await api.restore(),flup.user);
+  assert.equal(calls[0].url,'https://test.example/api/flupflap/auth/refresh');
+  assert.deepEqual(JSON.parse(calls[0].body),{});
+  assert.equal(calls[0].credentials,'include');
+  assert.equal(calls[1].headers.Authorization,'Bearer fresh-access');
+});
