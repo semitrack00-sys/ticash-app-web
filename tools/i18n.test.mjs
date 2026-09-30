@@ -47,6 +47,8 @@ test('only language preference persists and unavailable storage remains optional
     initializeLanguage(dom.window.document); assert.equal(getLanguage(), 'fr'); assert.deepEqual(writes, []);
     setLanguage('ht'); assert.deepEqual(writes, [['ticash.language','ht']]); assert.equal(dom.window.document.documentElement.lang, 'ht');
     setLanguage('ar'); assert.equal(dom.window.document.documentElement.dir, 'rtl');
+    setLanguage('ur'); assert.equal(dom.window.document.documentElement.dir, 'rtl');
+    setLanguage('fa'); assert.equal(dom.window.document.documentElement.dir, 'rtl');
     setLanguage('de'); assert.equal(dom.window.document.documentElement.dir, 'ltr');
     Object.defineProperty(dom.window, 'localStorage', { get() { throw new Error('blocked'); } });
     initializeLanguage(dom.window.document); assert.doesNotThrow(() => setLanguage('pt')); assert.equal(getLanguage(),'pt');
@@ -105,6 +107,6 @@ test('all recovery copy and password controls remain complete in the original fi
 
 test('worldwide language selector exposes the expanded supported language set', () => {
   const codes = supportedLanguages().map(({ code }) => code);
-  assert.deepEqual(codes, ['en','ht','fr','es','pt','ar','de','it','hi','zh','ja','ko','ru','tr','sw']);
+  assert.deepEqual(codes, ['en','ht','fr','es','pt','ar','de','it','hi','zh','ja','ko','ru','tr','sw','bn','id','vi','th','ur','fa','pl','nl','el','uk','fil','ms']);
   assert.deepEqual(Object.keys(translations), codes);
 });
