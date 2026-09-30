@@ -9,6 +9,66 @@ import { setLanguage, t } from '../js/i18n.js';
 const pages = Object.fromEntries(['login', 'recharge'].map(route => [route, readFileSync(new URL(`../${route}/index.html`, import.meta.url), 'utf8')]));
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
+test('guest action retains native keyboard semantics and a visible secondary touch target', async () => {
+  const css = readFileSync(new URL('../login/login.css', import.meta.url), 'utf8');
+  assert.match(css, /login-guest-link \.button\{[^}]*min-height:44px/);
+  for (const state of ['hover', 'focus-visible', 'active']) assert.ok(css.includes(`login-guest-link .button:${state}`));
+  await loginPage(async ({ query }) => {
+    const guest = query('#continue-guest');
+    assert.equal(guest.tagName, 'BUTTON');
+    assert.equal(guest.type, 'button');
+    assert.equal(guest.tabIndex, 0);
+    assert.equal(guest.disabled, false);
+    assert.equal(guest.textContent, 'Continue as Guest');
+  });
+});
+
+test('guest label is explicitly translated in all five supported catalogs', async () => {
+  const expected = { en: 'Continue as Guest', fr: 'Continuer comme invité', ht: 'Kontinye kòm envite', es: 'Continuar como invitado', pt: 'Continuar como convidado' };
+  await loginPage(async ({ query }) => {
+    try {
+      for (const [language, label] of Object.entries(expected)) {
+        const catalog = (await import(`../js/translations/${language}.js`)).default;
+        assert.equal(catalog.loginGuest, label);
+        setLanguage(language);
+        assert.equal(query('#continue-guest').textContent, label);
+      }
+    } finally { setLanguage('en'); }
+  });
+});
+
+for (const route of ['login', 'recharge']) {
+  test(`${route}: guest entry waits for server approval, fails closed, and never becomes a permanent account`, async () => {
+    const api = fixtureApi(); let rejectGuest; let guestCalls = 0; let logouts = 0;
+    api.guest = () => { guestCalls++; return new Promise((resolve, reject) => { rejectGuest = reject; }); };
+    api.logout = async () => { logouts++; };
+    await loginPage(async ({ query, app, dom }) => {
+      query('#continue-guest').click(); query('#continue-guest').click();
+      assert.equal(guestCalls, 1);
+      assert.equal(query('#continue-guest').disabled, true);
+      assert.equal(query('#checkout').hidden, true);
+      assert.equal(app.model.state.account, null);
+      rejectGuest(new Error('Guest access is unavailable. Sign in or create an account.')); await tick();
+      assert.equal(query('#checkout').hidden, true);
+      assert.equal(query('.login-panel [role=alert]').hidden, false);
+      assert.equal(query('#continue-guest').disabled, false);
+      api.guest = async () => ({ id: 'guest-only', domain: 'FLUPFLAP', isGuest: true });
+      query('#continue-guest').click(); await tick();
+      assert.equal(app.model.state.guest, true);
+      assert.equal(query('#guest-create-account').hidden, false);
+      assert.equal(query('#save-account-country').hidden, true);
+      assert.ok(api.calls.every(call => call.method !== 'PATCH'));
+      assert.equal(dom.window.localStorage.length, 0);
+      assert.equal(dom.window.sessionStorage.length, 0);
+      query('#guest-create-account').click(); await tick();
+      assert.equal(logouts, 1);
+      assert.equal(app.model.state.account, null);
+      assert.equal(query('#register-form').hidden, false);
+      assert.equal(query('#checkout').hidden, true);
+    }, api, route);
+  });
+}
+
 test('approved login uses the official logo, no old artwork, and three informational features', () => {
   for (const html of Object.values(pages)) {
     const dom = new JSDOM(html);
