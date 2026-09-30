@@ -7,16 +7,16 @@ export function billingFixture() {
   api.identityDomain = 'FLUPFLAP';
   const carrier = { ...operator, countryCode: 'HT', logoUrl: undefined };
   const product = { ...products[0], id: billingQuote.productId, countryCode: 'HT', price: 50 };
-  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, paymentMode: 'STRIPE_SANDBOX' }));
+  api.overrides.set('GET /mobile-topups/status', () => ({ ...status, environment: 'PRODUCTION', paymentMode: 'STRIPE_LIVE', testMode: false, productionEnabled: true, approvedForLiveUse: true, liveRechargeEnabled: true }));
   api.overrides.set('GET /mobile-topups/countries', () => ({ countries: [{ code: 'HT', name: 'Haiti', callingCode: '+509' }] }));
   api.overrides.set('GET /mobile-topups/operators', () => ({ operators: [carrier] }));
   api.overrides.set('GET /mobile-topups/operators/detect', () => ({ operator: carrier }));
   api.overrides.set('GET /mobile-topups/operators/77/products', () => ({ operator: carrier, products: [product] }));
-  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }] }));
+  api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods: [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: true }] }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'test-user', countryCode: 'CA' } }));
   api.overrides.set('POST /mobile-topups/quotes', () => ({ quote: { ...billingQuote } }));
-  api.overrides.set('POST /mobile-topups/payment-sessions', () => ({ provider: 'STRIPE', environment: 'SANDBOX', testMode: true,
-    transactionId: '22222222-2222-4222-8222-222222222222', checkoutSession: { id: 'cs_test_fixture', url: 'https://checkout.stripe.com/c/pay/cs_test_fixture' },
+  api.overrides.set('POST /mobile-topups/payment-sessions', () => ({ provider: 'STRIPE', environment: 'PRODUCTION', testMode: false,
+    transactionId: '22222222-2222-4222-8222-222222222222', checkoutSession: { id: 'cs_live_fixture', url: 'https://checkout.stripe.com/c/pay/cs_live_fixture' },
     amountMinor: 5449, currency: 'USD', paymentStatus: 'SESSION_CREATED' }));
   return api;
 }
