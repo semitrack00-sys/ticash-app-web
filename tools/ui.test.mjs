@@ -405,7 +405,7 @@ test('FlupFlap separates existing controls into number, amount and payment scree
   }
   assert.equal(query('#confirm-recharge').disabled, true);
   assert.match(query('.review-empty').textContent, /to see the exact total/);
-  assert.match(query('.history-empty').textContent, /once you complete a test recharge/);
+  assert.match(query('.history-empty').textContent, /after you complete a recharge/);
   assert.ok(query('#country-picker-menu').contains(query('#country-search')));
 }));
 
