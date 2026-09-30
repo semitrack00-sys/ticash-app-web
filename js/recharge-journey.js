@@ -101,6 +101,13 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     el('p', { className: 'small muted' }, ui('journeyOperatorFallback')),
     n.operatorControls.querySelector('.operator-actions'), n.operatorPicker.closest('.field'));
   n.destinationControls.append(fallbackControls);
+  const backButton = button('Back', () => {
+    if (typeof globalThis.history?.back === 'function') globalThis.history.back();
+    else if (screen !== 'number') show('number');
+  }, true);
+  backButton.id = 'journey-back';
+  backButton.classList.add('text-action', 'journey-back');
+  backButton.setAttribute('aria-label', 'Go back to previous recharge step');
   const numberContinue = button('Continue', action(async () => {
     if (continuing || locked()) return;
     model.normalizedPhone();
@@ -144,6 +151,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   n.historyPanel.querySelector('h2').tabIndex = -1;
   const ancillary = el('div', { id: 'recharge-screens' }, home, directoryPanel, n.historyPanel, recipientsScreen);
   n.checkout.after(ancillary);
+  n.selectionFields.before(backButton);
   const screens = { number: n.destinationPanel, amount: amountPanel, pay: n.reviewPanel, result: n.receipt,
     home, directory: directoryPanel, history: n.historyPanel, recipients: recipientsScreen };
   for (const [name, panel] of Object.entries(screens)) panel.dataset.journeyScreen = name;
@@ -240,6 +248,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     } else if (!s.transaction) lastTransaction = undefined;
     if (s.checkoutSession && ['number', 'amount'].includes(screen)) screen = 'pay';
     ancillary.hidden = !signedIn;
+    backButton.hidden = !signedIn || screen === 'number';
     for (const [name, panel] of Object.entries(screens)) panel.hidden = !signedIn || screen !== name;
     n.selectionFields.hidden = !['number', 'amount', 'pay'].includes(screen);
     n.progress.hidden = !['number', 'amount', 'pay'].includes(screen);
