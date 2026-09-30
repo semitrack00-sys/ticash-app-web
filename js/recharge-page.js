@@ -523,8 +523,10 @@ export function mountRecharge(root, config, dependencies = {}) {
     }
     if (!signedIn) { menu.hidden = true; menuButton.setAttribute('aria-expanded', 'false'); accountBar.open = false; }
     const liveRecharge = s.testMode === false && s.paymentMode === checkoutMode;
-    testTitle.textContent = t(signedIn ? (liveRecharge ? 'Live recharge' : 'You’re in test mode') : 'Secure recharge');
-    testText.textContent = t(signedIn ? (liveRecharge ? 'Secure payment by Stripe. Recharge is sent after payment confirmation.' : 'No real payment is collected.') : 'Sign in to continue.');
+    testTitle.hidden = liveRecharge;
+    testText.hidden = liveRecharge;
+    testTitle.textContent = t(signedIn ? 'You’re in test mode' : 'Secure recharge');
+    testText.textContent = t(signedIn ? 'No real payment is collected.' : 'Sign in to continue.');
     accountMode.textContent = t(liveRecharge ? 'Live recharge' : 'Test mode');
     let destinationComplete = false;
     try { model.normalizedPhone(); destinationComplete = Boolean(s.country); } catch { /* A prefix alone is not a complete destination. */ }
