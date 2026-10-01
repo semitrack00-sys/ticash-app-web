@@ -428,5 +428,10 @@ export default Object.freeze({
   "rechargeInfoREFUNDED": "The payment provider has confirmed the refund.",
   "rechargeInfoVOIDED": "The payment provider has confirmed the cancellation.",
   "receiverDelivered": "Delivered to receiver",
-  "receiverValueChanged": "The delivered value differs from the quote. Check the confirmed receipt."
+  "receiverValueChanged": "The delivered value differs from the quote. Check the confirmed receipt.",
+  "receiptVerificationFailed": "Unable to verify the receipt.",
+  "cancellationVerificationFailed": "Unable to verify the cancellation.",
+  "sandboxReceipt": "TEST RECEIPT",
+  "sandboxReceiptWarning": "This is a test transaction. No real money or airtime was transferred.",
+  "sandboxPaymentStatus": "Test payment status"
 });

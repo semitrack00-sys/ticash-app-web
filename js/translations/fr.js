@@ -428,5 +428,10 @@ export default Object.freeze({
   "rechargeInfoREFUNDED": "Le prestataire de paiement a confirmé le remboursement.",
   "rechargeInfoVOIDED": "Le prestataire de paiement a confirmé l’annulation.",
   "receiverDelivered": "Montant reçu",
-  "receiverValueChanged": "Le montant livré diffère du devis. Consultez le reçu confirmé."
+  "receiverValueChanged": "Le montant livré diffère du devis. Consultez le reçu confirmé.",
+  "receiptVerificationFailed": "Impossible de vérifier le reçu.",
+  "cancellationVerificationFailed": "Impossible de vérifier l’annulation.",
+  "sandboxReceipt": "REÇU DE TEST",
+  "sandboxReceiptWarning": "Il s’agit d’une transaction de test. Aucun argent réel ni crédit téléphonique n’a été transféré.",
+  "sandboxPaymentStatus": "Statut du paiement de test"
 });

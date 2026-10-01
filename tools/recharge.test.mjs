@@ -128,7 +128,7 @@ test('expired or invalid guest session fails closed before Stripe live payment',
 test('unavailable Stripe payment method fails closed', () => {
   const model = new Recharge(fixtureApi());
   model.state.paymentMode = checkoutMode;
-  model.state.paymentMethods = [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: true }];
+  model.state.paymentMethods = [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: false }];
   model.state.profileLoaded = true;
   model.state.accountCountry = 'CA';
   model.setAccount({ id: 'user-1' }, false);
@@ -238,14 +238,14 @@ test('recharge branding uses FlupFlap and keeps TiCash-App as the parent platfor
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
   globalThis.document = dom.window.document;
   const root = document.getElementById('root');
-  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
+  const app = mountRecharge(root, { mobileRechargeLive: true }, { api });
   try {
     const guestButton = document.getElementById('continue-guest');
     guestButton.click();
     await Promise.resolve();
     assert.match(root.textContent, /FlupFlap/);
     assert.match(root.querySelector('.flupflap-hero img').alt, /Mobile Recharge by TiCash-App/);
-    assert.match(root.textContent, /TiCash-App/);
+    assert.equal(root.querySelector('.wordmark-ti'), null);
     const registerButton = document.getElementById('choose-register');
     registerButton.click();
     assert.match(root.textContent, /Create TiCash account/);
@@ -306,7 +306,7 @@ test('Stripe checkout reserves payment-session with idempotency and never posts 
 
   const paymentCalls = api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST');
   assert.equal(paymentCalls.length, 1);
-  assert.deepEqual(paymentCalls[0].body, { quoteId: quote.id, billingCountry: 'CA' });
+  assert.deepEqual(paymentCalls[0].body, { quoteId: quote.id });
   assert.match(paymentCalls[0].headers['Idempotency-Key'], /^[0-9a-f-]{36}$/i);
   assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
   assert.equal(model.state.attempt?.transactionId, transaction.id);
@@ -364,8 +364,8 @@ test('Stripe checkout accepts CARD payment methods from backend type contract an
       type: 'CARD',
       enabled: true,
       provider: 'STRIPE',
-      testMode: true,
-      label: 'Test card - Stripe Sandbox',
+      testMode: false,
+      label: 'Card - Stripe',
     }],
   }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
@@ -418,7 +418,7 @@ test('only terminal server payment states release Stripe checkout lock', async (
   assert.ok(model.state.attempt);
   const id = model.state.attempt.transactionId;
   let status = 'PROCESSING';
-  api.overrides.set(`GET /mobile-topups/transactions/${id}`, () => ({ transaction: { ...transaction, id, quoteId: quote.id, status, paymentStatus: 'AUTHORIZED', testMode: true } }));
+  api.overrides.set(`GET /mobile-topups/transactions/${id}`, () => ({ transaction: { ...transaction, id, quoteId: quote.id, status, paymentStatus: 'AUTHORIZED', testMode: false } }));
 
   await model.refreshTransaction(id);
   assert.ok(model.state.attempt);
@@ -454,12 +454,13 @@ test('page-level hosted checkout mounts once and never posts browser fulfillment
   globalThis.document = dom.window.document;
 
   const root = document.getElementById('root');
-  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
+  const app = mountRecharge(root, { mobileRechargeLive: true }, { api });
   try {
     document.getElementById('email').value = 'user@example.test';
     document.getElementById('password').value = 'correct horse battery staple';
     document.getElementById('login-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
-    await flush();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(document.getElementById('checkout').hidden, false);
 
     await app.model.selectCountry('JM');
     app.model.setPhone('+1 (876) 555-1234');
@@ -491,12 +492,13 @@ test('hosted checkout session creation surfaces safe error and still never perfo
   globalThis.document = dom.window.document;
 
   const root = document.getElementById('root');
-  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
+  const app = mountRecharge(root, { mobileRechargeLive: true }, { api });
   try {
     document.getElementById('email').value = 'user@example.test';
     document.getElementById('password').value = 'correct horse battery staple';
     document.getElementById('login-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
-    await flush();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(document.getElementById('checkout').hidden, false);
 
     await app.model.selectCountry('JM');
     app.model.setPhone('+1 (876) 555-1234');
@@ -616,5 +618,40 @@ test('accepts only safe HTTPS operator logo URLs', () => {
     'https://cdn.example.test/%zz',
   ]) {
     assert.equal(operatorLogoUrl(value), '', String(value));
+  }
+});
+
+for (const environment of ['sandbox', 'production']) {
+  test(`${environment} recovery rejects receipts from the other environment and retains the reservation`, async () => {
+    const { model, api } = environment === 'sandbox' ? await setup() : await setupStripeCheckout();
+    await reviewed(model);
+    if (environment === 'sandbox') {
+      api.overrides.set('POST /mobile-topups/transactions', () => ({ transaction: { ...transaction, testMode: false } }));
+    }
+    await model.confirm();
+    const attempt = model.state.attempt;
+    assert.ok(attempt);
+    const mismatch = { ...transaction, testMode: environment === 'production' };
+    api.overrides.set('GET /mobile-topups/transactions', () => ({ transactions: [mismatch] }));
+    api.overrides.set(`GET /mobile-topups/transactions/${transaction.id}`, () => ({ transaction: mismatch }));
+    await model.loadHistory();
+    assert.equal(model.state.transaction, null);
+    assert.equal(model.state.attempt, attempt);
+    await model.refreshTransaction(transaction.id);
+    assert.match(model.state.error, /Unable to verify the receipt/);
+    assert.equal(model.state.transaction, null);
+    assert.equal(model.state.attempt, attempt);
+  });
+}
+
+test('production CARD cannot be replaced with sandbox, another provider, disabled or absent methods', async () => {
+  const { model, api } = await setupStripeCheckout();
+  for (const methods of [[], [{ type: 'CARD', provider: 'STRIPE', testMode: true, enabled: true }],
+    [{ type: 'CARD', provider: 'MOCK', testMode: false, enabled: true }],
+    [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: false }]]) {
+    api.overrides.set('GET /mobile-topups/payment-methods', () => ({ methods }));
+    await reviewed(model); await model.confirm();
+    assert.equal(model.state.checkoutSession, null);
+    assert.equal(api.calls.filter(call => call.path === '/mobile-topups/payment-sessions').length, 0);
   }
 });

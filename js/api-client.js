@@ -39,7 +39,7 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
     if (notify) onSessionExpired();
   }
 
-  async function send(path, { method = 'GET', body, headers = {}, signal } = {}) {
+  async function send(path, { method = 'GET', body, headers = {}, signal, credentials = flupflap ? 'include' : 'omit' } = {}) {
     if (!path.startsWith('/') || path.startsWith('//')) throw new ApiError('INVALID_PATH', 'Invalid API request.');
     const controller = new AbortController();
     const abort = () => controller.abort();
@@ -50,7 +50,7 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
       const response = await fetchImpl(baseUrl + path, {
         method, headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        mode: 'cors', credentials: flupflap ? 'include' : 'omit', cache: 'no-store', redirect: 'error',
+        mode: 'cors', credentials, cache: 'no-store', redirect: 'error',
         referrerPolicy: 'no-referrer', signal: controller.signal,
       });
       const data = response.status === 204 ? null : await response.json().catch(() => null);
@@ -103,7 +103,7 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
       try {
         // Deliberately bypass authenticated request/refresh. This capability grants only a stored status read.
         return await send(`${flupflap ? '/flupflap' : ''}/mobile-topups/checkout-resume`, {
-          method: 'POST', body: { resumeToken }, signal,
+          method: 'POST', body: { resumeToken }, signal, credentials: 'omit',
         });
       } catch (error) {
         // Never propagate provider/server error text that could echo a capability.

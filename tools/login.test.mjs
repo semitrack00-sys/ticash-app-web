@@ -80,7 +80,7 @@ test('approved login uses the official logo, no old artwork, and three informati
     assert.equal(document.querySelector('.login-service span'), null);
     const features = document.querySelector('.login-features');
     assert.equal(features.querySelectorAll('[role=listitem]').length, 3);
-    assert.equal(features.querySelectorAll('button,a,[tabindex]').length, 0);
+    assert.equal(features.querySelectorAll('button[data-feature-dialog]').length, 3);
     for (const name of ['recharge','worldwide','security']) assert.ok(features.querySelector('.login-feature-' + name));
     dom.window.close();
   }
@@ -106,7 +106,7 @@ test(`${route}: empty fields make no login request and unavailable configuration
     submit('#login-form'); await tick(); assert.equal(calls, 0);
     query('#email').value = 'not-an-email'; query('#password').value = 'long-password';
     submit('#login-form'); await tick(); assert.equal(calls, 0);
-    assert.equal(query('.login-panel').contains(query('#continue-guest')), false);
+    assert.equal(query('.login-panel').contains(query('#continue-guest')), true);
     assert.equal(query('#continue-guest').hidden, false);
     for (const language of ['en','ht','fr','es','pt']) {
       setLanguage(language);
@@ -213,7 +213,7 @@ test(`${route}: login card retains accessible errors and permits retry with no s
 }
 
 test('FlupFlap pages publish a raster social preview with the official multicolor logo', () => {
-  for (const [name, html] of Object.entries({ recharge: pages.recharge, login: pages.login, reset: pages.reset })) {
+  for (const [name, html] of Object.entries({ recharge: pages.recharge, login: pages.login, reset: readFileSync(new URL('../recharge/reset-password/index.html', import.meta.url), 'utf8') })) {
     const dom = new JSDOM(html, { url: 'https://www.flupflap.com/' });
     try {
       const document = dom.window.document;
@@ -316,7 +316,7 @@ test('recharge FlupFlap recovery and guest entry retain their existing flows', a
 });
 
 for (const route of ['login', 'recharge']) {
-  test(`${route}: premium design keeps the real guest action outside the card without extra artwork`, async () => {
+  test(`${route}: premium design keeps the real guest action below registration in the card without extra artwork`, async () => {
     const api = fixtureApi(); let guests = 0;
     api.guest = async () => { guests++; return { id: 'guest-user', role: 'CUSTOMER' }; };
     await loginPage(async ({ query, submit }) => {
@@ -327,7 +327,7 @@ for (const route of ['login', 'recharge']) {
       assert.equal(query('#password').placeholder, 'Enter your password');
       assert.equal(query('#continue-guest').textContent, 'Continue as Guest');
       assert.equal(query('#choose-register').textContent, 'Create an account');
-      assert.equal(query('#continue-guest').closest('.login-panel'), null);
+      assert.equal(query('#continue-guest').closest('.login-panel'), query('.login-panel'));
       assert.equal(query('#continue-guest').parentNode.className, 'login-guest-link');
       assert.equal(query('#choose-login').hidden, true);
       for (const selector of ['.login-world-art', '.login-trust', '.login-subheading', '.login-story-copy', '.auth-help']) assert.equal(query(selector), null);

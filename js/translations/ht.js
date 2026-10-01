@@ -428,5 +428,10 @@ export default Object.freeze({
   "rechargeInfoREFUNDED": "Founisè peman an konfime ranbousman an.",
   "rechargeInfoVOIDED": "Founisè peman an konfime anilasyon an.",
   "receiverDelivered": "Montan resevwa",
-  "receiverValueChanged": "Montan livre a diferan ak devis la. Verifye resi konfime a."
+  "receiverValueChanged": "Montan livre a diferan ak devis la. Verifye resi konfime a.",
+  "receiptVerificationFailed": "Nou pa kapab verifye resi a.",
+  "cancellationVerificationFailed": "Nou pa kapab verifye anilasyon an.",
+  "sandboxReceipt": "RESI TÈS",
+  "sandboxReceiptWarning": "Sa a se yon tranzaksyon tès. Pa gen lajan reyèl ni minit ki te transfere.",
+  "sandboxPaymentStatus": "Estati peman tès"
 });

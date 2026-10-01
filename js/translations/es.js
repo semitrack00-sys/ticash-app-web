@@ -428,5 +428,10 @@ export default Object.freeze({
   "rechargeInfoREFUNDED": "El proveedor de pagos ha confirmado el reembolso.",
   "rechargeInfoVOIDED": "El proveedor de pagos ha confirmado la cancelación.",
   "receiverDelivered": "Importe recibido",
-  "receiverValueChanged": "El importe entregado difiere de la cotización. Consulta el recibo confirmado."
+  "receiverValueChanged": "El importe entregado difiere de la cotización. Consulta el recibo confirmado.",
+  "receiptVerificationFailed": "No se pudo verificar el recibo.",
+  "cancellationVerificationFailed": "No se pudo verificar la cancelación.",
+  "sandboxReceipt": "RECIBO DE PRUEBA",
+  "sandboxReceiptWarning": "Esta es una transacción de prueba. No se transfirió dinero real ni saldo telefónico.",
+  "sandboxPaymentStatus": "Estado del pago de prueba"
 });

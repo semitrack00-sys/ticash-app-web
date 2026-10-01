@@ -365,7 +365,8 @@ export class Recharge {
         }
         throw error;
       }
-      if (!transaction?.id || transaction.testMode !== false || transaction.quoteId !== attempt.body.quoteId) throw invalid('Unable to verify the confirmation. Refresh history before trying again.');
+      // This route is reachable only after rechecking the coherent SANDBOX/MOCK status.
+      if (!transaction?.id || transaction.testMode !== true || transaction.quoteId !== attempt.body.quoteId) throw invalid('Unable to verify the confirmation. Refresh history before trying again.');
       if (active()) {
         this.state.transaction = transaction; this.state.attempt = null; this.state.quote = null; this.state.reviewed = false;
         this.state.history = [transaction, ...this.state.history.filter((t) => t.id !== transaction.id)];
@@ -451,7 +452,7 @@ export class Recharge {
         const transactions = array(await this.api.request(`${root}/transactions`), 'transactions');
         if (active()) {
           this.state.history = transactions; this.state.historyError = '';
-          const match = this.state.attempt && transactions.find((t) => t.quoteId === this.state.attempt.body.quoteId && t.testMode === false);
+          const match = this.state.attempt && typeof this.state.testMode === 'boolean' && transactions.find((t) => t.quoteId === this.state.attempt.body.quoteId && t.testMode === this.state.testMode);
           if (this.state.attempt?.mode === checkoutMode) { if (match) this.reconcileCheckout(match); }
           else if (match) { this.state.transaction = match; this.state.attempt = null; this.state.quote = null; this.state.reviewed = false; }
         }
@@ -484,7 +485,7 @@ export class Recharge {
     const revision = this.revision;
     return this.run('receipt', async (active) => {
       const { transaction } = await this.api.request(`${root}/transactions/${encodeURIComponent(id)}?refresh=true`);
-      if (transaction?.id !== id || transaction.testMode !== false) throw invalid('Unable to verify the receipt.');
+      if (transaction?.id !== id || typeof this.state.testMode !== 'boolean' || transaction.testMode !== this.state.testMode) throw invalid('Unable to verify the receipt.');
       if (active()) {
         if (this.state.attempt?.mode === checkoutMode) {
           if (!this.reconcileCheckout(transaction)) throw invalid('Unable to verify the receipt.');

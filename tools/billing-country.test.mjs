@@ -9,7 +9,7 @@ async function page(run, guest = true) {
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
   globalThis.document = dom.window.document;
   const api = billingFixture();
-  const app = mountRecharge(document.getElementById('root'), { mobileRechargeLive: false }, {
+  const app = mountRecharge(document.getElementById('root'), { mobileRechargeLive: true }, {
     api, checkoutFactory: () => ({ elements: () => ({ create: () => ({ mount() {}, unmount() {} }), destroy() {} }) }),
   });
   const query = selector => document.querySelector(selector);
@@ -93,6 +93,6 @@ test('permanent customer retains stored billing country and does not use guest s
   assert.equal(app.model.state.accountCountry, 'CA'); assert.equal(app.model.state.billingCountry, '');
   query('#reviewed').click(); assert.equal(query('#confirm-recharge').disabled, false);
   await app.model.confirm();
-  assert.deepEqual(api.calls.find(c => c.path === '/mobile-topups/payment-sessions').body, { quoteId: billingQuote.id, billingCountry: 'CA' });
+  assert.deepEqual(api.calls.find(c => c.path === '/mobile-topups/payment-sessions').body, { quoteId: billingQuote.id });
   assert.equal(api.calls.some(c => c.method === 'PATCH'), false);
 }, false));

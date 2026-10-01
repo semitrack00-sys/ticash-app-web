@@ -33,6 +33,7 @@ for (const [pending, final] of [['REFUND_PENDING', 'REFUNDED'], ['VOID_PENDING',
   test(`${pending} polls read-only status; confirmed ${final} stops polling`, async context => {
     context.mock.timers.enable({ apis: ['setTimeout'] });
     await page(async ({ app, api }) => {
+      await app.model.start(); api.calls.length = 0;
       api.overrides.set('GET /mobile-topups/transactions/' + transaction.id, () => ({ transaction: live({ status:'FAILED', paymentStatus:final }) }));
       app.model.state.transaction = live({ status:'FAILED', paymentStatus:pending }); app.model.emit();
       context.mock.timers.tick(4999); await flush(); assert.equal(api.calls.length, 0);

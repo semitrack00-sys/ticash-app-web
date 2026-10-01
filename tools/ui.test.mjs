@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { mountRecharge } from '../js/recharge-page.js';
-import { t, translations, languageLocale } from '../js/i18n.js';
+import { t, translations, languageLocale, supportedLanguages } from '../js/i18n.js';
 import { ApiError } from '../js/api-client.js';
 import { fixtureApi, operator, products, quote, transaction } from './fixtures.mjs';
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -169,7 +169,7 @@ test('shared header language selector synchronizes translated UI, ISO labels, se
   assert.equal(languagePickers[0].id,'header-language');
   assert.equal(languagePickers[0].hidden,false);
   for (const picker of languagePickers) {
-    assert.equal(picker.options.length,5); assert.ok(picker.labels.length); assert.equal(picker.tabIndex,0);
+    assert.equal(picker.options.length,supportedLanguages().length); assert.ok(picker.labels.length); assert.equal(picker.tabIndex,0);
     assert.doesNotMatch(picker.textContent,/\p{Regional_Indicator}/u);
   }
 }));
@@ -267,7 +267,7 @@ test('receipt and history localize labels and dates while keeping provider value
   for (const code of ['ht','fr','es','pt','en']) {
     input('#header-language',code,'change');assert.deepEqual(app.model.state,state);
     const text=query('#receipt').textContent;
-    assert.ok(text.includes(t('testReceipt')));assert.ok(text.includes(t('reference')));assert.ok(text.includes(t('journeyPending')));
+    assert.ok(text.includes(t('sandboxReceipt')));assert.ok(text.includes(t('reference')));assert.ok(text.includes(t('journeyPending')));
     for (const raw of [transaction.id,transaction.recipientPhone,transaction.operatorName,transaction.productName,'PROCESSING','AUTHORIZED','🇯🇲 JM']) assert.ok(text.includes(raw),raw);
     const date=new Intl.DateTimeFormat(languageLocale(),{dateStyle:'medium',timeStyle:'short'}).format(new Date(transaction.createdAt));
     assert.ok(text.includes(date));assert.ok(query('#history-list').textContent.includes(date));
