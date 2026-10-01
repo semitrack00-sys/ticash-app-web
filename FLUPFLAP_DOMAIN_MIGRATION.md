@@ -41,7 +41,7 @@ pages. API connect-src remains restricted to the existing production API.
 
 Routes, in order:
 
-1. `/support` and `/support/*` redirect to `https://ticash-app.com/support`.
+1. `/support` is served directly by the dedicated FlupFlap build.
 2. `/send` redirects to `https://ticash-app.com/send`.
 3. `/legal/*` redirects to `https://ticash-app.com/legal/*`.
 4. `/*` rewrites to `/index.html` for direct FlupFlap return/navigation routes.

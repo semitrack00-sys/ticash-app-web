@@ -15,6 +15,16 @@ import { checkFlupflapAssets } from './check-flupflap-assets.mjs';
 execFileSync(process.execPath, ['tools/build-flupflap.mjs']);
 const built = path => readFileSync(new URL('../dist/flupflap/' + path, import.meta.url), 'utf8');
 
+test('dedicated build publishes a real FlupFlap support page',()=> {
+  const html=built('support/index.html');
+  assert.match(html,/FlupFlap support/i);
+  assert.match(html,/Airtime recharge/);
+  assert.match(html,/Internet & bundles/);
+  assert.match(html,/Pending transactions/);
+  assert.match(html,/contact@ticash-app\.com/);
+  assert.ok(existsSync(new URL('../dist/flupflap/support/flupflap-support.css',import.meta.url)));
+});
+
 test('built-output crawl resolves HTML, CSS, JS, navigation and dynamic flag family references',()=>{
   const report=checkFlupflapAssets();
   assert.deepEqual(report.families,['/flags/*.svg']);
@@ -74,7 +84,7 @@ test('dedicated build serves approved recharge at root without shipping TiCash h
     for(const match of text.matchAll(/url\(['"]?(\/[^)'"\s]+)['"]?\)/g)) assert.ok(existsSync(new URL('../dist/flupflap'+match[1],import.meta.url)),match[1]);
     for(const match of text.matchAll(/(?:src|href)="(\/[^"#?]+)"/g)) {
       const path=decodeURIComponent(match[1]);
-      if(['/','/support','/send','/legal/privacy','/legal/terms'].includes(path))continue;
+      if(['/','/send','/legal/privacy','/legal/terms'].includes(path))continue;
       assert.ok(existsSync(new URL('../dist/flupflap'+path,import.meta.url)),path);
     }
   }
