@@ -851,19 +851,25 @@ export function mountRecharge(root, config, dependencies = {}) {
     refreshReceipt.disabled = busy.has('receipt');
     historyRefresh.disabled = busy.has('history');
     historyError.textContent = t(s.historyError); historyError.hidden = !s.historyError;
-    const nextHistorySignature = JSON.stringify([getLanguage(), s.history, locked, busy.has('repeat'), busy.has('receipt')]);
+    const nextHistorySignature = JSON.stringify([getLanguage(), s.history, locked, busy.has('repeat'), busy.has('receipt'), busy.has('cancel')]);
     if (historySignature !== nextHistorySignature) {
       historySignature = nextHistorySignature;
       historyList.replaceChildren(...(s.history.length ? s.history.map((txn) => {
         const view = button('View / refresh', action(() => journey.viewTransaction(txn.id)), true);
         view.removeAttribute('data-i18n');
         view.classList.add('history-view');
-        view.disabled = locked || busy.has('receipt');
+        view.disabled = locked || busy.has('receipt') || busy.has('cancel');
+        const displayStatus = txn.failureCode === 'CANCELLED_BY_CUSTOMER' ? 'CANCELLED' : String(txn.status);
         view.replaceChildren(
           el('div', {}, el('strong', {}, txn.operatorName), el('small', {}, txn.productName), el('p', {}, `${txn.recipientPhone} · ${txn.countryCode}`), el('small', {}, date(txn.createdAt))),
-          el('div', {}, el('span', { className: 'status-pill' }, String(txn.status)), el('p', {}, money(txn.totalChargeUsd, 'USD'))),
+          el('div', {}, el('span', { className: 'status-pill' }, displayStatus), el('p', {}, money(txn.totalChargeUsd, 'USD'))),
           icon('chevron'));
-        return el('article', { className: 'history-item' }, view);
+        const canCancel = txn.status === 'PENDING' && ['PENDING', 'SESSION_CREATED'].includes(txn.paymentStatus) && !txn.providerTransactionId && !txn.fulfillmentStartedAt;
+        const cancel = button('Cancel pending transaction', action(() => model.cancelTransaction(txn.id)), true);
+        cancel.removeAttribute('data-i18n'); cancel.classList.add('history-cancel');
+        cancel.textContent = 'Cancel';
+        cancel.hidden = !canCancel; cancel.disabled = locked || busy.has('cancel');
+        return el('article', { className: 'history-item' }, view, cancel);
       }) : [busy.has('history') ? el('p', { className: 'muted' }, t('Loading your history…')) : el('div', { className: 'history-empty' }, icon('receipt'), el('strong', {}, ui('historyEmptyTitle')), el('p', { className: 'small muted' }, ui('historyEmptyInstruction')))]));
     }
     journey?.update(s, busy, signedIn);

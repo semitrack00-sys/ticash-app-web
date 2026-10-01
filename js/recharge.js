@@ -469,6 +469,19 @@ export class Recharge {
       }
     }, () => this.revision === revision, silent);
   }
+  async cancelTransaction(id) {
+    const revision = this.revision;
+    return this.run('cancel', async (active) => {
+      const { transaction } = await this.api.request(`${root}/transactions/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+      if (!transaction || transaction.id !== id) throw invalid('Unable to verify the cancellation.');
+      if (active()) {
+        this.state.history = this.state.history.map((item) => item.id === id ? transaction : item);
+        if (this.state.transaction?.id === id) this.state.transaction = transaction;
+        this.state.notice = 'Pending recharge cancelled.';
+      }
+    }, () => this.revision === revision);
+  }
+
   async repeat(id) {
     this.editable(); this.invalidate(); this.clearOperator();
     const revision = this.revision;
