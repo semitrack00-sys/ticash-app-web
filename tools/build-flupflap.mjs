@@ -32,7 +32,7 @@ function moduleFile(path) {
 }
 moduleFile('js/recharge-page.js');
 for (const path of ['public-config.js', 'route.css', 'language.css', 'login/login.css', 'recharge/checkout.css',
-  'ticash-logo.png', 'brand/flupflap/icon.svg', 'brand/flupflap/flupflap-woman-worldwide-hero.png',
+  'ticash-logo.png', 'brand/flupflap/icon.svg', 'brand/flupflap/favicon.svg', 'brand/flupflap/flupflap-woman-worldwide-hero.png',
   'brand/flupflap/ChatGPT Image Sep 24, 2026, 09_49_40 PM.png']) copy(path);
 // Country codes arrive from the backend at runtime, so static import traversal
 // cannot discover these URLs. Ship the existing flag assets without fabricating
