@@ -43,7 +43,7 @@ Routes, in order:
 
 1. `/support` is served directly by the dedicated FlupFlap build.
 2. `/send` redirects to `https://ticash-app.com/send`.
-3. `/legal/*` redirects to `https://ticash-app.com/legal/*`.
+3. `/legal/privacy` and `/legal/terms` are served directly by the dedicated FlupFlap build.
 4. `/*` rewrites to `/index.html` for direct FlupFlap return/navigation routes.
 
 The build publishes the approved recharge HTML at `/`, the existing login at
@@ -263,8 +263,7 @@ quotes, billing/review, intercepted hosted Stripe handoff, read-only return/resu
 and delivered result, history, saved recipients, Back, refresh and five languages.
 No unexpected HTTP errors, failed requests, console errors, page exceptions or
 horizontal overflow occurred. The expected logged-out refresh 401 is
-excluded from unexpected-failure counts. Support/legal/send links retain
-their explicit TiCash redirects.
+excluded from unexpected-failure counts. Support, Privacy and Terms are first-class FlupFlap pages; Send retains its explicit TiCash redirect.
 
 Local evidence (excluded from commit/build):
 - `op/artifacts/domain-flags-before.log`
