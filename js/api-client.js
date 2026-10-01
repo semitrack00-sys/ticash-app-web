@@ -90,6 +90,14 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
 
   return {
     identityDomain,
+    marketingVisit(input) {
+      if (!flupflap) throw new ApiError('INVALID_PATH', 'Unknown identity domain.');
+      return send('/flupflap/marketing/visits', { method: 'POST', body: input });
+    },
+    marketingSignupStarted(capability) {
+      if (!flupflap) throw new ApiError('INVALID_PATH', 'Unknown identity domain.');
+      return send('/flupflap/marketing/signup-started', { method: 'POST', body: { capability } });
+    },
     async resumeCheckout(resumeToken, { signal } = {}) {
       if (!isCheckoutResumeToken(resumeToken)) throw new ApiError('INVALID_RESUME_TOKEN', 'Invalid checkout return link.', 400);
       try {
@@ -150,6 +158,7 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch, onSessi
     async request(path, options = {}) {
       if (flupflap) {
         if (path === '/users/me') path = '/flupflap/auth/me';
+        else if (/^\/marketing\/(?:share(?:\/qr)?|attribution|quotes\/[a-f0-9-]{36})$/.test(path)) path = '/flupflap' + path;
         else if (/^\/mobile-topups(?:\/|$)/.test(path) && !path.split(/[?#]/)[0].includes('..') && !path.split(/[?#]/)[0].includes('%')) path = '/flupflap' + path;
         else throw new ApiError('INVALID_PATH', 'FlupFlap cannot access TiCash-only services.');
       }

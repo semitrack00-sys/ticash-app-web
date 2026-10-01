@@ -7,6 +7,7 @@ import { checkoutMode, loadCheckoutFactory, mountCheckoutFlow } from './checkout
 import { createBillingCountryPicker } from './billing-country-picker.js';
 import { consumeCheckoutReturn, mountCheckoutResume } from './checkout-resume.js';
 import { rechargePath, rechargeReturnPath, isRechargeResetPath } from './recharge-routes.js';
+import { marketingControls, promotionRows } from './marketing.js';
 
 function el(tag, attributes = {}, ...children) {
   const node = document.createElement(tag);
@@ -164,9 +165,10 @@ export function mountRecharge(root, config, dependencies = {}) {
   let client;
   let model;
   let journey;
+  let marketing;
   let signedIn = false;
   let guestSession = false;
-  let authMode = isResetRoute ? 'reset' : 'login';
+  let authMode = isResetRoute ? 'reset' : flupflapLogin && resetLocation.searchParams.get('mode') === 'register' ? 'register' : 'login';
   let recoveryMessage = '';
   let signingIn = false;
   let disposed = false;
@@ -275,6 +277,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const loginGuestLink = flupflapLogin ? el('div', { className: 'login-guest-link' }, guestButton) : null;
   if (loginGuestLink) loginPanel.append(loginGuestLink);
   const logout = button('Sign out', async () => {
+    marketing?.reset();
     signedIn = false; guestSession = false; clearPasswords(); model.reset(); render();
     try { await client.logout(); }
     catch { setLoginError('You are signed out here. TiCash could not confirm server logout; sign in again if needed.'); }
@@ -821,6 +824,7 @@ export function mountRecharge(root, config, dependencies = {}) {
       reviewContent.replaceChildren(s.quote ? details([
         ['Recipient', s.quote.recipientPhone], ['Country', `${localizeCountry(s.countries.find(c => c.code === s.quote.countryCode) || {code:s.quote.countryCode,name:s.quote.countryCode})} (${s.quote.countryCode})`], ['Operator', operatorDetail(s.quote.operatorName, s.operator?.id === s.quote.operatorId ? s.operator : s.operators.find((op) => op.id === s.quote.operatorId))],
         ['Product', el('div', {}, s.quote.productName, planDetails(s.quote.productSnapshot))], ['Recharge amount', money(s.quote.providerAmount, s.quote.providerCurrency)],
+        ...promotionRows(s.quote, money),
         ['FlupFlap fee', money(s.quote.feeUsd, 'USD')], ['Total', money(s.quote.totalChargeUsd, 'USD')],
       ]) : el('div', { className: 'review-empty' }, icon('chart'), el('strong', {}, ui('Your quote will appear here.')), el('p', { className: 'small muted' }, ui('quoteEmptyInstruction'))));
     }
@@ -881,6 +885,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     journey?.update(s, busy, signedIn);
   }
   const expired = () => {
+    marketing?.reset();
     signedIn = false; guestSession = false; clearPasswords(); model?.reset(); render();
     setLoginError('Your session expired or account access changed. Sign in again, then check history before repeating a recharge.');
   };
@@ -891,11 +896,18 @@ export function mountRecharge(root, config, dependencies = {}) {
     configured = false; setLoginError(error.message);
   }
   model = new Recharge(client, { ...dependencies, onChange: render });
+  if (flupflapLogin && configured && typeof client.marketingVisit === 'function' && !isResetRoute) {
+    marketing = marketingControls({ doc: root.ownerDocument, client, url: pageWindow.location.href });
+    registerForm.insertBefore(marketing.promo, registerButton);
+    accountBar.querySelector('.account-dropdown').append(marketing.panel);
+    void marketing.acquisition.begin().catch(() => {});
+  }
   if (configured && flupflapLogin && typeof client.restore === 'function' && !isResetRoute) {
     signingIn = true; render();
     void client.restore().then(async (user) => {
       if (!user || disposed) return;
       signedIn = true; guestSession = user.guest === true; model.reset(); model.setAccount(user, guestSession); render();
+      await marketing?.authenticated(user);
       await model.start();
     }).catch(() => {
       // A restore failure must never crash or leave the page stuck in a loading state.
@@ -922,6 +934,7 @@ export function mountRecharge(root, config, dependencies = {}) {
       else user = await client.login(email.value.trim(), password.value);
       clearPasswords(); signedIn = true; guestSession = mode === 'guest'; model.reset();
       model.setAccount(user, guestSession);
+      await marketing?.authenticated({ ...user, guest: guestSession });
       if (mode === 'register') model.state.notice = flupflapLogin ? 'Your FlupFlap account was created.' : 'Your TiCash account was created.';
       render();
       // Fixed local destination; user-supplied return URLs are never used.
@@ -1074,7 +1087,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const timer = setInterval(() => { if (signedIn && model.state.quote) render(); }, 1000);
   const removeLanguageListener = onLanguageChange(render);
   render();
-  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; journey?.dispose(); guestBillingPicker.dispose(); clearFlow(); removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); root.ownerDocument.removeEventListener('click', closeOperatorPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
+  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; journey?.dispose(); marketing?.dispose(); guestBillingPicker.dispose(); clearFlow(); removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); root.ownerDocument.removeEventListener('click', closeOperatorPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
 }
 
 const root = typeof document === 'undefined' ? null : document.querySelector('[data-recharge-root]');

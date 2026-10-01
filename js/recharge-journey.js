@@ -1,3 +1,4 @@
+import { promotionRows } from './marketing.js';
 import { t, getLanguage } from './i18n.js';
 
 // Navigation and presentation only. Recharge remains the source of catalog,
@@ -190,7 +191,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   }
   const priceSummary = q => details([['Recharge amount', money(q.providerAmount, q.providerCurrency)],
     ...(q.deliveredValue != null && q.deliveredCurrency ? [['Receiver gets', money(q.deliveredValue, q.deliveredCurrency)]] : []),
-    ['FlupFlap fee', money(q.feeUsd, 'USD')], ['Total', money(q.totalChargeUsd, 'USD')]]);
+    ...promotionRows(q, money), ['FlupFlap fee', money(q.feeUsd, 'USD')], ['Total', money(q.totalChargeUsd, 'USD')]]);
   async function freshQuote() {
     if (quoteRequest) return quoteRequest;
     if (locked() || model.busy.has('quote')) return;
