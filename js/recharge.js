@@ -82,7 +82,12 @@ function validateQuote(quote) {
   return quote;
 }
 
-const terminalRechargeStatuses = new Set(['DELIVERED', 'SUCCESS', 'FAILED', 'CANCELLED']);
+const terminalRechargeStatuses = new Set(['DELIVERED', 'SUCCESS', 'FAILED', 'CANCELLED', 'REFUNDED']);
+const pendingPaymentRecoveryStatuses = new Set(['REFUND_PENDING', 'VOID_PENDING']);
+export const paymentRecoveryPending = transaction =>
+  Boolean(transaction && pendingPaymentRecoveryStatuses.has(String(transaction.paymentStatus || '').toUpperCase()));
+export const transactionFullySettled = transaction =>
+  Boolean(transaction && terminalRechargeStatuses.has(String(transaction.status || '').toUpperCase()) && !paymentRecoveryPending(transaction));
 
 export class Recharge {
   constructor(api, { onChange = () => {}, crypto = globalThis.crypto, now = Date.now } = {}) {
@@ -415,8 +420,9 @@ export class Recharge {
         transaction.quoteId !== attempt.body.quoteId || (attempt.transactionId && attempt.transactionId !== transaction.id)) return false;
     attempt.transactionId = transaction.id;
     this.state.transaction = transaction;
-    // Authorized, pending/recovery and unknown states must remain locked. Only the server can release payment state.
-    if (terminalRechargeStatuses.has(transaction.status)) {
+    // Provider failure is not financially terminal while Stripe recovery is pending.
+    // Keep the checkout locked until both recharge and payment state are settled.
+    if (transactionFullySettled(transaction)) {
       Object.assign(this.state, { attempt: null, checkoutSession: null, quote: null, reviewed: false });
     }
     return true;

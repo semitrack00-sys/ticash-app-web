@@ -1,4 +1,5 @@
 import { promotionRows } from './marketing.js';
+import { paymentRecoveryPending, transactionFullySettled } from './recharge.js';
 import { t, getLanguage } from './i18n.js';
 
 // Navigation and presentation only. Recharge remains the source of catalog,
@@ -22,9 +23,9 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   let statusPollTransactionId;
   let statusPollAttempts = 0;
   let statusPollInFlight = false;
-  const STATUS_POLL_INTERVAL_MS = 3000;
-  const STATUS_POLL_MAX_ATTEMPTS = 20;
-  const terminalTransaction = (txn) => !txn || ['DELIVERED', 'FAILED'].includes(txn.status);
+  const STATUS_POLL_INTERVAL_MS = 5000;
+  const STATUS_POLL_MAX_ATTEMPTS = 120;
+  const terminalTransaction = (txn) => !txn || transactionFullySettled(txn);
   const stopStatusPolling = () => {
     clearTimeout(statusPollTimer);
     statusPollTimer = undefined;
@@ -62,7 +63,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   const pending = () => {
     const txn = model.state.transaction;
     if (!txn) return Boolean(model.state.attempt);
-    return !['DELIVERED', 'SUCCESS', 'FAILED', 'CANCELLED'].includes(txn.status);
+    return paymentRecoveryPending(txn) || !transactionFullySettled(txn);
   };
   const locked = () => Boolean(model.state.attempt || model.state.submitting || pending());
   const heading = (key, id) => el('h2', { id, tabindex: '-1' }, ui(key));
@@ -309,8 +310,11 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     if (s.transaction && resultSignature !== resultKey) {
       resultSignature = resultKey;
       const txn = s.transaction;
-      const delivered = ['DELIVERED', 'SUCCESS'].includes(txn.status);
-      const failed = ['FAILED', 'CANCELLED'].includes(txn.status);
+      const recoveryPending = paymentRecoveryPending(txn);
+      const refundPending = String(txn.paymentStatus || '').toUpperCase() === 'REFUND_PENDING';
+      const voidPending = String(txn.paymentStatus || '').toUpperCase() === 'VOID_PENDING';
+      const delivered = ['DELIVERED', 'SUCCESS'].includes(txn.status) && !recoveryPending;
+      const failed = ['FAILED', 'CANCELLED', 'REFUNDED'].includes(txn.status) && !recoveryPending;
       const title = delivered ? 'journeySuccess' : failed ? 'journeyFailed' : 'journeyPending';
       const headingNode = heading(title, 'journey-result-title');
       const fullReceipt = el('details', { className: 'journey-full-receipt' }, el('summary', {}, ui('journeyViewReceipt')), ...Array.from(n.receipt.children));
@@ -319,10 +323,16 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       const again = button('journeyAgain', action(() => repeat(txn.id))); again.id = 'recharge-again';
       again.hidden = !delivered || locked(); again.disabled = busy.has('repeat');
       n.refreshReceipt.removeAttribute('data-i18n'); n.refreshReceipt.textContent = t('journeyCheckStatus');
+      const recoveryText = refundPending
+        ? 'Refund processing. FlupFlap is checking the payment provider automatically.'
+        : voidPending
+          ? 'Payment cancellation processing. FlupFlap is checking automatically.'
+          : '';
+      const statusText = recoveryPending ? String(txn.paymentStatus) : String(txn.status);
       n.receipt.replaceChildren(el('span', { className: 'journey-result-symbol', 'aria-hidden': 'true' }, delivered ? '✓' : failed ? '!' : '…'), headingNode,
-        el('p', { className: 'muted' }, ui(delivered ? 'journeySuccessInfo' : failed ? 'journeyFailedInfo' : 'journeyPendingInfo')),
+        el('p', { className: 'muted' }, recoveryText || ui(delivered ? 'journeySuccessInfo' : failed ? 'journeyFailedInfo' : 'journeyPendingInfo')),
         operatorDetail(txn.operatorName, s.operator?.id === txn.operatorId ? s.operator : s.operators.find(op => op.id === txn.operatorId)),
-        el('p', {}, txn.recipientPhone), priceSummary(txn), el('p', { className: 'status-pill' }, String(txn.status)), n.refreshReceipt, again, fullReceipt);
+        el('p', {}, txn.recipientPhone), priceSummary(txn), el('p', { className: 'status-pill', 'data-status': statusText }, statusText), n.refreshReceipt, again, fullReceipt);
       n.receipt.setAttribute('aria-labelledby', 'journey-result-title');
     }
     if (!s.transaction) resultSignature = undefined;
@@ -333,7 +343,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
         const item = button('', action(() => viewTransaction(txn.id)), true);
         item.removeAttribute('data-i18n'); item.classList.add('recent-item'); item.disabled = locked();
         item.replaceChildren(el('strong', {}, txn.operatorName), el('span', {}, txn.recipientPhone), el('span', {}, money(txn.totalChargeUsd, 'USD')),
-          el('small', {}, date(txn.createdAt)), el('span', { className: 'status-pill' }, String(txn.status))); return item;
+          el('small', {}, date(txn.createdAt)), el('span', { className: 'status-pill', 'data-status': paymentRecoveryPending(txn) ? String(txn.paymentStatus) : String(txn.status) }, paymentRecoveryPending(txn) ? String(txn.paymentStatus) : String(txn.status))); return item;
       }));
       if (!s.history.length) recent.append(el('p', { className: 'muted' }, ui('historyEmptyTitle')));
     }

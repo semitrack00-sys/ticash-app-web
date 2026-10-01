@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { Recharge, customAmountProductId, internationalPhone, operatorLogoUrl, searchCountries, secureId, assertTestService } from '../js/recharge.js';
+import { Recharge, customAmountProductId, internationalPhone, operatorLogoUrl, searchCountries, secureId, assertTestService, paymentRecoveryPending, transactionFullySettled } from '../js/recharge.js';
 import { checkoutMode } from '../js/checkout-flow.js';
 import { mountRecharge } from '../js/recharge-page.js';
 import { ApiError } from '../js/api-client.js';
@@ -399,6 +399,18 @@ test('malformed Stripe payment session keeps checkout attempt locked to same ide
   const calls = api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST');
   assert.equal(calls.length, 1);
 });
+test('failed recharge remains financially pending until Stripe refund or void recovery settles', () => {
+  const failedRefundPending = { status: 'FAILED', paymentStatus: 'REFUND_PENDING' };
+  const failedVoidPending = { status: 'FAILED', paymentStatus: 'VOID_PENDING' };
+  assert.equal(paymentRecoveryPending(failedRefundPending), true);
+  assert.equal(paymentRecoveryPending(failedVoidPending), true);
+  assert.equal(transactionFullySettled(failedRefundPending), false);
+  assert.equal(transactionFullySettled(failedVoidPending), false);
+  assert.equal(transactionFullySettled({ status: 'FAILED', paymentStatus: 'REFUNDED' }), true);
+  assert.equal(transactionFullySettled({ status: 'FAILED', paymentStatus: 'VOIDED' }), true);
+  assert.equal(transactionFullySettled({ status: 'DELIVERED', paymentStatus: 'CAPTURED' }), true);
+});
+
 test('only terminal server payment states release Stripe checkout lock', async () => {
   const { model, api } = await setupStripeCheckout();
   await reviewed(model);
