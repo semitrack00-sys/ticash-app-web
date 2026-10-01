@@ -212,6 +212,22 @@ test(`${route}: login card retains accessible errors and permits retry with no s
 
 }
 
+test('FlupFlap login trust cards are interactive and include airtime, bundles, and company information', () => {
+  const dom = new JSDOM(pages.login, { url: 'https://www.flupflap.com/login' });
+  try {
+    const document = dom.window.document;
+    const cards = [...document.querySelectorAll('[data-feature-dialog]')];
+    assert.deepEqual(cards.map(card => card.dataset.featureDialog), ['airtime', 'bundles', 'company']);
+    assert.ok(document.querySelector('#flupflap-feature-dialog'));
+    assert.ok(document.querySelector('script[src="/login/feature-dialogs.js"]'));
+    const source = readFileSync(new URL('../login/feature-dialogs.js', import.meta.url), 'utf8');
+    assert.match(source, /AIRTIME TOP-UP/);
+    assert.match(source, /DATA & BUNDLES/);
+    assert.match(source, /ABOUT FLUPFLAP/);
+    assert.match(source, /DT One, Reloadly or Ding/);
+  } finally { dom.window.close(); }
+});
+
 test('recharge reuses the approved FlupFlap authentication markup and stylesheet', () => {
   const documents = Object.values(pages).map(html => new JSDOM(html));
   try {

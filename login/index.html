@@ -29,14 +29,38 @@
     <p>Loading secure recharge checkout…</p>
     <noscript>Enable JavaScript to sign in and use secure recharge checkout.</noscript>
   </main>
-  <div class="login-features" role="list">
-    <div class="login-feature" role="listitem"><span class="login-feature-icon login-feature-recharge" aria-hidden="true"></span><span data-i18n="loginFeatureRecharge">Mobile Recharge</span></div>
-    <div class="login-feature" role="listitem"><span class="login-feature-icon login-feature-worldwide" aria-hidden="true"></span><span data-i18n="loginFeatureGlobal">Worldwide Coverage</span></div>
-    <div class="login-feature" role="listitem"><span class="login-feature-icon login-feature-security" aria-hidden="true"></span><span data-i18n="loginFeatureSafe">Safe &amp; Secure</span></div>
+  <div class="login-features" role="list" aria-label="Learn about FlupFlap">
+    <button class="login-feature" type="button" role="listitem" data-feature-dialog="airtime">
+      <span class="login-feature-icon login-feature-recharge" aria-hidden="true"></span>
+      <span data-i18n="loginFeatureRecharge">Mobile Recharge</span>
+      <span class="login-feature-arrow" aria-hidden="true">›</span>
+    </button>
+    <button class="login-feature" type="button" role="listitem" data-feature-dialog="bundles">
+      <span class="login-feature-icon login-feature-worldwide" aria-hidden="true"></span>
+      <span data-i18n="loginFeatureGlobal">Worldwide Coverage</span>
+      <span class="login-feature-arrow" aria-hidden="true">›</span>
+    </button>
+    <button class="login-feature" type="button" role="listitem" data-feature-dialog="company">
+      <span class="login-feature-icon login-feature-security" aria-hidden="true"></span>
+      <span data-i18n="loginFeatureSafe">Safe &amp; Secure</span>
+      <span class="login-feature-arrow" aria-hidden="true">›</span>
+    </button>
   </div>
+
+  <dialog class="feature-dialog" id="flupflap-feature-dialog" aria-labelledby="feature-dialog-title">
+    <div class="feature-dialog-card">
+      <button class="feature-dialog-close" type="button" aria-label="Close">×</button>
+      <span class="feature-dialog-icon" aria-hidden="true"></span>
+      <p class="feature-dialog-eyebrow" id="feature-dialog-eyebrow"></p>
+      <h2 id="feature-dialog-title"></h2>
+      <p class="feature-dialog-intro" id="feature-dialog-intro"></p>
+      <div class="feature-dialog-content" id="feature-dialog-content"></div>
+    </div>
+  </dialog>
   </div>
   <footer class="site-footer"><span>© 2026 TiCash · contact@ticash-app.com</span><span><a href="/legal/privacy" data-i18n="privacy">Privacy</a><a href="/legal/terms" data-i18n="terms">Terms</a></span></footer>
   <script src="/public-config.js"></script>
   <script type="module" src="/js/recharge-page.js"></script>
+  <script type="module" src="/login/feature-dialogs.js"></script>
 </body>
 </html>
