@@ -1,4 +1,5 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, resolve, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkFlupflapAssets } from './check-flupflap-assets.mjs';
@@ -43,10 +44,45 @@ for (const name of readdirSync(resolve(root, 'flags'))) {
   if (/^[a-z][a-z-]*\.svg$/.test(name) || name === 'LICENSE.flag-icons.txt') copy('flags/' + name);
 }
 
+// Every deploy gets a content-derived asset version. This prevents browsers/CDNs
+// from reusing old JavaScript or CSS at stable URLs after a successful Render deploy.
+const versionHash = createHash('sha256');
+for (const path of [
+  ...copied,
+  'public-config.js', 'route.css', 'language.css', 'login/login.css', 'support/flupflap-support.css',
+  'legal/flupflap-legal.css', 'recharge/checkout.css', 'join/marketing.css',
+  'recharge/index.html', 'login/index.html', 'support/flupflap-support.html',
+  'legal/flupflap-privacy.html', 'legal/flupflap-terms.html', 'join/index.html',
+  'recharge/reset-password/index.html',
+].sort()) {
+  versionHash.update(path);
+  versionHash.update(readFileSync(resolve(root, path)));
+}
+const buildVersion = versionHash.digest('hex').slice(0, 16);
+
+for (const path of copied) {
+  const target = resolve(output, path);
+  const source = readFileSync(target, 'utf8').replace(
+    /(['"])(\.\.?\/[^'"]+\.js)\1/g,
+    (_match, quote, specifier) => `${quote}${specifier}?v=${buildVersion}${quote}`,
+  );
+  writeFileSync(target, source);
+}
+
+for (const path of ['recharge/checkout.css']) {
+  const target = resolve(output, path);
+  const source = readFileSync(target, 'utf8').replace(
+    /(@import\s+url\(['"]?)(\/[^)'"]+\.css)(['"]?\))/g,
+    (_match, prefix, specifier, suffix) => `${prefix}${specifier}?v=${buildVersion}${suffix}`,
+  );
+  writeFileSync(target, source);
+}
+
 function page(source, target) {
   const html = readFileSync(resolve(root, source), 'utf8')
     .replace('data-recharge-root', 'data-recharge-root data-recharge-path="/"')
     .replaceAll('href="/recharge"', 'href="/"')
+    .replace(/((?:src|href)="\/[^"]+\.(?:js|css))"/g, `$1?v=${buildVersion}"`)
     // Dedicated production output must agree with the existing Render header.
     // Do not carry development localhost entries (including invalid IPv6 CSP)
     // or an arbitrary-HTTPS connect allowlist into this artifact.
@@ -67,4 +103,4 @@ page('recharge/index.html', 'recharge/index.html');
 page('recharge/reset-password/index.html', 'recharge/reset-password/index.html');
 if (!existsSync(resolve(output, 'index.html'))) throw new Error('Missing FlupFlap root');
 checkFlupflapAssets(output, root);
-console.log('Built dedicated FlupFlap site: dist/flupflap');
+console.log(`Built dedicated FlupFlap site: dist/flupflap (asset version ${buildVersion})`);
