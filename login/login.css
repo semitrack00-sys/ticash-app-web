@@ -437,3 +437,174 @@ body:not(:has(.recharge-active)) .site-footer{
     max-width:90px;
   }
 }
+
+
+/* Final auth polish: compact single-viewport composition. */
+body:not(:has(.recharge-active)) .site-header{
+  position:absolute;
+  top:18px;
+  right:22px;
+  width:auto;
+  max-width:none;
+  height:auto;
+  min-height:0;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  backdrop-filter:none;
+  z-index:10;
+}
+body:not(:has(.recharge-active)) .site-header nav{
+  border:0;
+  padding:0;
+  gap:8px;
+}
+body:not(:has(.recharge-active)) .site-header a[href='/support']{
+  min-height:38px;
+  padding:0 12px;
+  border:1px solid #dce6f0;
+  border-radius:11px;
+  background:rgba(255,255,255,.88);
+  box-shadow:0 5px 16px rgba(31,79,128,.05);
+}
+body:not(:has(.recharge-active)) .site-header .language-picker select{
+  min-height:38px;
+  border-radius:11px;
+  box-shadow:0 5px 16px rgba(31,79,128,.05);
+}
+
+.login-layout:not(:has(.recharge-active)){
+  max-width:600px;
+  margin:72px auto 26px;
+}
+.login-story{
+  padding-bottom:12px;
+}
+.login-service{
+  width:242px;
+  max-width:62%;
+}
+.login-layout .checkout-main:not(.recharge-active) .login-panel{
+  padding:28px 36px 24px;
+  border-radius:22px;
+  box-shadow:
+    0 20px 52px rgba(31,79,128,.11),
+    0 2px 7px rgba(31,79,128,.04);
+}
+.login-layout .checkout-main:not(.recharge-active) .login-panel::before{
+  margin-bottom:12px;
+  min-height:25px;
+  font-size:9px;
+}
+.login-layout .checkout-main:not(.recharge-active) .login-panel h1{
+  font-size:34px;
+  margin-bottom:6px;
+}
+.login-layout .checkout-main:not(.recharge-active) .auth-intro{
+  margin-bottom:20px;
+  font-size:14px;
+}
+.login-layout .checkout-main:not(.recharge-active) .field{
+  margin-bottom:13px;
+}
+.login-layout .checkout-main:not(.recharge-active) input{
+  min-height:49px;
+}
+.login-layout .checkout-main:not(.recharge-active) #forgot-password{
+  margin:-6px 0 10px auto;
+}
+.login-layout .checkout-main:not(.recharge-active) button[type=submit]{
+  min-height:49px;
+}
+.login-divider{
+  margin:15px 0;
+}
+.login-layout .checkout-main:not(.recharge-active) .auth-choices .button{
+  min-height:46px;
+}
+.login-layout .checkout-main:not(.recharge-active) .login-guest-link{
+  margin:14px 0 0;
+  padding-top:12px;
+  border-top:1px solid #edf2f7;
+}
+.login-layout .checkout-main:not(.recharge-active) .login-guest-link .button{
+  width:100%;
+  min-height:42px;
+  color:#516a84;
+  font-size:12px;
+  justify-content:center;
+}
+.login-layout .checkout-main:not(.recharge-active) .login-guest-link .button::after{
+  width:15px;
+  height:15px;
+}
+
+.login-features{
+  margin-top:12px;
+  padding:0;
+  gap:8px;
+}
+.login-feature{
+  min-height:52px;
+  flex-direction:row;
+  justify-content:center;
+  gap:8px;
+  padding:8px 10px;
+  border-radius:13px;
+  font-size:11px;
+  background:rgba(255,255,255,.72);
+}
+.login-feature-icon{
+  width:30px;
+  height:30px;
+}
+.login-feature-icon::before{
+  width:17px;
+  height:17px;
+}
+.login-feature>span:last-child{
+  max-width:none;
+  white-space:nowrap;
+}
+body:not(:has(.recharge-active)) .site-footer{
+  max-width:600px;
+  width:calc(100% - 32px);
+  margin:10px auto 14px;
+  font-size:10px;
+}
+
+@media(max-width:700px){
+  body:not(:has(.recharge-active)) .site-header{
+    position:static;
+    width:calc(100% - 20px);
+    margin:10px auto 0;
+    padding:0;
+    display:flex;
+    justify-content:flex-end;
+  }
+  .login-layout:not(:has(.recharge-active)){
+    margin:18px auto 24px;
+  }
+  .login-service{
+    width:220px;
+    max-width:72%;
+  }
+}
+@media(max-width:520px){
+  .login-layout .checkout-main:not(.recharge-active) .login-panel{
+    padding:24px 20px 21px;
+  }
+  .login-layout .checkout-main:not(.recharge-active) .login-panel h1{
+    font-size:29px;
+  }
+  .login-features{
+    grid-template-columns:1fr;
+  }
+  .login-feature{
+    min-height:44px;
+    justify-content:flex-start;
+  }
+}

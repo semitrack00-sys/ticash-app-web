@@ -271,8 +271,9 @@ export function mountRecharge(root, config, dependencies = {}) {
     authDivider, flupflapLogin ? authChoices : null,
     flupflapLogin ? null : el('div', { className: 'auth-secondary' }, guestButton),
     flupflapLogin ? null : el('a', { className: 'auth-help', href: '/support' }, ui('Need help signing in?')));
-  // Keep the existing guest handler, as a quiet secondary action outside the card.
+  // Keep the existing guest handler and endpoint; only place the FlupFlap guest action inside the auth card.
   const loginGuestLink = flupflapLogin ? el('div', { className: 'login-guest-link' }, guestButton) : null;
+  if (loginGuestLink) loginPanel.append(loginGuestLink);
   const logout = button('Sign out', async () => {
     signedIn = false; guestSession = false; clearPasswords(); model.reset(); render();
     try { await client.logout(); }
@@ -504,7 +505,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const testIcon = el('span', { className: 'test-icon' }, el('img', { src: '/brand/flupflap/icon.svg', alt: 'FlupFlap', width: '18', height: '18' }));
   const testBanner = el('div', { className: 'test-banner', role: 'note' }, testIcon,
     el('div', { className: 'test-copy' }, testTitle, testText));
-  const mainArea = el('div', { className: 'flupflap-main-content' }, hero, testBanner, error, notice, loginPanel, loginGuestLink, checkout);
+  const mainArea = el('div', { className: 'flupflap-main-content' }, hero, testBanner, error, notice, loginPanel, checkout);
   const shell = el('div', { className: 'flupflap-app-shell' }, topbar, menu, sidebar, mainArea);
   root.replaceChildren(shell);
 
