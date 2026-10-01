@@ -743,3 +743,132 @@ body:not(:has(.recharge-active)) .site-footer{
     grid-template-columns:1fr;
   }
 }
+
+
+/* Professional product-information dialog */
+.feature-dialog{
+  width:min(94vw,680px);
+  max-height:88vh;
+}
+.feature-dialog-card{
+  padding:0;
+  overflow:auto;
+  border-radius:24px;
+  border:1px solid rgba(13,54,94,.10);
+  background:#fff;
+  box-shadow:0 32px 90px rgba(7,24,47,.28);
+}
+.feature-dialog-hero{
+  display:flex;
+  align-items:flex-start;
+  gap:16px;
+  padding:28px 64px 18px 28px;
+  background:
+    radial-gradient(circle at 100% 0,rgba(27,177,246,.12),transparent 42%),
+    linear-gradient(145deg,#f9fcff,#f3f8ff);
+  border-bottom:1px solid #e7eef6;
+}
+.feature-dialog-hero .feature-dialog-icon{
+  flex:none;
+  margin:0;
+  width:50px;
+  height:50px;
+  border-radius:15px;
+  box-shadow:inset 0 0 0 1px rgba(26,81,137,.08);
+}
+.feature-dialog-hero .feature-dialog-icon::before{
+  width:27px;
+  height:27px;
+}
+.feature-dialog-eyebrow{
+  margin:2px 0 7px;
+}
+.feature-dialog h2{
+  margin:0;
+  font-size:clamp(24px,4vw,32px);
+}
+.feature-dialog-intro{
+  margin:0;
+  padding:20px 28px 6px;
+  font-size:15px;
+  line-height:1.65;
+}
+.feature-dialog-content{
+  padding:14px 28px 24px;
+  gap:12px;
+}
+.feature-dialog-content section{
+  position:relative;
+  padding:17px 17px 17px 43px;
+  background:#fbfdff;
+  border:1px solid #e2ebf3;
+  border-radius:15px;
+}
+.feature-dialog-content section::before{
+  content:'✓';
+  position:absolute;
+  left:16px;
+  top:16px;
+  display:grid;
+  place-items:center;
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:#e7f4ff;
+  color:#0a74dc;
+  font-size:11px;
+  font-weight:900;
+}
+.feature-dialog-content h3{
+  margin-bottom:5px;
+  font-size:13px;
+}
+.feature-dialog-content p{
+  font-size:12px;
+  line-height:1.55;
+}
+.feature-dialog-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  padding:18px 28px 24px;
+  border-top:1px solid #e7eef6;
+  background:#fbfdff;
+}
+.feature-dialog-primary,
+.feature-dialog-secondary{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:44px;
+  padding:0 17px;
+  border-radius:12px;
+  font:800 13px/1 'DM Sans',sans-serif;
+  text-decoration:none;
+  cursor:pointer;
+}
+.feature-dialog-primary{
+  border:0;
+  background:linear-gradient(105deg,#08b8e5,#0c87f7 48%,#3758ff);
+  color:#fff;
+  box-shadow:0 8px 18px rgba(18,112,232,.16);
+}
+.feature-dialog-secondary{
+  border:1px solid #cfdae7;
+  background:#fff;
+  color:#36516f;
+}
+.feature-dialog-close{
+  z-index:2;
+  top:16px;
+  right:16px;
+  background:#fff;
+  box-shadow:0 4px 14px rgba(31,79,128,.08);
+}
+@media(max-width:600px){
+  .feature-dialog-hero{padding:24px 54px 16px 20px}
+  .feature-dialog-intro{padding:18px 20px 4px}
+  .feature-dialog-content{padding:12px 20px 20px}
+  .feature-dialog-actions{padding:16px 20px 20px;flex-direction:column}
+  .feature-dialog-primary,.feature-dialog-secondary{width:100%}
+}
