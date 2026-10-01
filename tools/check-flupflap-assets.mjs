@@ -70,10 +70,11 @@ export function checkFlupflapAssets(output = resolve(repository, 'dist/flupflap'
       }
     }
   }
-  // These intentionally leave FlupFlap through the reviewed Render redirect rules.
+  // Send/legal intentionally leave FlupFlap through reviewed Render redirects.
+  // Support is now a first-class page in the dedicated build and must exist locally.
   const render = readFileSync(resolve(source, 'render.flupflap.yaml'), 'utf8');
   for (const path of links) {
-    if (/^(?:support(?:\/.*)?|send|legal\/.*)$/.test(path)) {
+    if (/^(?:send|legal\/.*)$/.test(path)) {
       const prefix = path.split('/')[0];
       if (!render.includes('source: /' + prefix) || !render.includes('destination: https://ticash-app.com/' + prefix)) missing.add('redirect:/' + path);
     } else if (assetExtension.test(path)) requireFile(path);
