@@ -238,7 +238,7 @@ test('recharge branding uses FlupFlap and keeps TiCash-App as the parent platfor
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
   globalThis.document = dom.window.document;
   const root = document.getElementById('root');
-  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
+  const app = mountRecharge(root, { mobileRechargeLive: true }, { api });
   try {
     const guestButton = document.getElementById('continue-guest');
     guestButton.click();
@@ -364,8 +364,8 @@ test('Stripe checkout accepts CARD payment methods from backend type contract an
       type: 'CARD',
       enabled: true,
       provider: 'STRIPE',
-      testMode: true,
-      label: 'Test card - Stripe Sandbox',
+      testMode: false,
+      label: 'Card - Stripe',
     }],
   }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
@@ -406,7 +406,7 @@ test('only terminal server payment states release Stripe checkout lock', async (
   assert.ok(model.state.attempt);
   const id = model.state.attempt.transactionId;
   let status = 'PROCESSING';
-  api.overrides.set(`GET /mobile-topups/transactions/${id}`, () => ({ transaction: { ...transaction, id, quoteId: quote.id, status, paymentStatus: 'AUTHORIZED', testMode: true } }));
+  api.overrides.set(`GET /mobile-topups/transactions/${id}`, () => ({ transaction: { ...transaction, id, quoteId: quote.id, status, paymentStatus: 'CAPTURED', testMode: false } }));
 
   await model.refreshTransaction(id);
   assert.ok(model.state.attempt);
