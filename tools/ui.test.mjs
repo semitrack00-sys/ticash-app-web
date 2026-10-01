@@ -719,8 +719,13 @@ test('pending history exposes server cancellation and removes the action after c
     query('.history-cancel').click(); await tick();
     assert.equal(app.model.state.history[0].failureCode, 'CANCELLED_BY_CUSTOMER');
     assert.equal(query('.history-cancel').hidden, true);
+    assert.equal(query('.history-delete').hidden, false);
     assert.match(query('#history-list').textContent, /CANCELLED/);
     assert.ok(api.calls.some((call) => call.method === 'POST' && call.path === `/mobile-topups/transactions/${pending.id}/cancel`));
+    query('.history-delete').click(); await tick();
+    assert.equal(app.model.state.history.length, 0);
+    assert.equal(query('.history-delete'), null);
+    assert.ok(api.calls.some((call) => call.method === 'DELETE' && call.path === `/mobile-topups/transactions/${pending.id}`));
   }, { api });
 });
 
