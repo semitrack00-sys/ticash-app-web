@@ -47,6 +47,18 @@ test('built-output crawl resolves HTML, CSS, JS, navigation and dynamic flag fam
   for(const path of ['route.css','js/translations/en.js','js/translations/ht.js','js/translations/fr.js','js/translations/es.js','js/translations/pt.js','brand/flupflap/icon.svg','flags/ht.svg','flags/jp.svg']) assert.ok(report.required.includes(path),path);
 });
 
+test('dedicated build cache-busts entry assets and module imports',()=>{
+  const html=built('index.html');
+  const entryVersion=html.match(/\/js\/recharge-page\.js\?v=([a-f0-9]{16})/i)?.[1];
+  assert.ok(entryVersion,'recharge entry script must be versioned');
+  assert.match(html,new RegExp(`/recharge/checkout\\.css\\?v=${entryVersion}`));
+  assert.match(html,new RegExp(`/login/login\\.css\\?v=${entryVersion}`));
+  assert.match(built('js/recharge-page.js'),new RegExp(`\\./recharge\\.js\\?v=${entryVersion}`));
+  assert.match(built('js/recharge-page.js'),new RegExp(`\\./recharge-journey\\.js\\?v=${entryVersion}`));
+  assert.match(built('recharge/checkout.css'),new RegExp(`/route\\.css\\?v=${entryVersion}`));
+  assert.match(built('recharge/checkout.css'),new RegExp(`/join/marketing\\.css\\?v=${entryVersion}`));
+});
+
 test('every existing production flag is packaged byte-for-byte with its license',()=>{
   const names=readdirSync(new URL('../flags/',import.meta.url)).filter(name=>name.endsWith('.svg'));
   assert.ok(names.length>249);
