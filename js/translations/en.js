@@ -286,6 +286,7 @@ export default Object.freeze({
   "unverifiedConfirmation": "Unable to verify the confirmation. Refresh history before trying again.",
   "recipientCountryUnavailable": "This recipient’s country is not currently available.",
   "unverifiedReceipt": "Unable to verify the receipt.",
+  "unverifiedCancellation": "Unable to verify the cancellation.",
   "repeatNotice": "A fresh quote was requested for this previous recharge. Review the new price before confirming.",
   "notConfigured": "Recharge is not configured yet. Please contact TiCash support.",
   "invalidAddress": "The recharge service address is invalid.",
