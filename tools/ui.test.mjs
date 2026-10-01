@@ -706,6 +706,24 @@ test('journey quotes provider amount once, refreshes expired price and requires 
   query('[data-journey-nav=number]').click(); assert.equal(query('#receipt').hidden, false);
 }));
 
+test('pending history exposes server cancellation and removes the action after cancellation', async () => {
+  const api = fixtureApi();
+  const pending = { ...transaction, status: 'PENDING', paymentStatus: 'SESSION_CREATED', failureCode: undefined };
+  api.overrides.set('GET /mobile-topups/transactions', () => ({ transactions: [pending] }));
+  api.overrides.set(`POST /mobile-topups/transactions/${pending.id}/cancel`, () => ({
+    transaction: { ...pending, status: 'FAILED', paymentStatus: 'FAILED', failureCode: 'CANCELLED_BY_CUSTOMER' },
+  }));
+  await page(async ({ login, query, app }) => {
+    await login();
+    assert.equal(query('.history-cancel').hidden, false);
+    query('.history-cancel').click(); await tick();
+    assert.equal(app.model.state.history[0].failureCode, 'CANCELLED_BY_CUSTOMER');
+    assert.equal(query('.history-cancel').hidden, true);
+    assert.match(query('#history-list').textContent, /CANCELLED/);
+    assert.ok(api.calls.some((call) => call.method === 'POST' && call.path === `/mobile-topups/transactions/${pending.id}/cancel`));
+  }, { api });
+});
+
 test('journey uses authoritative statuses, limits recent history, and repeats only a confirmed recharge', async () => {
   const api = fixtureApi();
   api.overrides.set('GET /mobile-topups/transactions', () => ({ transactions: Array.from({ length: 5 }, (_, i) => ({ ...transaction, id: `history-${i}` })) }));
