@@ -23,8 +23,8 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   let statusPollTransactionId;
   let statusPollAttempts = 0;
   let statusPollInFlight = false;
-  const STATUS_POLL_INTERVAL_MS = 3000;
-  const STATUS_POLL_MAX_ATTEMPTS = 20;
+  const STATUS_POLL_INTERVAL_MS = 5000;
+  const STATUS_POLL_MAX_ATTEMPTS = 120;
   const terminalTransaction = (txn) => !txn || transactionFullySettled(txn);
   const stopStatusPolling = () => {
     clearTimeout(statusPollTimer);
