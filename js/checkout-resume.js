@@ -19,7 +19,8 @@ function displayTransaction(data) {
     typeof receiverQuote.senderCurrency === 'string' && /^[A-Z]{3}$/.test(receiverQuote.senderCurrency) &&
     typeof receiverQuote.source === 'string' && receiverQuote.source.length > 0 && receiverQuote.source.length <= 80 &&
     typeof receiverQuote.quotedAt === 'string' && !Number.isNaN(Date.parse(receiverQuote.quotedAt)) &&
-    Object.keys(receiverQuote).every(key => ['amount', 'currency', 'senderAmount', 'senderCurrency', 'source', 'quotedAt'].includes(key))
+    (receiverQuote.preferredLanguage === undefined || (typeof receiverQuote.preferredLanguage === 'string' && /^[a-z]{2}$/.test(receiverQuote.preferredLanguage))) &&
+    Object.keys(receiverQuote).every(key => ['amount', 'currency', 'senderAmount', 'senderCurrency', 'source', 'quotedAt', 'preferredLanguage'].includes(key))
   );
   const deliveredValueValid = value?.deliveredValue === null || (Number.isFinite(value?.deliveredValue) && value.deliveredValue >= 0);
   const deliveredCurrencyValid = value?.deliveredCurrency === null ||
