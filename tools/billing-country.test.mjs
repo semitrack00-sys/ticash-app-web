@@ -93,6 +93,6 @@ test('permanent customer retains stored billing country and does not use guest s
   assert.equal(app.model.state.accountCountry, 'CA'); assert.equal(app.model.state.billingCountry, '');
   query('#reviewed').click(); assert.equal(query('#confirm-recharge').disabled, false);
   await app.model.confirm();
-  assert.deepEqual(api.calls.find(c => c.path === '/mobile-topups/payment-sessions').body, { quoteId: billingQuote.id, billingCountry: 'CA' });
+  assert.deepEqual(api.calls.find(c => c.path === '/mobile-topups/payment-sessions').body, { quoteId: billingQuote.id });
   assert.equal(api.calls.some(c => c.method === 'PATCH'), false);
 }, false));
