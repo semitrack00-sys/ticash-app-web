@@ -56,7 +56,10 @@ for(const mode of ['login','guest','register']) test(`dedicated /login: ${mode} 
   await page('/login?lang=fr#keep',api,async({dom,q,app})=>{
     if(mode==='guest')q('#continue-guest').click();
     else {
-      if(mode==='register')q('#choose-register').click();
+      if(mode==='register') {
+        q('#choose-register').click();
+        q('#first-name').value='Domain';q('#last-name').value='Test';q('#register-phone').value='+15555550123';
+      }
       q(mode==='login'?'#email':'#register-email').value='domain-test@example.test';
       q(mode==='login'?'#password':'#register-password').value='secure-test-password';
       q(mode==='login'?'#login-form':'#register-form').dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));
