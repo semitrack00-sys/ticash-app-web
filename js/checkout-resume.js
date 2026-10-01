@@ -6,12 +6,31 @@ import { mountLanguageHeader } from './language-page.js';
 const terminal = new Set(['DELIVERED', 'FAILED', 'REFUNDED']);
 const statuses = new Set(['PENDING', 'PROCESSING', ...terminal]);
 const publicFields = ['status', 'testMode', 'recipientPhone', 'operatorName', 'productName', 'providerAmount', 'providerCurrency', 'feeUsd', 'totalChargeUsd'];
+const receiverFields = ['countryCode', 'receiverQuote', 'deliveredValue', 'deliveredCurrency', 'receiverDiscrepancy'];
+function receiverDetails(value) {
+  if (!receiverFields.some(key => Object.hasOwn(value, key))) return {}; // Original public DTO compatibility.
+  if (!receiverFields.every(key => Object.hasOwn(value, key)) || !/^[A-Z]{2}$/.test(value.countryCode) ||
+      typeof value.receiverDiscrepancy !== 'boolean') throw new Error('Invalid receiver details.');
+  const amount = n => Number.isFinite(n) && n > 0 && n < 1e12;
+  const currency = c => typeof c === 'string' && /^[A-Z]{3}$/.test(c);
+  const q = value.receiverQuote;
+  const keys = ['amount', 'currency', 'senderAmount', 'senderCurrency', 'source', 'quotedAt', 'preferredLanguage'];
+  if (q !== null && (typeof q !== 'object' || Array.isArray(q) || Object.keys(q).some(key => !keys.includes(key)) ||
+      !amount(q.amount) || !currency(q.currency) || q.senderAmount !== value.providerAmount || q.senderCurrency !== 'USD' ||
+      !['PROVIDER_PRODUCT', 'RELOADLY_FX'].includes(q.source) || !Number.isFinite(Date.parse(q.quotedAt)) ||
+      (q.preferredLanguage !== undefined && (typeof q.preferredLanguage !== 'string' || q.preferredLanguage.length > 35)))) throw new Error('Invalid receiver quote.');
+  if ((value.deliveredValue !== null || value.deliveredCurrency !== null) &&
+      (value.status !== 'DELIVERED' || !amount(value.deliveredValue) || !currency(value.deliveredCurrency))) throw new Error('Invalid delivery details.');
+  // Keep only what the customer can see, never operational quote metadata.
+  return { countryCode: value.countryCode, receiverQuote: q && { amount: q.amount, currency: q.currency },
+    deliveredValue: value.deliveredValue, deliveredCurrency: value.deliveredCurrency, receiverDiscrepancy: value.receiverDiscrepancy };
+}
 
 // Read exactly one record. Never retain account IDs, provider identifiers, hashes or snapshots.
 function displayTransaction(data) {
   const value = data?.transaction;
-  if (!value || typeof value !== 'object' || Object.keys(value).length !== publicFields.length ||
-      Object.keys(value).some(key => !publicFields.includes(key)) || value.testMode !== false ||
+  if (!value || typeof value !== 'object' || !publicFields.every(key => Object.hasOwn(value, key)) ||
+      Object.keys(value).some(key => ![...publicFields, ...receiverFields].includes(key)) || value.testMode !== false ||
       !statuses.has(value.status) || value.providerCurrency !== 'USD' ||
       ![value.providerAmount, value.feeUsd, value.totalChargeUsd].every(n => Number.isFinite(n) && n >= 0) ||
       !['recipientPhone', 'operatorName', 'productName'].every(key => typeof value[key] === 'string' && value[key].length <= 300)) {
@@ -21,6 +40,7 @@ function displayTransaction(data) {
     status: value.status, recipientPhone: value.recipientPhone,
     operatorName: value.operatorName, productName: value.productName,
     providerAmount: value.providerAmount, feeUsd: value.feeUsd, totalChargeUsd: value.totalChargeUsd,
+    ...receiverDetails(value),
   });
 }
 
@@ -69,7 +89,8 @@ export function mountCheckoutResume(root, config, resumeToken, dependencies = {}
       terminal.has(transaction.status) ? 'journeyFailed' : 'journeyPending' : 'checkoutResumeLoading';
     panel.append(node('h2', t(message || title)), node('p', t('checkoutResumeReadOnly'), 'muted'));
     if (transaction) {
-      panel.append(node('p', t(transaction.status), 'status-pill'));
+      const badge = node('p', t('rechargeStatus' + transaction.status), 'status-pill');
+      badge.dataset.status = transaction.status; panel.append(badge);
       const details = node('dl', undefined, 'details');
       const money = amount => new Intl.NumberFormat(languageLocale(), { style: 'currency', currency: 'USD' }).format(amount);
       for (const [label, value] of [
@@ -78,7 +99,14 @@ export function mountCheckoutResume(root, config, resumeToken, dependencies = {}
       ]) {
         const row = node('div'); row.append(node('dt', t(label)), node('dd', value)); details.append(row);
       }
+      const receiving = transaction.deliveredValue != null
+        ? { amount: transaction.deliveredValue, currency: transaction.deliveredCurrency } : transaction.receiverQuote;
+      if (receiving) {
+        const row = node('div'); row.append(node('dt', t(transaction.deliveredValue != null ? 'receiverDelivered' : 'Receiver gets')),
+          node('dd', new Intl.NumberFormat(languageLocale(), { style: 'currency', currency: receiving.currency }).format(receiving.amount))); details.append(row);
+      }
       panel.append(details);
+      if (transaction.receiverDiscrepancy) panel.append(node('p', t('receiverValueChanged'), 'message'));
     }
     const again = node('a', t('checkoutResumeStart'), 'button secondary');
     // A fresh page requires a new guest session/sign-in. No repeat, quote or payment action exists here.

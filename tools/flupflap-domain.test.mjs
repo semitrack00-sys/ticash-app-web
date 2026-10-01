@@ -241,3 +241,12 @@ test('dedicated production build includes /join modules/styles/official assets w
   assert.doesNotMatch(readFileSync('dist/flupflap/join/index.html','utf8'),/localhost|fixtures|customerId/);
   assert.match(readFileSync('render.flupflap.yaml','utf8'),/source: \/join\s+destination: \/join\/index.html/);
 });
+
+
+test('every generated FlupFlap page exposes the exact non-secret build revision', () => {
+  const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  for (const path of ['index.html', 'login/index.html', 'join/index.html', 'reset-password/index.html', 'recharge/index.html', 'support/index.html', 'legal/privacy/index.html', 'legal/terms/index.html']) {
+    assert.ok(built(path).includes(`<meta name="flupflap-build" content="${revision}">`), path);
+    assert.match(built(path), /<meta name="flupflap-assets" content="[a-f0-9]{16}">/);
+  }
+});

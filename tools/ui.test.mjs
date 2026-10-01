@@ -281,7 +281,7 @@ test('receipt shows the success state when backend status is DELIVERED even with
   app.model.emit();
   assert.match(query('#receipt').textContent, /Recharge successful!/);
   assert.equal(query('#receipt .journey-result-symbol').textContent, '✓');
-  assert.equal(query('#receipt .status-pill').textContent.trim(), 'DELIVERED');
+  assert.equal(query('#receipt .status-pill').textContent.trim(), t('rechargeStatusDELIVERED'));
 }));
 
 
@@ -708,20 +708,27 @@ test('journey quotes provider amount once, refreshes expired price and requires 
 
 test('pending history exposes server cancellation and removes the action after cancellation', async () => {
   const api = fixtureApi();
-  const pending = { ...transaction, status: 'PENDING', paymentStatus: 'SESSION_CREATED', failureCode: undefined };
-  api.overrides.set('GET /mobile-topups/transactions', () => ({ transactions: [pending] }));
-  api.overrides.set(`POST /mobile-topups/transactions/${pending.id}/cancel`, () => ({
-    transaction: { ...pending, status: 'FAILED', paymentStatus: 'FAILED', failureCode: 'CANCELLED_BY_CUSTOMER' },
-  }));
-  await page(async ({ login, query, app }) => {
+  const pending = { ...transaction, testMode: false, status: 'PENDING', paymentStatus: 'SESSION_CREATED', failureCode: undefined };
+  let records = [pending];
+  api.overrides.set('GET /mobile-topups/transactions', () => ({ transactions: records }));
+  api.overrides.set(`POST /mobile-topups/transactions/${pending.id}/cancel`, () => {
+    records = [{ ...pending, status: 'FAILED', paymentStatus: 'FAILED', failureCode: 'CANCELLED_BY_CUSTOMER' }];
+    return { transaction: records[0] };
+  });
+  api.overrides.set(`GET /mobile-topups/transactions/${pending.id}`, () => ({ transaction: records[0] }));
+  api.overrides.set(`DELETE /mobile-topups/transactions/${pending.id}`, () => { records = []; return {}; });
+  await page(async ({ login, query, app, dom }) => {
     await login();
     assert.equal(query('.history-cancel').hidden, false);
     query('.history-cancel').click(); await tick();
     assert.equal(app.model.state.history[0].failureCode, 'CANCELLED_BY_CUSTOMER');
     assert.equal(query('.history-cancel').hidden, true);
     assert.equal(query('.history-delete').hidden, false);
-    assert.match(query('#history-list').textContent, /CANCELLED/);
+    assert.equal(query('#history-list .status-pill').dataset.status, 'CANCELLED');
+    assert.equal(query('#history-list .status-pill').textContent, t('rechargeStatusCANCELLED'));
     assert.ok(api.calls.some((call) => call.method === 'POST' && call.path === `/mobile-topups/transactions/${pending.id}/cancel`));
+    assert.ok(api.calls.some((call) => call.path === `/mobile-topups/transactions/${pending.id}?refresh=true`));
+    dom.window.confirm = () => true;
     query('.history-delete').click(); await tick();
     assert.equal(app.model.state.history.length, 0);
     assert.equal(query('.history-delete'), null);

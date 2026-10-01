@@ -441,3 +441,8 @@ body:has(.recharge-journey.recharge-active){background:#f1f6fd}
   .recharge-journey.recharge-active .country-picker-button,
   .recharge-journey.recharge-active .operator-picker-button{min-height:44px}
 }
+
+/* Server-confirmed recovery states stay distinct from delivery failures. */
+.status-pill[data-status="REFUNDED"],.recharge-journey.recharge-active .status-pill[data-status="REFUNDED"]{color:#15566a;background:#e7f7fc;border:1px solid #a4d7e6}
+.status-pill[data-status="VOIDED"],.status-pill[data-status="CANCELLED"],.recharge-journey.recharge-active .status-pill[data-status="VOIDED"],.recharge-journey.recharge-active .status-pill[data-status="CANCELLED"]{color:#4c5365;background:#f0f1f5;border:1px solid #c5cbd8}
+.status-pill[data-status="AUTHORIZED"],.status-pill[data-status="CAPTURED"],.status-pill[data-status="SESSION_CREATED"]{color:#835b08;background:#fff7df;border:1px solid #f1d586}
