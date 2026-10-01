@@ -1,15 +1,54 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { JSDOM } from 'jsdom';
 import { mountRecharge } from '../js/recharge-page.js';
 import { createApiClient } from '../js/api-client.js';
 import { rechargePath, rechargeReturnPath, isRechargeResetPath } from '../js/recharge-routes.js';
 import { fixtureApi, quote } from './fixtures.mjs';
+import { checkFlupflapAssets } from './check-flupflap-assets.mjs';
 
 execFileSync(process.execPath, ['tools/build-flupflap.mjs']);
 const built = path => readFileSync(new URL('../dist/flupflap/' + path, import.meta.url), 'utf8');
+
+test('built-output crawl resolves HTML, CSS, JS, navigation and dynamic flag family references',()=>{
+  const report=checkFlupflapAssets();
+  assert.deepEqual(report.families,['/flags/*.svg']);
+  for(const path of ['route.css','js/translations/en.js','js/translations/ht.js','js/translations/fr.js','js/translations/es.js','js/translations/pt.js','brand/flupflap/icon.svg','flags/ht.svg','flags/jp.svg']) assert.ok(report.required.includes(path),path);
+});
+
+test('every existing production flag is packaged byte-for-byte with its license',()=>{
+  const names=readdirSync(new URL('../flags/',import.meta.url)).filter(name=>name.endsWith('.svg'));
+  assert.ok(names.length>249);
+  for(const name of [...names,'LICENSE.flag-icons.txt']) assert.equal(built('flags/'+name),readFileSync(new URL('../flags/'+name,import.meta.url),'utf8'),name);
+  for(const code of ['ht','us','br','fr','za','jp','au']) {
+    const dom=new JSDOM(built('flags/'+code+'.svg'),{contentType:'image/svg+xml'});
+    assert.equal(dom.window.document.documentElement.localName,'svg');dom.window.close();
+  }
+});
+
+test('asset gate rejects missing flags, styles, modules, translations, icons and linked pages',()=>{
+  const temp=mkdtempSync(join(tmpdir(),'flupflap-asset-test-'));
+  const source=fileURLToPath(new URL('..',import.meta.url));
+  try {
+    cpSync(resolve(source,'dist/flupflap'),temp,{recursive:true});
+    for(const path of ['flags/ht.svg','flags/za.svg','route.css','js/recharge.js','js/translations/pt.js','brand/flupflap/icon.svg','index.html']) {
+      const target=join(temp,path),original=readFileSync(target);rmSync(target);
+      assert.throws(()=>checkFlupflapAssets(temp,source),error=>error.message.includes(path),path);
+      writeFileSync(target,original);
+    }
+    const css=join(temp,'route.css'),original=readFileSync(css,'utf8');
+    writeFileSync(css,original+'\n.audit{background:url("/missing-production-image.png")}');
+    assert.throws(()=>checkFlupflapAssets(temp,source),/missing-production-image\.png/);
+  } finally {
+    if(!resolve(temp).startsWith(resolve(tmpdir(),'flupflap-asset-test-'))) throw new Error('Unsafe temporary test path');
+    rmSync(temp,{recursive:true,force:true});
+  }
+});
 const tick = async () => { for (let i=0;i<5;i++) await new Promise(resolve=>setTimeout(resolve,0)); };
 async function page(path, api, run) {
   const file = path.startsWith('/reset-password') ? 'reset-password/index.html' : path.startsWith('/login') ? 'login/index.html' : 'index.html';
@@ -24,7 +63,7 @@ async function page(path, api, run) {
 
 test('dedicated build serves approved recharge at root without shipping TiCash homepage, tools or admin',()=>{
   const source=readFileSync(new URL('../recharge/index.html',import.meta.url),'utf8');
-  assert.equal(built('index.html'),source.replace('data-recharge-root','data-recharge-root data-recharge-path="/"').replaceAll('href="/recharge"','href="/"'));
+  assert.equal(built('index.html'),source.replace('data-recharge-root','data-recharge-root data-recharge-path="/"').replaceAll('href="/recharge"','href="/"').replace(/connect-src [^;]+;/g,"connect-src 'self' https://ticash-api.onrender.com;"));
   for(const path of ['login/index.html','reset-password/index.html','recharge/index.html','recharge/reset-password/index.html']) assert.match(built(path),/data-recharge-path="\/"/);
   for(const path of ['tools','node_modules','.env','admin','send','analytics.js']) assert.equal(existsSync(new URL('../dist/flupflap/'+path,import.meta.url)),false,path);
   assert.equal(built('public-config.js'),readFileSync(new URL('../public-config.js',import.meta.url),'utf8'));
@@ -38,6 +77,16 @@ test('dedicated build serves approved recharge at root without shipping TiCash h
       if(['/','/support','/send','/legal/privacy','/legal/terms'].includes(path))continue;
       assert.ok(existsSync(new URL('../dist/flupflap'+path,import.meta.url)),path);
     }
+  }
+});
+
+test('every generated route uses the exact production API CSP without development or wildcard origins',()=>{
+  for(const path of ['index.html','login/index.html','reset-password/index.html','recharge/index.html','recharge/reset-password/index.html']) {
+    const dom=new JSDOM(built(path));
+    const policy=dom.window.document.querySelector('meta[http-equiv="Content-Security-Policy"]').content;
+    assert.equal(policy.split(';').map(s=>s.trim()).find(s=>s.startsWith('connect-src ')),"connect-src 'self' https://ticash-api.onrender.com");
+    assert.doesNotMatch(policy,/localhost|127\.0\.0\.1|\[::1\]|connect-src https:|flupflap-recharge\.onrender\.com/);
+    assert.match(policy,/object-src 'none'/);assert.match(policy,/base-uri 'none'/);assert.match(policy,/form-action 'none'/);dom.window.close();
   }
 });
 

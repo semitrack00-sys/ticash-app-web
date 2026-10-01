@@ -149,7 +149,7 @@ account, payment, or recharge was created for testing.
 References: [Render redirects/rewrites](https://render.com/docs/redirects-rewrites)
 and [Render custom domains](https://render.com/docs/custom-domains).
 
-## Validation and release blockers
+## PR #51 validation (historical; see the build repair audit below)
 
 - Current main baseline `77202755a41897e4bd60ff65b7813ca5ad4b06aa` was fetched,
   checked out separately without changes and merged normally into this branch.
@@ -200,3 +200,82 @@ and [Render custom domains](https://render.com/docs/custom-domains).
 - Resolve/approve the existing failed release gates separately before cutover.
   No successful production login/registration/reset/cookie/quote smoke test on
   the newly attached canonical service is claimed before domain migration.
+
+## Production build repair audit
+
+PR #51 was already merged when this audit began. The repair branch
+`fix/flupflap-production-assets` starts from current main
+`795ccf9efa4569021f1d7d2cc8f8bbbc28d3d5c6` and requires a new review.
+No deployment, domain/DNS changes or legacy redirect activation were performed.
+
+### Reproduced defects and repairs
+
+- Country flags are runtime URLs (`/flags/${code.toLowerCase()}.svg`), not module
+  imports. The dedicated build omitted their source directory. Chrome reproduced
+  failed/hidden Jamaica, Canada, Haiti and France flag images; the catch-all
+  rewrite can mask a missing image with a successful HTML response.
+- The build now copies **all 271 existing flag SVGs plus their license**. No flags,
+  countries, operators or coverage are invented. Files match source byte-for-byte.
+- Literal HTML/CSS checks missed this computed asset family. The new
+  `tools/check-flupflap-assets.mjs` traverses emitted HTML, CSS, SVG and JavaScript
+  references, module imports, literal runtime assets, local links and computed
+  local asset families. It validates real files, not an SPA fallback response.
+  The build itself fails when the crawl finds a broken reference.
+- The emitted HTML also inherited an invalid `http://[::1]:*` CSP entry and broad
+  development connect sources. Chrome reported the invalid source on every page.
+  Only generated HTML is tightened to the existing Render policy:
+  `connect-src 'self' https://ticash-api.onrender.com`. Source pages, Render
+  headers, CORS and API configuration are unchanged. No security policy relaxed.
+
+### Built artifact and test evidence
+
+- Artifact: **324 production files**; crawler checks **319 referenced files** and
+  the computed flags family. No test tools/fixtures, admin, environment files,
+  source maps, credentials or temporary files are included. Secret/fixture scan
+  passes. Existing official logos, SVG/CSS icons, five translation modules,
+  styles and application modules are retained; fonts use the existing Google
+  Fonts URLs and CSP permissions.
+- Clean current main: **193 tests, 166 pass / 27 fail**.
+- Repair: **197 tests, 170 pass / the same 27 fail**, no skips/cancellations.
+  All failure names match individually; **zero new failures**.
+- Domain/build regressions: **15/15 pass**. Negative tests remove flags, icons,
+  styles, JS, translations and route HTML, and add a broken CSS reference; the
+  asset gate rejects each. Tests assert every generated page's exact API CSP.
+- Site/security checks, all 54 JS/MJS syntax checks, dedicated build, Render
+  schema validation and diff check pass. No lint/typecheck scripts are configured.
+- `npm test` still exits nonzero for the inherited 27 auth/billing/payment/resume,
+  translation and branding test failures. They are not removed, skipped or
+  weakened by this packaging repair. This is not a fully green release gate.
+
+### Chrome audit and limits
+
+The browser serves only `dist/flupflap`, with the reviewed production CSP header,
+MIME types, strict missing-asset 404s and routing rules. API/Stripe requests are
+intercepted outside the repository; no real account, payment or recharge action
+is sent. Production Google fonts are actually fetched. Controlled API responses
+exercise existing production validation rather than modifying application code.
+
+At **390, 430, 768 and 1440px**, the audit passed, covering login, required registration fields,
+password visibility, forgot/reset (root and legacy), guest mode, regional country
+flags and all 271 SVG decodes, phone entry, manual operator fallback and automatic
+detection, fixed airtime/RANGE amounts, backend-backed DATA/BUNDLE selection and
+quotes, billing/review, intercepted hosted Stripe handoff, read-only return/resume
+and delivered result, history, saved recipients, Back, refresh and five languages.
+No unexpected HTTP errors, failed requests, console errors, page exceptions or
+horizontal overflow occurred. The expected logged-out refresh 401 is
+excluded from unexpected-failure counts. Support/legal/send links retain
+their explicit TiCash redirects.
+
+Local evidence (excluded from commit/build):
+- `op/artifacts/domain-flags-before.log`
+- `op/artifacts/flupflap-built-audit-results.json` and `flupflap-built-audit.log`
+- `op/artifacts/flupflap-repair-flags-{390,430,768,1440}.png`
+- `op/artifacts/flupflap-repair-review-{390,430,768,1440}.png`
+- `op/artifacts/domain-repair-{main,final}-tests.log`
+- `op/artifacts/domain-repair-production-manifest.json`
+
+These checks do not validate real provider coverage, paid fulfillment, email
+delivery or canonical-domain cookies/TLS. Do not call this production-ready or
+perform domain cutover until inherited release failures are reviewed and the
+separately approved deployed smoke tests pass. TiCash homepage, approved UI,
+authentication, Stripe, providers and backend pricing are unchanged.
