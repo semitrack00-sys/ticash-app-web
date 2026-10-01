@@ -50,11 +50,19 @@
   <dialog class="feature-dialog" id="flupflap-feature-dialog" aria-labelledby="feature-dialog-title">
     <div class="feature-dialog-card">
       <button class="feature-dialog-close" type="button" aria-label="Close">×</button>
-      <span class="feature-dialog-icon" aria-hidden="true"></span>
-      <p class="feature-dialog-eyebrow" id="feature-dialog-eyebrow"></p>
-      <h2 id="feature-dialog-title"></h2>
+      <div class="feature-dialog-hero">
+        <span class="feature-dialog-icon" aria-hidden="true"></span>
+        <div>
+          <p class="feature-dialog-eyebrow" id="feature-dialog-eyebrow"></p>
+          <h2 id="feature-dialog-title"></h2>
+        </div>
+      </div>
       <p class="feature-dialog-intro" id="feature-dialog-intro"></p>
       <div class="feature-dialog-content" id="feature-dialog-content"></div>
+      <div class="feature-dialog-actions">
+        <a class="feature-dialog-primary" href="/">Start recharge</a>
+        <button class="feature-dialog-secondary" type="button" data-dialog-close>Close</button>
+      </div>
     </div>
   </dialog>
   </div>
