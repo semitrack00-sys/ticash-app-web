@@ -427,7 +427,7 @@ export class Recharge {
         const transactions = array(await this.api.request(`${root}/transactions`), 'transactions');
         if (active()) {
           this.state.history = transactions; this.state.historyError = '';
-          const match = this.state.attempt && transactions.find((t) => t.quoteId === this.state.attempt.body.quoteId && t.testMode === false);
+          const match = this.state.attempt && transactions.find((t) => t.quoteId === this.state.attempt.body.quoteId && t.testMode === this.state.testMode);
           if (this.state.attempt?.mode === checkoutMode) { if (match) this.reconcileCheckout(match); }
           else if (match) { this.state.transaction = match; this.state.attempt = null; this.state.quote = null; this.state.reviewed = false; }
         }
