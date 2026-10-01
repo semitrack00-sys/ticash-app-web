@@ -9,7 +9,7 @@ async function page(run, guest = true) {
   const dom = new JSDOM('<main id="root"></main>', { url: 'https://website.example/recharge' });
   globalThis.document = dom.window.document;
   const api = billingFixture();
-  const app = mountRecharge(document.getElementById('root'), { mobileRechargeLive: false }, {
+  const app = mountRecharge(document.getElementById('root'), { mobileRechargeLive: true }, {
     api, checkoutFactory: () => ({ elements: () => ({ create: () => ({ mount() {}, unmount() {} }), destroy() {} }) }),
   });
   const query = selector => document.querySelector(selector);
