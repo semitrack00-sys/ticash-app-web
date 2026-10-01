@@ -101,7 +101,8 @@ async function page(path, api, run) {
 
 test('dedicated build serves approved recharge at root without shipping TiCash homepage, tools or admin',()=>{
   const source=readFileSync(new URL('../recharge/index.html',import.meta.url),'utf8');
-  assert.equal(built('index.html'),source.replace('data-recharge-root','data-recharge-root data-recharge-path="/"').replaceAll('href="/recharge"','href="/"').replace(/connect-src [^;]+;/g,"connect-src 'self' https://ticash-api.onrender.com;"));
+  const unversioned = built('index.html').replace(/\?v=[a-f0-9]{16}(?=")/g, '').replace(/<meta name="flupflap-(?:build|assets)" content="[a-f0-9]+">/g, '');
+  assert.equal(unversioned,source.replace('data-recharge-root','data-recharge-root data-recharge-path="/"').replaceAll('href="/recharge"','href="/"').replace(/connect-src [^;]+;/g,"connect-src 'self' https://ticash-api.onrender.com;"));
   for(const path of ['login/index.html','reset-password/index.html','recharge/index.html','recharge/reset-password/index.html']) assert.match(built(path),/data-recharge-path="\/"/);
   for(const path of ['tools','node_modules','.env','admin','send','analytics.js']) assert.equal(existsSync(new URL('../dist/flupflap/'+path,import.meta.url)),false,path);
   assert.equal(built('public-config.js'),readFileSync(new URL('../public-config.js',import.meta.url),'utf8'));
@@ -240,4 +241,13 @@ test('dedicated production build includes /join modules/styles/official assets w
   checkFlupflapAssets();
   assert.doesNotMatch(readFileSync('dist/flupflap/join/index.html','utf8'),/localhost|fixtures|customerId/);
   assert.match(readFileSync('render.flupflap.yaml','utf8'),/source: \/join\s+destination: \/join\/index.html/);
+});
+
+
+test('every generated FlupFlap page exposes the exact non-secret build revision', () => {
+  const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  for (const path of ['index.html', 'login/index.html', 'join/index.html', 'reset-password/index.html', 'recharge/index.html', 'support/index.html', 'legal/privacy/index.html', 'legal/terms/index.html']) {
+    assert.ok(built(path).includes(`<meta name="flupflap-build" content="${revision}">`), path);
+    assert.match(built(path), /<meta name="flupflap-assets" content="[a-f0-9]{16}">/);
+  }
 });

@@ -1,5 +1,5 @@
 import { promotionRows } from './marketing.js';
-import { paymentRecoveryPending, transactionFullySettled } from './recharge.js';
+import { paymentRecoveryPending, transactionFullySettled, transactionStatus } from './transaction-state.js';
 import { t, getLanguage } from './i18n.js';
 
 // Navigation and presentation only. Recharge remains the source of catalog,
@@ -70,7 +70,12 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   const section = (name, key) => el('section', { id: `journey-${name}`, className: 'journey-screen panel', 'aria-labelledby': `journey-${name}-title`, hidden: '' }, heading(key, `journey-${name}-title`));
   const closeMenu = () => { n.menu.hidden = true; n.menuButton.setAttribute('aria-expanded', 'false'); };
   function show(next, focus = true, fromHistory = false) {
-    if (next === screen) return;
+    if (next === screen) {
+      const menuOpen = !n.menu.hidden;
+      closeMenu();
+      if (menuOpen) n.menuButton.focus();
+      return;
+    }
     screen = next;
     if (!fromHistory && globalThis.history?.pushState) {
       globalThis.history.pushState({ [historyMarker]: next }, '', globalThis.location?.href);
@@ -311,11 +316,11 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       resultSignature = resultKey;
       const txn = s.transaction;
       const recoveryPending = paymentRecoveryPending(txn);
-      const refundPending = String(txn.paymentStatus || '').toUpperCase() === 'REFUND_PENDING';
-      const voidPending = String(txn.paymentStatus || '').toUpperCase() === 'VOID_PENDING';
-      const delivered = ['DELIVERED', 'SUCCESS'].includes(txn.status) && !recoveryPending;
-      const failed = ['FAILED', 'CANCELLED', 'REFUNDED'].includes(txn.status) && !recoveryPending;
-      const title = delivered ? 'journeySuccess' : failed ? 'journeyFailed' : 'journeyPending';
+      const statusText = transactionStatus(txn);
+      const recovered = ['REFUNDED', 'VOIDED'].includes(statusText);
+      const delivered = ['DELIVERED', 'SUCCESS'].includes(statusText) && !recoveryPending;
+      const failed = ['FAILED', 'CANCELLED'].includes(statusText) && !recoveryPending;
+      const title = delivered ? 'journeySuccess' : recovered ? 'rechargeStatus' + statusText : failed ? 'journeyFailed' : 'journeyPending';
       const headingNode = heading(title, 'journey-result-title');
       const fullReceipt = el('details', { className: 'journey-full-receipt' }, el('summary', {}, ui('journeyViewReceipt')), ...Array.from(n.receipt.children));
       // Existing receipt retains the authoritative IDs, status, product and currency details.
@@ -323,16 +328,11 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       const again = button('journeyAgain', action(() => repeat(txn.id))); again.id = 'recharge-again';
       again.hidden = !delivered || locked(); again.disabled = busy.has('repeat');
       n.refreshReceipt.removeAttribute('data-i18n'); n.refreshReceipt.textContent = t('journeyCheckStatus');
-      const recoveryText = refundPending
-        ? 'Refund processing. FlupFlap is checking the payment provider automatically.'
-        : voidPending
-          ? 'Payment cancellation processing. FlupFlap is checking automatically.'
-          : '';
-      const statusText = recoveryPending ? String(txn.paymentStatus) : String(txn.status);
-      n.receipt.replaceChildren(el('span', { className: 'journey-result-symbol', 'aria-hidden': 'true' }, delivered ? '✓' : failed ? '!' : '…'), headingNode,
+      const recoveryText = recoveryPending || recovered ? t('rechargeInfo' + statusText) : '';
+      n.receipt.replaceChildren(el('span', { className: 'journey-result-symbol', 'aria-hidden': 'true' }, delivered || recovered ? '✓' : failed ? '!' : '…'), headingNode,
         el('p', { className: 'muted' }, recoveryText || ui(delivered ? 'journeySuccessInfo' : failed ? 'journeyFailedInfo' : 'journeyPendingInfo')),
         operatorDetail(txn.operatorName, s.operator?.id === txn.operatorId ? s.operator : s.operators.find(op => op.id === txn.operatorId)),
-        el('p', {}, txn.recipientPhone), priceSummary(txn), el('p', { className: 'status-pill', 'data-status': statusText }, statusText), n.refreshReceipt, again, fullReceipt);
+        el('p', {}, txn.recipientPhone), priceSummary(txn), el('p', { className: 'status-pill', 'data-status': statusText }, t('rechargeStatus' + statusText)), n.refreshReceipt, again, fullReceipt);
       n.receipt.setAttribute('aria-labelledby', 'journey-result-title');
     }
     if (!s.transaction) resultSignature = undefined;
@@ -343,7 +343,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
         const item = button('', action(() => viewTransaction(txn.id)), true);
         item.removeAttribute('data-i18n'); item.classList.add('recent-item'); item.disabled = locked();
         item.replaceChildren(el('strong', {}, txn.operatorName), el('span', {}, txn.recipientPhone), el('span', {}, money(txn.totalChargeUsd, 'USD')),
-          el('small', {}, date(txn.createdAt)), el('span', { className: 'status-pill', 'data-status': paymentRecoveryPending(txn) ? String(txn.paymentStatus) : String(txn.status) }, paymentRecoveryPending(txn) ? String(txn.paymentStatus) : String(txn.status))); return item;
+          el('small', {}, date(txn.createdAt)), el('span', { className: 'status-pill', 'data-status': transactionStatus(txn) }, t('rechargeStatus' + transactionStatus(txn)))); return item;
       }));
       if (!s.history.length) recent.append(el('p', { className: 'muted' }, ui('historyEmptyTitle')));
     }

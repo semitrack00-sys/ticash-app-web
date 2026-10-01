@@ -1,4 +1,5 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { dirname, resolve, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,6 +60,8 @@ for (const path of [
   versionHash.update(readFileSync(resolve(root, path)));
 }
 const buildVersion = versionHash.digest('hex').slice(0, 16);
+const revision = process.env.RENDER_GIT_COMMIT || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+if (!/^[a-f0-9]{40}$/.test(revision)) throw new Error('Invalid FlupFlap build revision');
 
 for (const path of copied) {
   const target = resolve(output, path);
@@ -80,6 +83,7 @@ for (const path of ['recharge/checkout.css']) {
 
 function page(source, target) {
   const html = readFileSync(resolve(root, source), 'utf8')
+    .replace('</head>', `<meta name="flupflap-build" content="${revision}"><meta name="flupflap-assets" content="${buildVersion}"></head>`)
     .replace('data-recharge-root', 'data-recharge-root data-recharge-path="/"')
     .replaceAll('href="/recharge"', 'href="/"')
     .replace(/((?:src|href)="\/[^"]+\.(?:js|css))"/g, `$1?v=${buildVersion}"`)
@@ -103,4 +107,5 @@ page('recharge/index.html', 'recharge/index.html');
 page('recharge/reset-password/index.html', 'recharge/reset-password/index.html');
 if (!existsSync(resolve(output, 'index.html'))) throw new Error('Missing FlupFlap root');
 checkFlupflapAssets(output, root);
+console.log(`FlupFlap build revision: ${revision}`);
 console.log(`Built dedicated FlupFlap site: dist/flupflap (asset version ${buildVersion})`);

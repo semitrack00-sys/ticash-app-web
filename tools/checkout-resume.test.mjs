@@ -9,7 +9,7 @@ import { transaction } from './fixtures.mjs';
 const token = 'R'.repeat(43);
 const now = Date.parse('2026-09-28T12:00:00Z');
 const result = (overrides = {}) => ({ transaction: {
-  status: transaction.status, testMode: true,
+  status: transaction.status, testMode: false,
   recipientPhone: transaction.recipientPhone, operatorName: transaction.operatorName, productName: transaction.productName,
   providerAmount: transaction.providerAmount, providerCurrency: transaction.providerCurrency,
   feeUsd: transaction.feeUsd, totalChargeUsd: transaction.totalChargeUsd,
@@ -104,8 +104,8 @@ test('full return flow uses the real unauthenticated API client and exclusively 
   } });
   const app = mountRecharge(document.querySelector('main'), {}, { api, resumeClock: clock });
   try {
-    await flush(); assert.match(document.querySelector('main').textContent, /PENDING/);
-    await clock.advance(5000); assert.match(document.querySelector('main').textContent, /DELIVERED/);
+    await flush(); assert.equal(document.querySelector('.status-pill').dataset.status, 'PENDING');
+    await clock.advance(5000); assert.equal(document.querySelector('.status-pill').dataset.status, 'DELIVERED');
     assert.equal(calls.length, 2);
     for (const { url, options } of calls) {
       assert.equal(url, 'https://api.example/api/flupflap/mobile-topups/checkout-resume');
@@ -138,7 +138,7 @@ test('return displays only the recovered recharge without authenticating; URL is
     assert.deepEqual(Object.keys(p.app).sort(), ['dispose', 'mode']);
     await flush();
     assert.match(p.root.textContent, /Test catalog operator/);
-    assert.match(p.root.textContent, /PROCESSING/);
+    assert.equal(p.root.querySelector('.status-pill').dataset.status, 'PROCESSING');
     assert.match(p.root.textContent, /\$8\.00/);
     assert.doesNotMatch(p.root.outerHTML, new RegExp(`${token}|private-account|private-hash|private-intent|private-access|private-refresh`));
     assert.equal(p.dom.window.sessionStorage.length, 0); assert.equal(p.dom.window.localStorage.length, 0);
@@ -153,9 +153,9 @@ test('return displays only the recovered recharge without authenticating; URL is
 test('pending polls only resume; a later terminal result stops all polling', async () => {
   const p = page(count => result({ status: count < 3 ? 'PENDING' : 'DELIVERED' }));
   try {
-    await flush(); assert.match(p.root.textContent, /PENDING/);
+    await flush(); assert.equal(p.root.querySelector('.status-pill').dataset.status, 'PENDING');
     await p.clock.advance(10000); assert.deepEqual(p.calls, ['resume', 'resume', 'resume']);
-    assert.match(p.root.textContent, /DELIVERED/); assert.equal(p.clock.size, 0);
+    assert.equal(p.root.querySelector('.status-pill').dataset.status, 'DELIVERED'); assert.equal(p.clock.size, 0);
     await p.clock.advance(600000); assert.equal(p.calls.length, 3);
   } finally { p.close(); }
 });
@@ -191,7 +191,7 @@ test('public DTO needs no expiry metadata; server expiry stops pending polling a
     return result();
   });
   try {
-    await flush(); assert.match(p.root.textContent, /PROCESSING/);
+    await flush(); assert.equal(p.root.querySelector('.status-pill').dataset.status, 'PROCESSING');
     await p.clock.advance(5000); assert.match(p.root.textContent, /expired/); assert.equal(p.clock.size, 0);
     await p.clock.advance(600000); assert.equal(p.calls.length, 2);
   } finally { p.close(); }
@@ -208,8 +208,8 @@ for (const action of ['pagehide', 'dispose']) test(`${action} stops pending reco
   } finally { p.close(); }
 });
 
-test('internal transaction fields or malformed/non-sandbox DTOs fail closed', async () => {
-  for (const change of [{ id: 'different' }, { testMode: false }, { paymentProvider: 'MOCK' }, { status: 'MADE_UP' }, { totalChargeUsd: NaN }]) {
+test('internal transaction fields or malformed/non-production DTOs fail closed', async () => {
+  for (const change of [{ id: 'different' }, { testMode: true }, { paymentProvider: 'MOCK' }, { status: 'MADE_UP' }, { totalChargeUsd: NaN }]) {
     const p = page(() => result(change));
     try { await flush(); assert.match(p.root.textContent, /unavailable/); assert.equal(p.clock.size, 0); }
     finally { p.close(); }

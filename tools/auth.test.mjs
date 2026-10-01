@@ -203,14 +203,14 @@ test('password recovery uses public POST endpoints without auth headers or token
   for(const {options} of calls){assert.equal(options.headers.Authorization,undefined);assert.equal(options.referrerPolicy,'no-referrer');}
 });
 
-test('FlupFlap auth is separate, lightweight, memory-only and cannot request TiCash services', async () => {
+test('FlupFlap auth is separate, profile-aware, memory-only and cannot request TiCash services', async () => {
   const calls=[];const flup={...session,user:{id:'flup',domain:'FLUPFLAP'}};
   const api=createApiClient({baseUrl:'https://test.example/api',identityDomain:'FLUPFLAP',fetchImpl:async(url,options)=>{
     calls.push({url,...options});return url.endsWith('/logout')?new Response(null,{status:204}):json(flup);
   }});
-  await api.register({firstName:'Do not send',lastName:'Do not send',email:'flup@example.test',password:'test-password'});
+  await api.register({firstName:'Flup',lastName:'Customer',phone:'+15551234567',email:'flup@example.test',password:'test-password',role:'ADMIN'});
   assert.equal(calls[0].url,'https://test.example/api/flupflap/auth/register');
-  assert.deepEqual(JSON.parse(calls[0].body),{email:'flup@example.test',password:'test-password'});
+  assert.deepEqual(JSON.parse(calls[0].body),{firstName:'Flup',lastName:'Customer',phone:'+15551234567',email:'flup@example.test',password:'test-password'});
   await api.request('/mobile-topups/countries');await api.request('/users/me');
   assert.equal(calls[1].url,'https://test.example/api/flupflap/mobile-topups/countries');
   assert.equal(calls[2].url,'https://test.example/api/flupflap/auth/me');

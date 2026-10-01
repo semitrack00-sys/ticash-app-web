@@ -2,7 +2,11 @@
 import { getLanguage, localizeCountry, supportedLanguages } from './i18n.js';
 import { checkoutMode, isUuid, validateCheckoutSession } from './checkout-flow.js';
 
+import { transactionFullySettled } from './transaction-state.js';
+export { paymentRecoveryPending, transactionFullySettled } from './transaction-state.js';
+
 const root = '/mobile-topups';
+const providerNames = new Set(['RELOADLY', 'DTONE', 'DING']);
 export const customAmountProductId = '__custom_amount__';
 const invalid = (message) => new ApiError('INVALID_RESPONSE', message);
 const profileFields = ['firstName', 'lastName', 'phoneNumber', 'countryCode', 'addressLine1', 'addressLine2', 'city', 'region', 'postalCode'];
@@ -64,7 +68,7 @@ function validOperator(operator, country) {
   return Number.isSafeInteger(operator?.id) && operator.id > 0 && operator.countryCode === country && operator.status === true;
 }
 export const productClassification = product => product.classification ?? product.kind;
-function validProduct(product, operatorId, country) {
+function validProduct(product, operatorId, country, flupflap) {
   if (!product || product.operatorId !== operatorId || product.countryCode !== country || !['FIXED', 'RANGE'].includes(product.amountType)) return false;
   const classification = productClassification(product);
   if (!['AIRTIME', 'DATA', 'BUNDLE'].includes(classification) || product.priceCurrency !== 'USD' || typeof product.id !== 'string' || typeof product.name !== 'string') return false;
@@ -72,8 +76,11 @@ function validProduct(product, operatorId, country) {
   if (classification !== 'AIRTIME' && product.amountType !== 'FIXED') return false;
   if (product.benefits !== undefined && (!Array.isArray(product.benefits) || product.benefits.some(b => !['DATA', 'MINUTES', 'SMS'].includes(b?.type) || !Number.isFinite(b.amount) || (b.amount < 0 && b.amount !== -1) || !/^[A-Z_]{1,24}$/.test(b.unit)))) return false;
   if (product.validity !== undefined && (!Number.isInteger(product.validity.quantity) || (product.validity.quantity <= 0 && product.validity.quantity !== -1) || !['HOUR', 'DAY', 'WEEK', 'MONTH', 'YEAR'].includes(product.validity.unit) || !['SERVICE', 'REDEMPTION'].includes(product.validity.semantics))) return false;
-  if (product.amountType === 'FIXED') return Number.isFinite(product.price) && product.price >= 5 && product.price <= 100;
-  return Number.isFinite(product.minimumAmount) && Number.isFinite(product.maximumAmount) && product.minimumAmount >= 5 && product.maximumAmount <= 100 && product.minimumAmount <= product.maximumAmount;
+  const minimum = flupflap && classification === 'AIRTIME' ? 1 : 5;
+  if (product.amountPrecision !== undefined && (!Number.isInteger(product.amountPrecision) || product.amountPrecision < 0 || product.amountPrecision > 2)) return false;
+  if (product.amountIncrement !== undefined && (!Number.isFinite(product.amountIncrement) || product.amountIncrement <= 0 || Math.abs(product.amountIncrement * 100 - Math.round(product.amountIncrement * 100)) > 1e-7)) return false;
+  if (product.amountType === 'FIXED') return Number.isFinite(product.price) && product.price >= minimum && product.price <= 100;
+  return Number.isFinite(product.minimumAmount) && Number.isFinite(product.maximumAmount) && product.minimumAmount >= minimum && product.maximumAmount <= 100 && product.minimumAmount <= product.maximumAmount;
 }
 function validateQuote(quote) {
   if (!quote?.id || !quote.countryCode || !quote.recipientPhone || !quote.operatorId || !quote.productId ||
@@ -81,13 +88,6 @@ function validateQuote(quote) {
       !Number.isFinite(Date.parse(quote.expiresAt))) throw invalid('The service returned an incomplete quote.');
   return quote;
 }
-
-const terminalRechargeStatuses = new Set(['DELIVERED', 'SUCCESS', 'FAILED', 'CANCELLED', 'REFUNDED']);
-const pendingPaymentRecoveryStatuses = new Set(['REFUND_PENDING', 'VOID_PENDING']);
-export const paymentRecoveryPending = transaction =>
-  Boolean(transaction && pendingPaymentRecoveryStatuses.has(String(transaction.paymentStatus || '').toUpperCase()));
-export const transactionFullySettled = transaction =>
-  Boolean(transaction && terminalRechargeStatuses.has(String(transaction.status || '').toUpperCase()) && !paymentRecoveryPending(transaction));
 
 export class Recharge {
   constructor(api, { onChange = () => {}, crypto = globalThis.crypto, now = Date.now } = {}) {
@@ -97,7 +97,7 @@ export class Recharge {
   }
   reset() {
     this.generation += 1; this.revision += 1; this.busy.clear();
-    this.state = { ready: false, countries: [], country: '', phone: '', operators: [], operator: null, products: [],
+    this.state = { ready: false, providers: [], provider: 'AUTO', countries: [], country: '', phone: '', operators: [], operator: null, products: [],
       category: '', product: null, amount: '', quote: null, reviewed: false, transaction: null, history: [], recipients: [],
       attempt: null, submitting: false, error: '', notice: '', historyError: '', recipientsError: '' };
     Object.assign(this.state, { paymentMode: null, paymentMethods: [], paymentMethodsError: '', account: null,
@@ -210,6 +210,8 @@ export class Recharge {
       if (!active()) return;
       if (this.state.attempt && this.state.paymentMode !== status.paymentMode) throw invalid('Payment mode changed. Refresh transaction status before starting another recharge.');
       this.state.paymentMode = status.paymentMode; this.state.environment = status.environment; this.state.testMode = status.testMode;
+      this.state.providers = Array.isArray(status.providers) ? [...new Set(status.providers.filter(name => providerNames.has(name)))] : [];
+      if (!this.state.providers.includes(this.state.provider)) this.state.provider = 'AUTO';
       await this.loadPaymentMethods(active);
       if (!active()) return;
       if (status.paymentMode === checkoutMode) await this.loadProfile(active);
@@ -218,6 +220,13 @@ export class Recharge {
       if (active()) { this.state.countries = countries; this.state.ready = true; }
     });
     if (this.state.ready) await Promise.all([this.loadHistory(), this.loadRecipients()]);
+  }
+  async selectProvider(provider) {
+    this.editable();
+    if (provider !== 'AUTO' && !this.state.providers.includes(provider)) return;
+    this.invalidate(); this.clearOperator();
+    this.state.provider = provider; this.state.operators = []; this.emit();
+    if (this.state.country) await this.loadOperators();
   }
   async selectCountry(code) {
     this.editable(); this.invalidate(); this.clearOperator();
@@ -235,13 +244,15 @@ export class Recharge {
     return internationalPhone(this.state.phone, destination.callingCode);
   }
   async loadOperators() {
-    const country = this.state.country;
+    const country = this.state.country; const provider = this.state.provider;
+    const query = new URLSearchParams({ country });
+    if (provider !== 'AUTO') query.set('provider', provider);
     // A country switch can overlap an older request. Each result is country-bound.
-    return this.run(`operators:${country}`, async (active) => {
-      const operators = array(await this.api.request(`${root}/operators?${new URLSearchParams({ country })}`), 'operators');
-      if (operators.some((op) => !validOperator(op, country))) throw invalid('An operator did not match the selected country.');
+    return this.run(`operators:${country}:${provider}`, async (active) => {
+      const operators = array(await this.api.request(`${root}/operators?${query}`), 'operators');
+      if (operators.some((op) => !validOperator(op, country) || (provider !== 'AUTO' && op.provider !== provider))) throw invalid('An operator did not match the selected country.');
       if (active()) this.state.operators = operators;
-    }, () => this.state.country === country);
+    }, () => this.state.country === country && this.state.provider === provider);
   }
   async detect() {
     this.editable(); this.invalidate(); this.clearOperator();
@@ -249,8 +260,11 @@ export class Recharge {
     return this.run('detect', async (active) => {
       const country = this.state.country;
       const phone = this.normalizedPhone();
-      const { operator } = await this.api.request(`${root}/operators/detect?${new URLSearchParams({ country, phone })}`);
-      if (!validOperator(operator, country)) throw invalid('The detected operator is unavailable for this country.');
+      const provider = this.state.provider;
+      const query = new URLSearchParams({ country, phone });
+      if (provider !== 'AUTO') query.set('provider', provider);
+      const { operator } = await this.api.request(`${root}/operators/detect?${query}`);
+      if (!validOperator(operator, country) || (provider !== 'AUTO' && operator.provider !== provider)) throw invalid('The detected operator is unavailable for this country.');
       if (active()) {
         if (!this.state.operators.some((op) => op.id === operator.id)) this.state.operators.push(operator);
         await this.selectOperator(operator.id);
@@ -266,7 +280,7 @@ export class Recharge {
     return this.run(`products:${revision}`, async (active) => {
       const data = await this.api.request(`${root}/operators/${operator.id}/products?${new URLSearchParams({ country: this.state.country })}`);
       const products = array(data, 'products');
-      if (!validOperator(data.operator, operator.countryCode) || data.operator.id !== operator.id || products.some((p) => !validProduct(p, operator.id, operator.countryCode))) {
+      if (!validOperator(data.operator, operator.countryCode) || data.operator.id !== operator.id || products.some((p) => !validProduct(p, operator.id, operator.countryCode, this.api.identityDomain === 'FLUPFLAP'))) {
         throw invalid('The product catalog did not match the selected operator.');
       }
       if (active()) { this.state.products = products; this.state.category = products.length ? productClassification(products[0]) : ''; }
@@ -295,7 +309,11 @@ export class Recharge {
     const body = { countryCode: country, phone: this.normalizedPhone(), operatorId: operator.id, productId: product.id };
     if (product.catalogVersion) body.catalogVersion = product.catalogVersion;
     if (product.amountType === 'RANGE') {
-      if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0 || Number(amount) < product.minimumAmount || Number(amount) > product.maximumAmount) {
+      const minor = Math.round(Number(amount) * 100);
+      const increment = product.amountIncrement === undefined ? undefined : Math.round(product.amountIncrement * 100);
+      const precisionUnit = 10 ** (2 - (product.amountPrecision ?? 2));
+      if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0 || Number(amount) < product.minimumAmount || Number(amount) > product.maximumAmount || minor % precisionUnit !== 0 ||
+          (increment !== undefined && (minor - Math.round(product.minimumAmount * 100)) % increment !== 0)) {
         throw new ApiError('INVALID_TOPUP_AMOUNT', 'Enter an amount within the displayed range, using up to two decimal places.');
       }
       body.amount = Number(amount);
@@ -347,7 +365,8 @@ export class Recharge {
         }
         throw error;
       }
-      if (!transaction?.id || transaction.testMode !== false || transaction.quoteId !== attempt.body.quoteId) throw invalid('Unable to verify the confirmation. Refresh history before trying again.');
+      // This route is reachable only after rechecking the coherent SANDBOX/MOCK status.
+      if (!transaction?.id || transaction.testMode !== true || transaction.quoteId !== attempt.body.quoteId) throw invalid('Unable to verify the confirmation. Refresh history before trying again.');
       if (active()) {
         this.state.transaction = transaction; this.state.attempt = null; this.state.quote = null; this.state.reviewed = false;
         this.state.history = [transaction, ...this.state.history.filter((t) => t.id !== transaction.id)];
@@ -433,7 +452,7 @@ export class Recharge {
         const transactions = array(await this.api.request(`${root}/transactions`), 'transactions');
         if (active()) {
           this.state.history = transactions; this.state.historyError = '';
-          const match = this.state.attempt && transactions.find((t) => t.quoteId === this.state.attempt.body.quoteId && t.testMode === false);
+          const match = this.state.attempt && typeof this.state.testMode === 'boolean' && transactions.find((t) => t.quoteId === this.state.attempt.body.quoteId && t.testMode === this.state.testMode);
           if (this.state.attempt?.mode === checkoutMode) { if (match) this.reconcileCheckout(match); }
           else if (match) { this.state.transaction = match; this.state.attempt = null; this.state.quote = null; this.state.reviewed = false; }
         }
@@ -466,7 +485,7 @@ export class Recharge {
     const revision = this.revision;
     return this.run('receipt', async (active) => {
       const { transaction } = await this.api.request(`${root}/transactions/${encodeURIComponent(id)}?refresh=true`);
-      if (transaction?.id !== id || transaction.testMode !== false) throw invalid('Unable to verify the receipt.');
+      if (transaction?.id !== id || typeof this.state.testMode !== 'boolean' || transaction.testMode !== this.state.testMode) throw invalid('Unable to verify the receipt.');
       if (active()) {
         if (this.state.attempt?.mode === checkoutMode) {
           if (!this.reconcileCheckout(transaction)) throw invalid('Unable to verify the receipt.');
@@ -483,7 +502,10 @@ export class Recharge {
       if (active()) {
         this.state.history = this.state.history.map((item) => item.id === id ? transaction : item);
         if (this.state.transaction?.id === id) this.state.transaction = transaction;
+        if (this.state.attempt?.transactionId === id) this.reconcileCheckout(transaction);
         this.state.notice = 'Pending recharge cancelled.';
+        await this.refreshTransaction(id);
+        await this.loadHistory();
       }
     }, () => this.revision === revision);
   }
