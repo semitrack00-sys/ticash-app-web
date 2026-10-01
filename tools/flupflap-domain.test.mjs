@@ -15,6 +15,22 @@ import { checkFlupflapAssets } from './check-flupflap-assets.mjs';
 execFileSync(process.execPath, ['tools/build-flupflap.mjs']);
 const built = path => readFileSync(new URL('../dist/flupflap/' + path, import.meta.url), 'utf8');
 
+test('dedicated build publishes real FlupFlap Privacy and Terms pages',()=> {
+  const privacy=built('legal/privacy/index.html');
+  const terms=built('legal/terms/index.html');
+  assert.match(privacy,/Privacy Policy/);
+  assert.match(privacy,/Information we process/);
+  assert.match(privacy,/Payments and recharge providers/);
+  assert.match(privacy,/contact@ticash-app\.com/);
+  assert.match(terms,/Terms of Service/);
+  assert.match(terms,/Products, prices and quotes/);
+  assert.match(terms,/Pending, cancelled and failed transactions/);
+  assert.match(terms,/contact@ticash-app\.com/);
+  assert.ok(existsSync(new URL('../dist/flupflap/legal/flupflap-legal.css',import.meta.url)));
+  assert.doesNotMatch(privacy,/http-equiv="refresh"/i);
+  assert.doesNotMatch(terms,/http-equiv="refresh"/i);
+});
+
 test('dedicated build publishes a real FlupFlap support page',()=> {
   const html=built('support/index.html');
   assert.match(html,/FlupFlap support/i);
@@ -84,7 +100,7 @@ test('dedicated build serves approved recharge at root without shipping TiCash h
     for(const match of text.matchAll(/url\(['"]?(\/[^)'"\s]+)['"]?\)/g)) assert.ok(existsSync(new URL('../dist/flupflap'+match[1],import.meta.url)),match[1]);
     for(const match of text.matchAll(/(?:src|href)="(\/[^"#?]+)"/g)) {
       const path=decodeURIComponent(match[1]);
-      if(['/','/send','/legal/privacy','/legal/terms'].includes(path))continue;
+      if(['/','/send'].includes(path))continue;
       assert.ok(existsSync(new URL('../dist/flupflap'+path,import.meta.url)),path);
     }
   }
