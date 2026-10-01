@@ -116,6 +116,17 @@ test('registration sends only account fields and authenticates through memory-on
   api.clear(); await assert.rejects(api.request('/mobile-topups/countries'), { code: 'UNAUTHENTICATED' });
 });
 
+test('FlupFlap registration sends required name and phone profile fields', async () => {
+  const calls = [];
+  const api = createApiClient({ baseUrl: 'https://test.example/api', identityDomain: 'FLUPFLAP', fetchImpl: async (url, options) => {
+    calls.push({ url, ...options }); return json({ ...session, user: { ...session.user, domain: 'FLUPFLAP' } });
+  } });
+  const account = { firstName: 'Flup', lastName: 'Customer', phone: '+15551234567', email: 'flup@example.com', password: 'test-password' };
+  await api.register(account);
+  assert.equal(calls[0].url, 'https://test.example/api/flupflap/auth/register');
+  assert.deepEqual(JSON.parse(calls[0].body), account);
+});
+
 test('guest entry requires explicit guest CUSTOMER response and normal tokens, never fake credentials', async () => {
   const calls = [];
   const api = createApiClient({ baseUrl: 'https://test.example/api', fetchImpl: async (url, options) => {
