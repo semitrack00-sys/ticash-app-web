@@ -80,9 +80,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     if (disposed) return;
     const previous = event.state?.[historyMarker];
     if (previous && screens?.[previous]) {
-      handlingPopState = true;
       show(previous, true, true);
-      handlingPopState = false;
       return;
     }
     if (screen !== 'number') {
