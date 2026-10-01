@@ -212,6 +212,22 @@ test(`${route}: login card retains accessible errors and permits retry with no s
 
 }
 
+test('FlupFlap pages publish a raster social preview with the official multicolor logo', () => {
+  for (const [name, html] of Object.entries({ recharge: pages.recharge, login: pages.login, reset: pages.reset })) {
+    const dom = new JSDOM(html, { url: 'https://www.flupflap.com/' });
+    try {
+      const document = dom.window.document;
+      assert.equal(document.querySelector('meta[property="og:site_name"]')?.content, 'FlupFlap', name);
+      assert.match(document.querySelector('meta[property="og:title"]')?.content ?? '', /FlupFlap/, name);
+      const image = document.querySelector('meta[property="og:image"]')?.content ?? '';
+      assert.match(image, /^https:\/\/www\.flupflap\.com\/brand\/flupflap\/.+\.png$/i, name);
+      assert.equal(document.querySelector('meta[property="og:image:type"]')?.content, 'image/png', name);
+      assert.equal(document.querySelector('meta[name="twitter:card"]')?.content, 'summary_large_image', name);
+      assert.equal(document.querySelector('meta[name="twitter:image"]')?.content, image, name);
+    } finally { dom.window.close(); }
+  }
+});
+
 test('FlupFlap recharge root exposes the same interactive product-information cards', () => {
   const dom = new JSDOM(pages.recharge, { url: 'https://www.flupflap.com/' });
   try {
