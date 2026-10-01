@@ -74,7 +74,7 @@ export function checkFlupflapAssets(output = resolve(repository, 'dist/flupflap'
   // Support is now a first-class page in the dedicated build and must exist locally.
   const render = readFileSync(resolve(source, 'render.flupflap.yaml'), 'utf8');
   for (const path of links) {
-    if (/^(?:send|legal\/.*)$/.test(path)) {
+    if (/^send$/.test(path)) {
       const prefix = path.split('/')[0];
       if (!render.includes('source: /' + prefix) || !render.includes('destination: https://ticash-app.com/' + prefix)) missing.add('redirect:/' + path);
     } else if (assetExtension.test(path)) requireFile(path);
