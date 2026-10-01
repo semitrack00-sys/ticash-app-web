@@ -130,3 +130,20 @@ test('refresh at dedicated root restores only the existing server session',async
     assert.equal(dom.window.location.pathname,'/');assert.equal(q('.login-panel [role=alert]').hidden,true);
   });
 });
+
+test('rejected cookie restoration logs nothing and leaves real sign-in available without authenticating',async()=>{
+  const originalWarn=console.warn;const logs=[];console.warn=(...args)=>logs.push(args);
+  try {
+    for(const failure of [new Error('Restore unavailable'),{code:'RESTORE_UNAVAILABLE'}]) {
+      const api=fixtureApi();api.restore=async()=>{throw failure;};
+      await page('/',api,async({q,app})=>{
+        assert.equal(q('#checkout').hidden,true);
+        assert.equal(q('#login-form button[type=submit]').disabled,false);
+        assert.equal(q('#continue-guest').disabled,false);
+        assert.equal(q('.login-panel [role=alert]').hidden,true);
+        assert.equal(app.model.state.account,null);
+      });
+    }
+    assert.deepEqual(logs,[]);
+  } finally {console.warn=originalWarn;}
+});

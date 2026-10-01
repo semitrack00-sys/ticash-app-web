@@ -151,13 +151,19 @@ and [Render custom domains](https://render.com/docs/custom-domains).
 
 ## Validation and release blockers
 
-- Baseline main `13721a56e5c83b27ff0f1f1b7c8155ede8786843`: 181 tests,
-  155 passed / 26 failed, captured before edits.
+- Current main baseline `77202755a41897e4bd60ff65b7813ca5ad4b06aa` was fetched,
+  checked out separately without changes and merged normally into this branch.
+  Baseline: 182 tests, **155 passed / 27 failed**. No skips or cancellations.
+  Its registration change requires first name, last name and phone; the domain
+  registration test now submits those required fields rather than bypassing them.
 - New isolated domain tests cover root build/assets, login/guest/registration,
   reset token stripping, resume aliases/read-only recovery, API credentials,
   provider catalog/quote without payment, browser Back and session restoration.
-- Branch: 191 tests, 165 passed / the same 26 baseline failures; all 10 new
-  domain tests pass. No existing tests are skipped, removed or weakened.
+- Branch: 193 tests, **166 passed / the same 27 baseline failures**; all 11
+  domain tests pass. Failure names were compared individually: no new failures.
+  No existing tests are skipped, removed or weakened. The additional restore
+  regression verifies Error and non-Error rejections log nothing, do not
+  authenticate, and leave genuine sign-in/guest actions available.
 - Dedicated build, all JavaScript syntax checks, diff-check and Render JSON
   Schema validation pass (AJV draft2020, URI format checked manually).
 - Chrome local artifact tests at 390/768/1440px pass login rendering, guest,
@@ -166,11 +172,31 @@ and [Render custom domains](https://render.com/docs/custom-domains).
   Screenshots: `op/artifacts/flupflap-domain-login-{390,768,1440}.png` and
   `op/artifacts/flupflap-domain-quote-{390,768,1440}.png` in the local workspace;
   screenshots/debug scripts are not committed or published.
-- Full check commands must still be reported honestly: `npm test` / `npm run check`
-  stop at the pre-existing mobileRechargeLive assertion (false expected while
-  production config is true). Running tests directly exposes the 26 existing
-  failures. `node tools/check-security.mjs` also fails on main's existing
-  `console.warn` in session restoration. Neither flag nor assertions are altered.
+- Main's `npm test` / `npm run check` stop at a stale mobileRechargeLive:false
+  assertion; its separate security check rejects a session-restoration console.warn.
+  Both are repaired in a separate logical commit on this branch: the site check
+  now strictly asserts mobileRechargeLive:true, matching the existing security
+  check and explicit production activation commit 18d1548. The other three flags
+  still must be false. Public configuration and all backend gates are unchanged.
+  The browser warning was removed without changing restoration, error handling,
+  authentication or loading state. The security checker is unchanged.
+  Branch `npm run check` and `node tools/check-security.mjs` now PASS.
+  Branch `npm test` reaches the complete suite and exits nonzero for the 27
+  inherited failures. A direct full runner on clean main provides the comparison.
+- Both checkouts pass JavaScript syntax checks (main 50, branch 53 files).
+  Main has no dedicated build/domain suite; branch build and domain tests pass.
+  The generated artifact contains 52 explicitly allowed/reachable production
+  files. Source maps, tools, fixtures, admin, environment files, credentials and
+  temporary files are excluded; a generated-file secret/fixture scan passes.
+- The TiCash homepage, approved HTML/CSS, public API configuration, checkout-flow,
+  API client and existing Render configuration are byte-for-byte unchanged from
+  current main. Production read-only CORS preflights still allow the apex/www
+  FlupFlap origins with credentials and reject the temporary Render origin and
+  an unauthorized origin. No domain, DNS, environment or deployment was changed.
+- Local evidence: `op/artifacts/domain-current-main-tests.log`,
+  `domain-current-pr-npm-test.log`, `domain-current-failures.txt`,
+  `domain-current-browser.log` and `domain-production-manifest.json`.
+  These verification artifacts are not committed or published.
 - Resolve/approve the existing failed release gates separately before cutover.
   No successful production login/registration/reset/cookie/quote smoke test on
   the newly attached canonical service is claimed before domain migration.

@@ -885,9 +885,9 @@ export function mountRecharge(root, config, dependencies = {}) {
       if (!user || disposed) return;
       signedIn = true; guestSession = user.guest === true; model.reset(); model.setAccount(user, guestSession); render();
       await model.start();
-    }).catch((restoreError) => {
+    }).catch(() => {
       // A restore failure must never crash or leave the page stuck in a loading state.
-      if (restoreError && !(restoreError instanceof Error)) console.warn('FlupFlap session restore failed');
+      // Keep restoration failures out of browser logs; existing sign-in remains available.
     }).finally(() => { signingIn = false; if (!disposed) render(); });
   }
   journey = mountRechargeJourney({ root, model, render, el, ui, button, action, money, date, details, icon, operatorDetail,
