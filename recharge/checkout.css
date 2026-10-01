@@ -188,7 +188,7 @@ button:disabled{opacity:.55;cursor:not-allowed}
 .account-summary::-webkit-details-marker{display:none}.account-summary>span{display:grid;gap:3px;font-weight:700}.account-summary small{font-size:10px;color:#c6d5e5;font-weight:400}
 .account-summary>.recharge-icon:first-child{width:34px;height:34px;padding:7px;border:1px solid #ffffff2e;border-radius:50%;box-sizing:border-box}.account-summary>.recharge-icon:last-child{width:14px}
 .account-dropdown{position:absolute;right:0;top:calc(100% + 8px);z-index:70;min-width:150px;padding:8px;background:white;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px #07182f26}
-.account-dropdown .button{width:100%}
+.account-dropdown .button{width:100%}.account-dropdown #sign-out{background:#f2f4f7;border-color:#d0d5dd;color:#172b4d}.account-dropdown #sign-out:hover,.account-dropdown #sign-out:focus-visible{background:#e4e7ec;border-color:#c5cbd3}
 .recharge-active .test-banner{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:10px;background:linear-gradient(135deg,#eefbff 0%,#f6f3ff 100%);border:1px solid rgba(98,124,255,.18);border-radius:15px;padding:15px;color:var(--flap-navy);text-align:left;box-shadow:0 8px 22px rgba(32,199,255,.08)}
 .test-icon{display:grid;place-items:center;background:linear-gradient(135deg,#dff8ff 0%,#f0ebff 100%);border:1px solid rgba(98,124,255,.18);border-radius:50%;width:36px;height:36px;color:#2b6bcf;overflow:hidden}.test-icon img{display:block;width:18px;height:18px;object-fit:contain}
 .test-copy{display:grid;gap:5px}.test-copy strong{letter-spacing:0;font-size:13px;color:var(--flap-blue-deep)}.test-copy>span{font-size:11px;color:#586d88;line-height:1.4}
