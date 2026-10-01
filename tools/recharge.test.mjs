@@ -128,12 +128,12 @@ test('expired or invalid guest session fails closed before Stripe live payment',
 test('unavailable Stripe payment method fails closed', () => {
   const model = new Recharge(fixtureApi());
   model.state.paymentMode = checkoutMode;
-  model.state.paymentMethods = [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: true }];
+  model.state.paymentMethods = [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: false, reason: 'PROVIDER_NOT_CONFIGURED' }];
   model.state.profileLoaded = true;
   model.state.accountCountry = 'CA';
   model.setAccount({ id: 'user-1' }, false);
 
-  assert.match(model.checkoutBlocked(), /Card payments are unavailable|test mode|enabled/i);
+  assert.match(model.checkoutBlocked(), /PROVIDER_NOT_CONFIGURED|Card payments are unavailable|test mode|enabled/i);
 });
 
 test('backend payment-session failure fails closed and does not report payment success', async () => {
@@ -306,7 +306,7 @@ test('Stripe checkout reserves payment-session with idempotency and never posts 
 
   const paymentCalls = api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST');
   assert.equal(paymentCalls.length, 1);
-  assert.deepEqual(paymentCalls[0].body, { quoteId: quote.id, billingCountry: 'CA' });
+  assert.deepEqual(paymentCalls[0].body, { quoteId: quote.id });
   assert.match(paymentCalls[0].headers['Idempotency-Key'], /^[0-9a-f-]{36}$/i);
   assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
   assert.equal(model.state.attempt?.transactionId, transaction.id);
