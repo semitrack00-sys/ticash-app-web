@@ -224,18 +224,20 @@ export function mountRecharge(root, config, dependencies = {}) {
   const loginForm = el('form', { id: 'login-form' }, field('Email address', email), passwordField('Password', password), loginButton);
   const firstName = el('input', { id: 'first-name', autocomplete: 'given-name', required: '', minlength: '1', maxlength: '80' });
   const lastName = el('input', { id: 'last-name', autocomplete: 'family-name', required: '', minlength: '1', maxlength: '80' });
+  const registerPhone = el('input', { id: 'register-phone', type: 'tel', autocomplete: 'tel', inputmode: 'tel', required: '', minlength: '8', maxlength: '16', pattern: '\\+[1-9][0-9]{7,14}', placeholder: '+15551234567' });
   const registerEmail = el('input', { id: 'register-email', type: 'email', autocomplete: 'email', required: '', maxlength: '254' });
   const registerPassword = el('input', { id: 'register-password', type: 'password', autocomplete: 'new-password', required: '', minlength: '8', maxlength: '128' });
   const registerButton = el('button', { className: 'button', type: 'submit' }, 'Create TiCash account');
   const registerCountry = el('input', { id: 'register-country', autocomplete: 'country', maxlength: '2', pattern: '[A-Za-z]{2}' });
-  const registerForm = el('form', { id: 'register-form', hidden: '' }, ...(flupflapLogin ? [] : [field('First name', firstName), field('Last name', lastName)]),
+  const registerForm = el('form', { id: 'register-form', hidden: '' }, field('First name', firstName), field('Last name', lastName),
+    ...(flupflapLogin ? [field('Phone number', registerPhone, 'Use international format including + and country code.')] : []),
     field('Email address', registerEmail), passwordField('Account password', registerPassword),
     field('Account/billing country code (optional)', registerCountry, 'Enter your two-letter country code. This is separate from the recharge destination.'),
     el('p', { className: 'small muted' }, ui('Create a permanent account to access your saved recipients and history when you sign in again.')), registerButton);
   const chooseAuth = (mode) => {
     if (signingIn) return;
     authMode = mode; resetToken = ''; recoveryMessage = ''; clearPasswords(); loginError.hidden = true; render();
-    (mode === 'forgot' ? forgotEmail : mode === 'register' ? (flupflapLogin ? registerEmail : firstName) : email).focus();
+    (mode === 'forgot' ? forgotEmail : mode === 'register' ? firstName : email).focus();
   };
   const signInChoice = button('Sign in', () => chooseAuth('login'), true); signInChoice.id = 'choose-login';
   const registerChoice = button('Create account', () => chooseAuth('register'), true); registerChoice.id = 'choose-register';
@@ -283,7 +285,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     if (model.state.submitting || model.state.attempt) return;
     signedIn = false; guestSession = false; authMode = 'register'; clearPasswords(); model.reset(); render();
     try { await client.logout(); } catch { /* Local tokens are already cleared. */ }
-    (flupflapLogin ? registerEmail : firstName).focus();
+    firstName.focus();
   }, true); createFromGuest.id = 'guest-create-account';
   const accountMode = el('small');
   const accountBar = el('details', { className: 'account-bar', hidden: '' },
@@ -902,7 +904,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     try {
       let user;
       if (mode === 'guest') user = await client.guest();
-      else if (mode === 'register') user = await client.register({ ...(flupflapLogin ? {} : { firstName: firstName.value.trim(), lastName: lastName.value.trim() }), email: registerEmail.value.trim(), password: registerPassword.value,
+      else if (mode === 'register') user = await client.register({ firstName: firstName.value.trim(), lastName: lastName.value.trim(), ...(flupflapLogin ? { phone: registerPhone.value.trim().replace(/[\\s()-]/g, '') } : {}), email: registerEmail.value.trim(), password: registerPassword.value,
         ...(registerCountry.value.trim() ? { countryCode: registerCountry.value.trim().toUpperCase() } : {}) });
       else user = await client.login(email.value.trim(), password.value);
       clearPasswords(); signedIn = true; guestSession = mode === 'guest'; model.reset();
