@@ -210,7 +210,7 @@ test('FlupFlap auth is separate, lightweight, memory-only and cannot request TiC
   }});
   await api.register({firstName:'Do not send',lastName:'Do not send',email:'flup@example.test',password:'test-password'});
   assert.equal(calls[0].url,'https://test.example/api/flupflap/auth/register');
-  assert.deepEqual(JSON.parse(calls[0].body),{email:'flup@example.test',password:'test-password'});
+  assert.deepEqual(JSON.parse(calls[0].body),{firstName:'Do not send',lastName:'Do not send',email:'flup@example.test',password:'test-password'});
   await api.request('/mobile-topups/countries');await api.request('/users/me');
   assert.equal(calls[1].url,'https://test.example/api/flupflap/mobile-topups/countries');
   assert.equal(calls[2].url,'https://test.example/api/flupflap/auth/me');

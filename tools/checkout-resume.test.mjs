@@ -9,10 +9,23 @@ import { transaction } from './fixtures.mjs';
 const token = 'R'.repeat(43);
 const now = Date.parse('2026-09-28T12:00:00Z');
 const result = (overrides = {}) => ({ transaction: {
-  status: transaction.status, testMode: true,
-  recipientPhone: transaction.recipientPhone, operatorName: transaction.operatorName, productName: transaction.productName,
-  providerAmount: transaction.providerAmount, providerCurrency: transaction.providerCurrency,
-  feeUsd: transaction.feeUsd, totalChargeUsd: transaction.totalChargeUsd,
+  countryCode: 'JM',
+  receiverQuote: {
+    amount: 800, currency: 'JMD', senderAmount: 5, senderCurrency: 'USD',
+    source: 'PROVIDER_PRODUCT', quotedAt: '2026-09-28T12:00:00.000Z',
+  },
+  deliveredValue: null,
+  deliveredCurrency: null,
+  receiverDiscrepancy: false,
+  status: transaction.status,
+  testMode: false,
+  recipientPhone: transaction.recipientPhone,
+  operatorName: transaction.operatorName,
+  productName: transaction.productName,
+  providerAmount: transaction.providerAmount,
+  providerCurrency: transaction.providerCurrency,
+  feeUsd: transaction.feeUsd,
+  totalChargeUsd: transaction.totalChargeUsd,
   ...overrides,
 } });
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
@@ -130,6 +143,28 @@ test('leaving the return screen aborts the outstanding status request', async ()
   await assert.rejects(pending, /unavailable/); assert.equal(signal.aborted, true);
 });
 
+test('accepts the exact production backend checkout-resume DTO shape', async () => {
+  const p = page(() => result({
+    countryCode: 'DO',
+    receiverQuote: {
+      amount: 300, currency: 'DOP', senderAmount: 5, senderCurrency: 'USD',
+      source: 'PROVIDER_PRODUCT', quotedAt: '2026-10-01T17:30:00.000Z',
+    },
+    deliveredValue: null,
+    deliveredCurrency: null,
+    receiverDiscrepancy: false,
+    status: 'PROCESSING',
+    testMode: false,
+  }));
+  try {
+    await flush();
+    assert.match(p.root.textContent, /PROCESSING/);
+    assert.match(p.root.textContent, /Test catalog operator/);
+    assert.doesNotMatch(p.root.textContent, /unavailable/i);
+    assert.deepEqual(p.calls, ['resume']);
+  } finally { p.close(); }
+});
+
 test('return displays only the recovered recharge without authenticating; URL is scrubbed synchronously', async () => {
   const p = page();
   try {
@@ -209,7 +244,7 @@ for (const action of ['pagehide', 'dispose']) test(`${action} stops pending reco
 });
 
 test('internal transaction fields or malformed/non-sandbox DTOs fail closed', async () => {
-  for (const change of [{ id: 'different' }, { testMode: false }, { paymentProvider: 'MOCK' }, { status: 'MADE_UP' }, { totalChargeUsd: NaN }]) {
+  for (const change of [{ id: 'different' }, { testMode: true }, { paymentProvider: 'MOCK' }, { status: 'MADE_UP' }, { totalChargeUsd: NaN }, { countryCode: 'J1' }, { receiverDiscrepancy: 'no' }, { deliveredCurrency: 'US' }]) {
     const p = page(() => result(change));
     try { await flush(); assert.match(p.root.textContent, /unavailable/); assert.equal(p.clock.size, 0); }
     finally { p.close(); }

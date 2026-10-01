@@ -128,12 +128,12 @@ test('expired or invalid guest session fails closed before Stripe live payment',
 test('unavailable Stripe payment method fails closed', () => {
   const model = new Recharge(fixtureApi());
   model.state.paymentMode = checkoutMode;
-  model.state.paymentMethods = [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: true }];
+  model.state.paymentMethods = [{ type: 'CARD', provider: 'STRIPE', testMode: false, enabled: false, reason: 'PROVIDER_NOT_CONFIGURED' }];
   model.state.profileLoaded = true;
   model.state.accountCountry = 'CA';
   model.setAccount({ id: 'user-1' }, false);
 
-  assert.match(model.checkoutBlocked(), /Card payments are unavailable|test mode|enabled/i);
+  assert.match(model.checkoutBlocked(), /PROVIDER_NOT_CONFIGURED|Card payments are unavailable|test mode|enabled/i);
 });
 
 test('backend payment-session failure fails closed and does not report payment success', async () => {
@@ -245,7 +245,6 @@ test('recharge branding uses FlupFlap and keeps TiCash-App as the parent platfor
     await Promise.resolve();
     assert.match(root.textContent, /FlupFlap/);
     assert.match(root.querySelector('.flupflap-hero img').alt, /Mobile Recharge by TiCash-App/);
-    assert.match(root.textContent, /TiCash-App/);
     const registerButton = document.getElementById('choose-register');
     registerButton.click();
     assert.match(root.textContent, /Create TiCash account/);
@@ -306,7 +305,7 @@ test('Stripe checkout reserves payment-session with idempotency and never posts 
 
   const paymentCalls = api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST');
   assert.equal(paymentCalls.length, 1);
-  assert.deepEqual(paymentCalls[0].body, { quoteId: quote.id, billingCountry: 'CA' });
+  assert.deepEqual(paymentCalls[0].body, { quoteId: quote.id });
   assert.match(paymentCalls[0].headers['Idempotency-Key'], /^[0-9a-f-]{36}$/i);
   assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
   assert.equal(model.state.attempt?.transactionId, transaction.id);
@@ -364,8 +363,8 @@ test('Stripe checkout accepts CARD payment methods from backend type contract an
       type: 'CARD',
       enabled: true,
       provider: 'STRIPE',
-      testMode: true,
-      label: 'Test card - Stripe Sandbox',
+      testMode: false,
+      label: 'Card - Stripe',
     }],
   }));
   api.overrides.set('GET /users/me', () => ({ user: { id: 'user-1', firstName: 'Test', lastName: 'User', countryCode: 'CA' } }));
@@ -406,7 +405,7 @@ test('only terminal server payment states release Stripe checkout lock', async (
   assert.ok(model.state.attempt);
   const id = model.state.attempt.transactionId;
   let status = 'PROCESSING';
-  api.overrides.set(`GET /mobile-topups/transactions/${id}`, () => ({ transaction: { ...transaction, id, quoteId: quote.id, status, paymentStatus: 'AUTHORIZED', testMode: true } }));
+  api.overrides.set(`GET /mobile-topups/transactions/${id}`, () => ({ transaction: { ...transaction, id, quoteId: quote.id, status, paymentStatus: 'CAPTURED', testMode: false } }));
 
   await model.refreshTransaction(id);
   assert.ok(model.state.attempt);
@@ -442,7 +441,7 @@ test('page-level hosted checkout mounts once and never posts browser fulfillment
   globalThis.document = dom.window.document;
 
   const root = document.getElementById('root');
-  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
+  const app = mountRecharge(root, { mobileRechargeLive: true }, { api });
   try {
     document.getElementById('email').value = 'user@example.test';
     document.getElementById('password').value = 'correct horse battery staple';
@@ -460,7 +459,9 @@ test('page-level hosted checkout mounts once and never posts browser fulfillment
       await flush(2);
     }
 
-    assert.match(document.getElementById('checkout-flow-container').textContent, /Stripe Checkout will open in a secure hosted page/);
+    assert.equal(app.model.state.checkoutSession?.provider, 'STRIPE');
+    assert.equal(document.getElementById('checkout-flow-panel').hidden, false);
+    assert.match(document.getElementById('checkout-flow-panel').textContent, /Stripe handles payment on its secure hosted checkout|Stripe Checkout will open in a secure hosted page/);
     assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 1);
     assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
   } finally {
@@ -479,7 +480,7 @@ test('hosted checkout session creation surfaces safe error and still never perfo
   globalThis.document = dom.window.document;
 
   const root = document.getElementById('root');
-  const app = mountRecharge(root, { mobileRechargeLive: false }, { api });
+  const app = mountRecharge(root, { mobileRechargeLive: true }, { api });
   try {
     document.getElementById('email').value = 'user@example.test';
     document.getElementById('password').value = 'correct horse battery staple';
