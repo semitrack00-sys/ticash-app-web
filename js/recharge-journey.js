@@ -1,5 +1,5 @@
 import { promotionRows } from './marketing.js';
-import { paymentRecoveryPending, transactionFullySettled, transactionStatus } from './transaction-state.js';
+import { paymentFailureMessage, paymentRecoveryPending, transactionFullySettled, transactionStatus } from './transaction-state.js';
 import { t, getLanguage } from './i18n.js';
 
 // Navigation and presentation only. Recharge remains the source of catalog,
@@ -23,10 +23,12 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   let statusPollTransactionId;
   let statusPollAttempts = 0;
   let statusPollInFlight = false;
+  let pollGeneration = 0;
   const STATUS_POLL_INTERVAL_MS = 5000;
   const STATUS_POLL_MAX_ATTEMPTS = 120;
   const terminalTransaction = (txn) => !txn || transactionFullySettled(txn);
   const stopStatusPolling = () => {
+    pollGeneration += 1; statusPollInFlight = false;
     clearTimeout(statusPollTimer);
     statusPollTimer = undefined;
     statusPollTransactionId = undefined;
@@ -43,6 +45,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     }
     if (statusPollTimer || statusPollInFlight || statusPollAttempts >= STATUS_POLL_MAX_ATTEMPTS) return;
     const transactionId = txn.id;
+    const currentPoll = pollGeneration;
     statusPollTimer = setTimeout(async () => {
       statusPollTimer = undefined;
       if (disposed || statusPollTransactionId !== transactionId || terminalTransaction(model.state.transaction)) return;
@@ -53,6 +56,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       } catch {
         // Manual "Check status" remains available if a background refresh fails.
       } finally {
+        if (currentPoll !== pollGeneration) return;
         statusPollInFlight = false;
         if (!disposed && statusPollTransactionId === transactionId && !terminalTransaction(model.state.transaction)) {
           scheduleStatusPoll(model.state.transaction);
@@ -195,8 +199,9 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     card.replaceChildren(el('div', {}, operatorDetail(op?.name || q?.operatorName || t('Not supplied'), op),
       el('p', {}, `${q?.recipientPhone || s.phone} · ${q?.countryCode || s.country}`)), edit);
   }
-  const priceSummary = q => details([['Recharge amount', money(q.providerAmount, q.providerCurrency)],
-    ...(q.deliveredValue != null && q.deliveredCurrency ? [['Receiver gets', money(q.deliveredValue, q.deliveredCurrency)]] : []),
+  const priceSummary = (q, receipt = false) => details([['Recharge amount', money(q.providerAmount, q.providerCurrency)],
+    ...((!receipt || !['FAILED', 'CANCELLED'].includes(q.status)) && q.deliveredValue != null && q.deliveredCurrency
+      ? [['Receiver gets', money(q.deliveredValue, q.deliveredCurrency)]] : []),
     ...promotionRows(q, money), ['FlupFlap fee', money(q.feeUsd, 'USD')], ['Total', money(q.totalChargeUsd, 'USD')]]);
   async function freshQuote() {
     if (quoteRequest) return quoteRequest;
@@ -256,7 +261,7 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     }
     if (s.transaction) scheduleStatusPoll(s.transaction); else stopStatusPolling();
     if (s.transaction && lastTransaction !== s.transaction.id) {
-      lastTransaction = s.transaction.id; screen = 'result';
+      lastTransaction = s.transaction.id; resultSignature = undefined; screen = 'result';
       queueMicrotask(() => { if (screen === 'result') n.receipt.querySelector('h2')?.focus(); });
     } else if (!s.transaction) lastTransaction = undefined;
     if (s.checkoutSession && ['number', 'amount'].includes(screen)) screen = 'pay';
@@ -325,14 +330,18 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       const fullReceipt = el('details', { className: 'journey-full-receipt' }, el('summary', {}, ui('journeyViewReceipt')), ...Array.from(n.receipt.children));
       // Existing receipt retains the authoritative IDs, status, product and currency details.
       fullReceipt.querySelector('h2')?.remove();
-      const again = button('journeyAgain', action(() => repeat(txn.id))); again.id = 'recharge-again';
-      again.hidden = !delivered || locked(); again.disabled = busy.has('repeat');
+      const retryable = transactionFullySettled(txn) && ['FAILED', 'CANCELLED'].includes(txn.status);
+      const again = button(retryable ? 'rechargeTryAgain' : 'journeyAgain', action(() => {
+        if (retryable) { model.startNewRecharge(); repeatedId = undefined; selectionKey = undefined; show('number'); }
+        else return repeat(txn.id);
+      })); again.id = 'recharge-again';
+      again.hidden = !(delivered || retryable) || locked(); again.disabled = busy.has('repeat');
       n.refreshReceipt.removeAttribute('data-i18n'); n.refreshReceipt.textContent = t('journeyCheckStatus');
       const recoveryText = recoveryPending || recovered ? t('rechargeInfo' + statusText) : '';
       n.receipt.replaceChildren(el('span', { className: 'journey-result-symbol', 'aria-hidden': 'true' }, delivered || recovered ? '✓' : failed ? '!' : '…'), headingNode,
-        el('p', { className: 'muted' }, recoveryText || ui(delivered ? 'journeySuccessInfo' : failed ? 'journeyFailedInfo' : 'journeyPendingInfo')),
+        el('p', { className: 'muted' }, recoveryText || (failed && paymentFailureMessage(txn) ? t(paymentFailureMessage(txn)) : ui(delivered ? 'journeySuccessInfo' : failed ? 'journeyFailedInfo' : 'journeyPendingInfo'))),
         operatorDetail(txn.operatorName, s.operator?.id === txn.operatorId ? s.operator : s.operators.find(op => op.id === txn.operatorId)),
-        el('p', {}, txn.recipientPhone), priceSummary(txn), el('p', { className: 'status-pill', 'data-status': statusText }, t('rechargeStatus' + statusText)), n.refreshReceipt, again, fullReceipt);
+        el('p', {}, txn.recipientPhone), priceSummary(txn, true), el('p', { className: 'status-pill', 'data-status': statusText }, t('rechargeStatus' + statusText)), n.refreshReceipt, again, fullReceipt);
       n.receipt.setAttribute('aria-labelledby', 'journey-result-title');
     }
     if (!s.transaction) resultSignature = undefined;

@@ -433,5 +433,11 @@ export default Object.freeze({
   "cancellationVerificationFailed": "No se pudo verificar la cancelación.",
   "sandboxReceipt": "RECIBO DE PRUEBA",
   "sandboxReceiptWarning": "Esta es una transacción de prueba. No se transfirió dinero real ni saldo telefónico.",
-  "sandboxPaymentStatus": "Estado del pago de prueba"
+  "sandboxPaymentStatus": "Estado del pago de prueba",
+  "rechargeTryAgain": "Iniciar una nueva recarga",
+  "receiverQuoted": "Valor cotizado para el destinatario (no entregado)",
+  "paymentInsufficientFunds": "El emisor de tu tarjeta rechazó este pago. Stripe informó de fondos insuficientes para este intento. Puedes volver a intentarlo o usar otro método de pago.",
+  "paymentDeclined": "El emisor de tu tarjeta rechazó este pago. Puedes volver a intentarlo o usar otro método de pago.",
+  "paymentCancelled": "Este pago fue cancelado. No se envió ninguna recarga en este intento.",
+  "paymentExpired": "Esta sesión caducó sin pago. Inicia una nueva recarga para volver a intentarlo."
 });

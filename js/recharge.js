@@ -186,8 +186,16 @@ export class Recharge {
       if (active()) await this.loadProfile(active);
     });
   }
+  startNewRecharge() {
+    if (this.state.submitting || this.state.transaction && !transactionFullySettled(this.state.transaction) ||
+        this.state.attempt && !transactionFullySettled(this.state.transaction)) {
+      throw new ApiError('PENDING_CONFIRMATION', 'Resolve the current confirmation before starting another recharge.');
+    }
+    Object.assign(this.state, { attempt: null, checkoutSession: null });
+    this.invalidate(); this.clearOperator(); this.emit();
+  }
   editable() {
-    if (this.state.submitting || this.state.attempt) throw new ApiError('PENDING_CONFIRMATION', 'Resolve the current confirmation before starting another recharge.');
+    if (this.state.submitting || this.state.attempt || this.state.transaction && !transactionFullySettled(this.state.transaction)) throw new ApiError('PENDING_CONFIRMATION', 'Resolve the current confirmation before starting another recharge.');
   }
   invalidate() {
     this.revision += 1;
@@ -483,6 +491,7 @@ export class Recharge {
   async refreshTransaction(id = this.state.attempt?.transactionId || this.state.transaction?.id, { silent = false } = {}) {
     if (!id) return;
     const revision = this.revision;
+    const previousId = this.state.transaction?.id;
     return this.run('receipt', async (active) => {
       const { transaction } = await this.api.request(`${root}/transactions/${encodeURIComponent(id)}?refresh=true`);
       if (transaction?.id !== id || typeof this.state.testMode !== 'boolean' || transaction.testMode !== this.state.testMode) throw invalid('Unable to verify the receipt.');
@@ -492,7 +501,7 @@ export class Recharge {
         } else this.state.transaction = transaction;
         this.state.history = this.state.history.map((t) => t.id === id ? transaction : t);
       }
-    }, () => this.revision === revision, silent);
+    }, () => this.revision === revision && (!this.state.transaction || this.state.transaction.id === previousId || this.state.transaction.id === id), silent);
   }
   async cancelTransaction(id) {
     const revision = this.revision;

@@ -181,7 +181,7 @@ test('test safety gates accept only MOCK and Stripe live payment modes', () => {
 });
 for (const change of ['country', 'phone', 'operator', 'product', 'amount']) {
   test(`${change} change clears quote, review, transaction, and the required downstream selection`, async () => {
-    const { model } = await setup(); await reviewed(model); model.state.transaction = transaction;
+    const { model } = await setup(); await reviewed(model); model.state.transaction = { ...transaction, status: 'DELIVERED', paymentStatus: 'CAPTURED' };
     if (change === 'country') await model.selectCountry('CA');
     if (change === 'phone') model.setPhone('+16135551234');
     if (change === 'operator') await model.selectOperator('');

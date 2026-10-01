@@ -8,7 +8,7 @@ import { createBillingCountryPicker } from './billing-country-picker.js';
 import { consumeCheckoutReturn, mountCheckoutResume } from './checkout-resume.js';
 import { rechargePath, rechargeReturnPath, isRechargeResetPath } from './recharge-routes.js';
 import { marketingControls, promotionRows } from './marketing.js';
-import { transactionStatus, canCancelTransaction, canHideTransaction } from './transaction-state.js';
+import { transactionStatus, paymentFailureMessage, canCancelTransaction, canHideTransaction } from './transaction-state.js';
 
 function el(tag, attributes = {}, ...children) {
   const node = document.createElement(tag);
@@ -145,7 +145,14 @@ function details(data) {
 }
 
 // Shared by /login and /recharge. In-page sign-in preserves memory-only tokens.
+const mountedRecharge = new WeakMap();
 export function mountRecharge(root, config, dependencies = {}) {
+  mountedRecharge.get(root)?.dispose();
+  const app = mountRechargeInstance(root, config, dependencies);
+  mountedRecharge.set(root, app);
+  return app;
+}
+function mountRechargeInstance(root, config, dependencies = {}) {
   const checkoutReturn = consumeCheckoutReturn(root.ownerDocument.defaultView);
   if (checkoutReturn.present) {
     const resume = mountCheckoutResume(root, config, checkoutReturn.token, dependencies);
@@ -853,13 +860,16 @@ export function mountRecharge(root, config, dependencies = {}) {
       if (s.transaction) {
         const txn = s.transaction;
         const liveReceipt = txn.testMode === false;
+        const failedReceipt = ['FAILED', 'CANCELLED'].includes(txn.status);
+        const receiver = failedReceipt && txn.receiverQuote ? txn.receiverQuote :
+          txn.deliveredValue != null && txn.deliveredCurrency ? { amount: txn.deliveredValue, currency: txn.deliveredCurrency } : null;
         receipt.replaceChildren(el('span', { className: 'eyebrow' }, ui(liveReceipt ? 'RECEIPT' : 'TEST RECEIPT')), el('h2', {}, t('receiptHeading', { status: t(String(txn.status || 'pending').toLowerCase()) })),
           el('p', { className: 'muted' }, ui(liveReceipt ? 'Payment and recharge status are confirmed by TiCash.' : 'This is a test transaction. No real money or airtime was transferred.')),
           details([['Reference', txn.id], ['Status', txn.status], [liveReceipt ? 'Payment status' : 'Test payment status', txn.paymentStatus], ['Phone number', txn.recipientPhone],
             ['Destination', `${countryFlag(txn.countryCode)} ${txn.countryCode}`.trim()], ['Operator', operatorDetail(txn.operatorName, s.operator?.id === txn.operatorId ? s.operator : s.operators.find((op) => op.id === txn.operatorId))], ['Product', el('div', {}, txn.productName, planDetails(txn.productSnapshot))],
             ['Recharge', money(txn.providerAmount, txn.providerCurrency)], ['Fee', money(txn.feeUsd, 'USD')], ['Total', money(txn.totalChargeUsd, 'USD')],
-            ['Recipient value', txn.deliveredValue === undefined ? t('Awaiting confirmation') : money(txn.deliveredValue, txn.deliveredCurrency)],
-            ['Updated', date(txn.updatedAt)], ...(txn.failureCode ? [['Failure reason', txn.failureCode]] : [])]), refreshReceipt);
+            [failedReceipt ? 'receiverQuoted' : 'Recipient value', receiver ? money(receiver.amount, receiver.currency) : t('Awaiting confirmation')],
+            ['Updated', date(txn.updatedAt)], ...(paymentFailureMessage(txn) ? [['Failure reason', t(paymentFailureMessage(txn))]] : [])]), refreshReceipt);
       } else receipt.replaceChildren();
     }
     refreshReceipt.disabled = busy.has('receipt');
@@ -1098,7 +1108,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const timer = setInterval(() => { if (signedIn && model.state.quote) render(); }, 1000);
   const removeLanguageListener = onLanguageChange(render);
   render();
-  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; journey?.dispose(); marketing?.dispose(); guestBillingPicker.dispose(); clearFlow(); removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); root.ownerDocument.removeEventListener('click', closeOperatorPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
+  return { model, dispose() { if (siteHeader) siteHeader.hidden = originalHeaderHidden; if (headerLanguage && siteHeader) siteHeader.append(headerLanguage); root.classList.remove('recharge-active'); resetToken = ''; disposed = true; model.reset(); journey?.dispose(); marketing?.dispose(); guestBillingPicker.dispose(); clearFlow(); removeLanguageListener(); removeLanguageHeader(); clearInterval(timer); root.ownerDocument.removeEventListener('click', closeCountryPicker); root.ownerDocument.removeEventListener('click', closeOperatorPicker); globalThis.removeEventListener?.('pagehide', pageHide); client?.clear(); } };
 }
 
 const root = typeof document === 'undefined' ? null : document.querySelector('[data-recharge-root]');

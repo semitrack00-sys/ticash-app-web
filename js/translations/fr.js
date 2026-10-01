@@ -433,5 +433,11 @@ export default Object.freeze({
   "cancellationVerificationFailed": "Impossible de vérifier l’annulation.",
   "sandboxReceipt": "REÇU DE TEST",
   "sandboxReceiptWarning": "Il s’agit d’une transaction de test. Aucun argent réel ni crédit téléphonique n’a été transféré.",
-  "sandboxPaymentStatus": "Statut du paiement de test"
+  "sandboxPaymentStatus": "Statut du paiement de test",
+  "rechargeTryAgain": "Commencer une nouvelle recharge",
+  "receiverQuoted": "Valeur annoncée au destinataire (non livrée)",
+  "paymentInsufficientFunds": "L’émetteur de votre carte a refusé ce paiement. Stripe a signalé des fonds insuffisants pour cette tentative. Réessayez ou utilisez un autre moyen de paiement.",
+  "paymentDeclined": "L’émetteur de votre carte a refusé ce paiement. Réessayez ou utilisez un autre moyen de paiement.",
+  "paymentCancelled": "Ce paiement a été annulé. Aucune recharge n’a été envoyée pour cette tentative.",
+  "paymentExpired": "Cette session a expiré sans paiement. Commencez une nouvelle recharge pour réessayer."
 });
