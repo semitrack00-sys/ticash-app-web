@@ -12,12 +12,6 @@ services:
     # No domains declared: domain association requires a separately approved cutover.
     routes:
       - type: redirect
-        source: /support
-        destination: https://ticash-app.com/support
-      - type: redirect
-        source: /support/*
-        destination: https://ticash-app.com/support
-      - type: redirect
         source: /send
         destination: https://ticash-app.com/send
       - type: redirect
