@@ -459,7 +459,9 @@ test('page-level hosted checkout mounts once and never posts browser fulfillment
       await flush(2);
     }
 
-    assert.match(document.getElementById('checkout-flow-container').textContent, /Stripe Checkout will open in a secure hosted page/);
+    assert.equal(app.model.state.checkoutSession?.provider, 'STRIPE');
+    assert.equal(document.getElementById('checkout-flow-panel').hidden, false);
+    assert.match(document.getElementById('checkout-flow-panel').textContent, /Stripe handles payment on its secure hosted checkout|Stripe Checkout will open in a secure hosted page/);
     assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 1);
     assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
   } finally {
