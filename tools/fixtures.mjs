@@ -54,6 +54,14 @@ export function fixtureApi() {
       if (route === `/mobile-topups/transactions/${transaction.id}` && method === 'GET') {
         assert.equal(url.searchParams.get('refresh'), 'true'); return { transaction: { ...transaction, status: 'DELIVERED' } };
       }
+      if (route.startsWith('/mobile-topups/transactions/') && route.endsWith('/cancel') && method === 'POST') {
+        const id = route.split('/')[3];
+        const current = transactions.find((item) => item.id === id);
+        if (!current) throw new ApiError('TOPUP_NOT_FOUND', 'Not found', 404);
+        const cancelled = { ...current, status: 'FAILED', paymentStatus: 'FAILED', failureCode: 'CANCELLED_BY_CUSTOMER' };
+        transactions = transactions.map((item) => item.id === id ? cancelled : item);
+        return { transaction: structuredClone(cancelled) };
+      }
       if (route === `/mobile-topups/transactions/${transaction.id}/repeat` && method === 'POST') {
         assert.equal(options.body, undefined); return { quote: { ...quote, totalChargeUsd: 8.75 } };
       }
