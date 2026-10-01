@@ -4,7 +4,7 @@ const eyebrow = document.getElementById('feature-dialog-eyebrow');
 const intro = document.getElementById('feature-dialog-intro');
 const content = document.getElementById('feature-dialog-content');
 const icon = dialog?.querySelector('.feature-dialog-icon');
-const close = dialog?.querySelector('.feature-dialog-close');
+const closeControls = dialog?.querySelectorAll('.feature-dialog-close, [data-dialog-close]') ?? [];
 
 const featureContent = {
   airtime: {
@@ -68,7 +68,7 @@ document.querySelectorAll('[data-feature-dialog]').forEach((button) => {
   button.addEventListener('click', () => renderFeature(button.dataset.featureDialog));
 });
 
-close?.addEventListener('click', () => dialog.close());
+closeControls.forEach((control) => control.addEventListener('click', () => dialog.close()));
 dialog?.addEventListener('click', (event) => {
   if (event.target === dialog) dialog.close();
 });
