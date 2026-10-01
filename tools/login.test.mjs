@@ -175,7 +175,7 @@ test(`${route}: real login markup preserves credentials, busy state, in-memory t
 
 test(`${route}: login branding localizes without replacing registration, recovery, validation or password controls`, async () => loginPage(async ({ query }) => {
   query('#choose-register').click();
-  assert.equal(query('#first-name'), null); query('#register-email').value = 'tester@example.com';
+  assert.ok(query('#first-name')); assert.ok(query('#last-name')); assert.ok(query('#register-phone')); query('#register-email').value = 'tester@example.com';
   query('#register-password').value = 'test-password'; query('#register-password-visibility').click();
   for (const code of ['ht', 'fr', 'es', 'pt', 'en']) {
     setLanguage(code);
@@ -232,10 +232,10 @@ test('recharge FlupFlap registration submits lightweight FlupFlap credentials an
   api.register = async data => { credentials = data; return { id: 'registered-user', role: 'CUSTOMER' }; };
   await loginPage(async ({ query, submit, dom }) => {
     query('#choose-register').click();
-    assert.equal(query('#first-name'), null); assert.equal(query('#last-name'), null);
+    query('#first-name').value = 'Test'; query('#last-name').value = 'Customer'; query('#register-phone').value = '+15551234567';
     query('#register-email').value = 'tester@example.com'; query('#register-password').value = 'test-password';
     submit('#register-form'); await tick();
-    assert.deepEqual(credentials, { email: 'tester@example.com', password: 'test-password' });
+    assert.deepEqual(credentials, { firstName: 'Test', lastName: 'Customer', phone: '+15551234567', email: 'tester@example.com', password: 'test-password' });
     assert.equal(query('#checkout').hidden, false);
     assert.equal(query('#register-password').value, '');
     assert.equal(dom.window.location.pathname, '/recharge');
