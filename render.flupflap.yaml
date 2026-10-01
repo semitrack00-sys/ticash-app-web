@@ -11,6 +11,9 @@ services:
     staticPublishPath: dist/flupflap
     # No domains declared: domain association requires a separately approved cutover.
     routes:
+      - type: rewrite
+        source: /join
+        destination: /join/index.html
       - type: redirect
         source: /send
         destination: https://ticash-app.com/send

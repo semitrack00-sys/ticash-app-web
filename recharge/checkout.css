@@ -1,3 +1,4 @@
+@import url('/join/marketing.css');
 @import url('/route.css');
 /* Guest billing choice is independent of destination/provider coverage. */
 .billing-picker { min-width:0; width:100%; }

@@ -31,6 +31,8 @@ function moduleFile(path) {
   }
 }
 moduleFile('js/recharge-page.js');
+moduleFile('js/join-page.js');
+copy('join/marketing.css');
 for (const path of ['public-config.js', 'route.css', 'language.css', 'login/login.css', 'login/feature-dialogs.js', 'support/flupflap-support.css', 'legal/flupflap-legal.css', 'recharge/checkout.css',
   'ticash-logo.png', 'brand/flupflap/icon.svg', 'brand/flupflap/favicon.svg', 'brand/flupflap/flupflap-woman-worldwide-hero.png',
   'brand/flupflap/ChatGPT Image Sep 24, 2026, 09_49_40 PM.png']) copy(path);
@@ -57,6 +59,7 @@ page('login/index.html', 'login/index.html');
 page('support/flupflap-support.html', 'support/index.html');
 page('legal/flupflap-privacy.html', 'legal/privacy/index.html');
 page('legal/flupflap-terms.html', 'legal/terms/index.html');
+page('join/index.html', 'join/index.html');
 page('recharge/reset-password/index.html', 'reset-password/index.html');
 // Compatibility for existing emails and already-issued Stripe return URLs.
 // Serve aliases directly: no redirect can drop a token/query/fragment.

@@ -222,3 +222,10 @@ test('rejected cookie restoration logs nothing and leaves real sign-in available
     assert.deepEqual(logs,[]);
   } finally {console.warn=originalWarn;}
 });
+
+test('dedicated production build includes /join modules/styles/official assets without test fixtures',()=>{
+  for(const file of ['join/index.html','join/marketing.css','js/join-page.js','js/marketing.js'])assert.ok(existsSync('dist/flupflap/'+file));
+  checkFlupflapAssets();
+  assert.doesNotMatch(readFileSync('dist/flupflap/join/index.html','utf8'),/localhost|fixtures|customerId/);
+  assert.match(readFileSync('render.flupflap.yaml','utf8'),/source: \/join\s+destination: \/join\/index.html/);
+});
