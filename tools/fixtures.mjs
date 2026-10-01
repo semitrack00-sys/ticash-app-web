@@ -62,6 +62,13 @@ export function fixtureApi() {
         transactions = transactions.map((item) => item.id === id ? cancelled : item);
         return { transaction: structuredClone(cancelled) };
       }
+      if (route.startsWith('/mobile-topups/transactions/') && method === 'DELETE') {
+        const id = route.split('/')[3];
+        const current = transactions.find((item) => item.id === id);
+        if (!current || current.failureCode !== 'CANCELLED_BY_CUSTOMER') throw new ApiError('TOPUP_NOT_DELETABLE', 'Not deletable', 409);
+        transactions = transactions.filter((item) => item.id !== id);
+        return {};
+      }
       if (route === `/mobile-topups/transactions/${transaction.id}/repeat` && method === 'POST') {
         assert.equal(options.body, undefined); return { quote: { ...quote, totalChargeUsd: 8.75 } };
       }

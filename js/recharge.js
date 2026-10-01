@@ -482,6 +482,18 @@ export class Recharge {
     }, () => this.revision === revision);
   }
 
+  async deleteCancelledTransaction(id) {
+    const revision = this.revision;
+    return this.run('delete', async (active) => {
+      await this.api.request(`${root}/transactions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (active()) {
+        this.state.history = this.state.history.filter((item) => item.id !== id);
+        if (this.state.transaction?.id === id) this.state.transaction = null;
+        this.state.notice = 'Cancelled recharge deleted from your history.';
+      }
+    }, () => this.revision === revision);
+  }
+
   async repeat(id) {
     this.editable(); this.invalidate(); this.clearOperator();
     const revision = this.revision;

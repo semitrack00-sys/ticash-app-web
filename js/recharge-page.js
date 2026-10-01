@@ -851,14 +851,14 @@ export function mountRecharge(root, config, dependencies = {}) {
     refreshReceipt.disabled = busy.has('receipt');
     historyRefresh.disabled = busy.has('history');
     historyError.textContent = t(s.historyError); historyError.hidden = !s.historyError;
-    const nextHistorySignature = JSON.stringify([getLanguage(), s.history, locked, busy.has('repeat'), busy.has('receipt'), busy.has('cancel')]);
+    const nextHistorySignature = JSON.stringify([getLanguage(), s.history, locked, busy.has('repeat'), busy.has('receipt'), busy.has('cancel'), busy.has('delete')]);
     if (historySignature !== nextHistorySignature) {
       historySignature = nextHistorySignature;
       historyList.replaceChildren(...(s.history.length ? s.history.map((txn) => {
         const view = button('View / refresh', action(() => journey.viewTransaction(txn.id)), true);
         view.removeAttribute('data-i18n');
         view.classList.add('history-view');
-        view.disabled = locked || busy.has('receipt') || busy.has('cancel');
+        view.disabled = locked || busy.has('receipt') || busy.has('cancel') || busy.has('delete');
         const displayStatus = txn.failureCode === 'CANCELLED_BY_CUSTOMER' ? 'CANCELLED' : String(txn.status);
         view.replaceChildren(
           el('div', {}, el('strong', {}, txn.operatorName), el('small', {}, txn.productName), el('p', {}, `${txn.recipientPhone} · ${txn.countryCode}`), el('small', {}, date(txn.createdAt))),
@@ -868,8 +868,13 @@ export function mountRecharge(root, config, dependencies = {}) {
         const cancel = button('Cancel pending transaction', action(() => model.cancelTransaction(txn.id)), true);
         cancel.removeAttribute('data-i18n'); cancel.classList.add('history-cancel');
         cancel.textContent = 'Cancel';
-        cancel.hidden = !canCancel; cancel.disabled = locked || busy.has('cancel');
-        return el('article', { className: 'history-item' }, view, cancel);
+        cancel.hidden = !canCancel; cancel.disabled = locked || busy.has('cancel') || busy.has('delete');
+        const canDelete = txn.status === 'FAILED' && txn.paymentStatus === 'FAILED' && txn.failureCode === 'CANCELLED_BY_CUSTOMER';
+        const remove = button('Delete cancelled transaction from history', action(() => model.deleteCancelledTransaction(txn.id)), true);
+        remove.removeAttribute('data-i18n'); remove.classList.add('history-delete');
+        remove.textContent = 'Delete';
+        remove.hidden = !canDelete; remove.disabled = locked || busy.has('delete') || busy.has('cancel');
+        return el('article', { className: 'history-item' }, view, cancel, remove);
       }) : [busy.has('history') ? el('p', { className: 'muted' }, t('Loading your history…')) : el('div', { className: 'history-empty' }, icon('receipt'), el('strong', {}, ui('historyEmptyTitle')), el('p', { className: 'small muted' }, ui('historyEmptyInstruction')))]));
     }
     journey?.update(s, busy, signedIn);
