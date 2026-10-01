@@ -46,9 +46,12 @@ for (const route of ['/send', '/recharge']) {
 }
 
 const publicConfig = readFileSync(join(root, 'public-config.js'), 'utf8');
-for (const flag of ['androidPublished', 'iosPublished', 'sendMoneyLive', 'mobileRechargeLive']) {
+for (const flag of ['androidPublished', 'iosPublished', 'sendMoneyLive']) {
   assert.match(publicConfig, new RegExp(`${flag}: false`), `${flag} must fail closed`);
 }
+// Recharge was explicitly activated in production; match the security check's
+// exact release configuration without changing the backend authorization gates.
+assert.match(publicConfig, /mobileRechargeLive: true/, 'Production recharge must match the approved release configuration');
 
 const assetLinks = JSON.parse(readFileSync(join(root, '.well-known/assetlinks.json'), 'utf8'));
 assert.deepEqual(assetLinks, [], 'Android association must remain empty until the release fingerprint is known');

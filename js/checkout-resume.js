@@ -1,3 +1,4 @@
+import { rechargePath } from './recharge-routes.js';
 import { apiBaseUrl, createApiClient, isCheckoutResumeToken } from './api-client.js';
 import { t, languageLocale, onLanguageChange } from './i18n.js';
 import { mountLanguageHeader } from './language-page.js';
@@ -81,7 +82,7 @@ export function mountCheckoutResume(root, config, resumeToken, dependencies = {}
     }
     const again = node('a', t('checkoutResumeStart'), 'button secondary');
     // A fresh page requires a new guest session/sign-in. No repeat, quote or payment action exists here.
-    again.href = '/recharge'; again.addEventListener('click', stop);
+    again.href = rechargePath(root); again.addEventListener('click', stop);
     panel.append(again); root.replaceChildren(panel);
   }
   function fail(expired = false) {

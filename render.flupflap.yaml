@@ -1,0 +1,65 @@
+# Review-only configuration for the EXISTING flupflap-recharge service.
+# Do not create a duplicate service or sync domain changes before approval.
+services:
+  - type: web
+    name: flupflap-recharge
+    runtime: static
+    repo: https://github.com/semitrack00-sys/ticash-app-web
+    branch: main
+    autoDeployTrigger: off
+    buildCommand: npm ci && npm run build:flupflap
+    staticPublishPath: dist/flupflap
+    # No domains declared: domain association requires a separately approved cutover.
+    routes:
+      - type: redirect
+        source: /support
+        destination: https://ticash-app.com/support
+      - type: redirect
+        source: /support/*
+        destination: https://ticash-app.com/support
+      - type: redirect
+        source: /send
+        destination: https://ticash-app.com/send
+      - type: redirect
+        source: /legal/*
+        destination: https://ticash-app.com/legal/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: "no-store, max-age=0"
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+      - path: /*
+        name: Permissions-Policy
+        value: "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), browsing-topics=()"
+      - path: /*
+        name: Cross-Origin-Opener-Policy
+        value: same-origin
+      - path: /*
+        name: Strict-Transport-Security
+        value: "max-age=63072000; includeSubDomains"
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://ticash-api.onrender.com; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; media-src 'none'; manifest-src 'self'; upgrade-insecure-requests"
+      - path: /login
+        name: Cache-Control
+        value: "no-store, max-age=0"
+      - path: /login/*
+        name: Cache-Control
+        value: "no-store, max-age=0"
+      - path: /recharge
+        name: Cache-Control
+        value: "no-store, max-age=0"
+      - path: /recharge/*
+        name: Cache-Control
+        value: "no-store, max-age=0"

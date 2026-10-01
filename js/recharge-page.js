@@ -6,6 +6,7 @@ import { mountRechargeJourney } from './recharge-journey.js';
 import { checkoutMode, loadCheckoutFactory, mountCheckoutFlow } from './checkout-flow.js';
 import { createBillingCountryPicker } from './billing-country-picker.js';
 import { consumeCheckoutReturn, mountCheckoutResume } from './checkout-resume.js';
+import { rechargePath, rechargeReturnPath, isRechargeResetPath } from './recharge-routes.js';
 
 function el(tag, attributes = {}, ...children) {
   const node = document.createElement(tag);
@@ -152,7 +153,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const flupflapLogin = root.dataset.loginBrand === 'flupflap';
   const pageWindow = root.ownerDocument.defaultView;
   const resetLocation = new URL(pageWindow.location.href);
-  const isResetRoute = /^\/recharge\/reset-password\/?$/.test(resetLocation.pathname);
+  const isResetRoute = isRechargeResetPath(root, resetLocation.pathname);
   let resetToken = isResetRoute ? resetLocation.searchParams.get('token') || '' : '';
   if (resetLocation.searchParams.has('token')) {
     resetLocation.searchParams.delete('token');
@@ -417,7 +418,7 @@ export function mountRecharge(root, config, dependencies = {}) {
     flowError = '';
     render();
     try {
-      const result = await flowComponent.confirm({ returnUrl: '/recharge' });
+      const result = await flowComponent.confirm({ returnUrl: rechargePath(root) });
       const redirectUrl = result?.redirectUrl || result?.url;
       if (redirectUrl && typeof globalThis.location?.assign === 'function') globalThis.location.assign(redirectUrl);
     } catch {
@@ -459,7 +460,7 @@ export function mountRecharge(root, config, dependencies = {}) {
   const progress = el('ol', { className: 'checkout-progress', 'aria-label': t('Recharge progress'), 'data-i18n-aria-label': 'Recharge progress' }, progressItems);
   const checkout = el('div', { id: 'checkout', hidden: '' }, progress, countriesRetry, selectionFields, receipt, historyPanel);
   const menu = el('nav', { id: 'recharge-navigation', className: 'recharge-navigation', hidden: '', 'aria-label': t('navigation'), 'data-i18n-aria-label': 'navigation' },
-    el('a', { href: '/' }, ui('homeLabel')), el('a', { href: '/send' }, ui('sendMoney')), el('a', { href: '/recharge', 'aria-current': 'page' }, ui('flupFlap')), el('a', { href: '/support' }, ui('support')));
+    el('a', { href: '/' }, ui('homeLabel')), el('a', { href: '/send' }, ui('sendMoney')), el('a', { href: rechargePath(root), 'aria-current': 'page' }, ui('flupFlap')), el('a', { href: '/support' }, ui('support')));
   const menuButton = el('button', { id: 'recharge-menu-toggle', type: 'button', className: 'menu-toggle', 'aria-label': t('navigation'), 'data-i18n-aria-label': 'navigation', 'aria-expanded': 'false', 'aria-controls': 'recharge-navigation', onclick: () => {
     menu.hidden = !menu.hidden; menuButton.setAttribute('aria-expanded', String(!menu.hidden));
   } }, icon('menu'));
@@ -487,8 +488,8 @@ export function mountRecharge(root, config, dependencies = {}) {
     // Decorative approved artwork only; flags here do not define destination coverage.
     el('div', { className: 'flupflap-hero-art', 'aria-hidden': 'true' }),
     el('div', { className: 'feature-row' }, ...heroFeatures));
-  const sidebarNav = [['globe', 'homeLabel', '/'], ['phone', 'sendMoney', '/send'], ['gift', 'flupFlap', '/recharge'], ['recipient', 'Saved recipient', '#saved-recipients'], ['clock', 'YOUR ACTIVITY', '#recharge-history'], ['info', 'support', '/support']].map(([symbol, label, href]) => {
-    const item = el('a', { className: `sidebar-link${href === '/recharge' ? ' active' : ''}`, href, ...(href === '/recharge' ? { 'aria-current': 'page' } : {}) }, icon(symbol), ui(label));
+  const sidebarNav = [['globe', 'homeLabel', '/'], ['phone', 'sendMoney', '/send'], ['gift', 'flupFlap', rechargePath(root)], ['recipient', 'Saved recipient', '#saved-recipients'], ['clock', 'YOUR ACTIVITY', '#recharge-history'], ['info', 'support', '/support']].map(([symbol, label, href]) => {
+    const item = el('a', { className: `sidebar-link${label === 'flupFlap' ? ' active' : ''}`, href, ...(label === 'flupFlap' ? { 'aria-current': 'page' } : {}) }, icon(symbol), ui(label));
     if (href === '#saved-recipients') item.addEventListener('click', () => { destinationPanel.open = true; recipientsPanel.open = true; recipientsSelect.focus(); });
     return item;
   });
@@ -884,9 +885,9 @@ export function mountRecharge(root, config, dependencies = {}) {
       if (!user || disposed) return;
       signedIn = true; guestSession = user.guest === true; model.reset(); model.setAccount(user, guestSession); render();
       await model.start();
-    }).catch((restoreError) => {
+    }).catch(() => {
       // A restore failure must never crash or leave the page stuck in a loading state.
-      if (restoreError && !(restoreError instanceof Error)) console.warn('FlupFlap session restore failed');
+      // Keep restoration failures out of browser logs; existing sign-in remains available.
     }).finally(() => { signingIn = false; if (!disposed) render(); });
   }
   journey = mountRechargeJourney({ root, model, render, el, ui, button, action, money, date, details, icon, operatorDetail,
@@ -912,7 +913,7 @@ export function mountRecharge(root, config, dependencies = {}) {
       if (mode === 'register') model.state.notice = flupflapLogin ? 'Your FlupFlap account was created.' : 'Your TiCash account was created.';
       render();
       // Fixed local destination; user-supplied return URLs are never used.
-      if (globalThis.location?.pathname.startsWith('/login')) globalThis.history.replaceState(null, '', '/recharge');
+      if (pageWindow.location.pathname.startsWith('/login')) pageWindow.history.replaceState(null, '', rechargeReturnPath(root));
       await model.start();
     } catch (error) { clearPasswords(); setLoginError(error.message); }
     finally { if (authMode === 'guest') authMode = 'login'; signingIn = false; render(); }
@@ -938,7 +939,7 @@ export function mountRecharge(root, config, dependencies = {}) {
       await client.resetPassword(resetToken, newPassword.value);
       resetToken = ''; clearPasswords(); authMode = 'login';
       recoveryMessage = 'Password updated. Sign in with your new password.';
-      pageWindow.history.replaceState(null, '', '/recharge'); email.focus();
+      pageWindow.history.replaceState(null, '', rechargeReturnPath(root)); email.focus();
     } catch (error) {
       setLoginError(error.code === 'INVALID_PASSWORD' ? 'New password must be different from the current password' :
         error.code === 'INVALID_RESET_TOKEN' ? 'This reset link is invalid or expired. Request a new link.' : 'Unable to reset your password. Please try again.');
