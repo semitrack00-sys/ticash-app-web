@@ -5,13 +5,30 @@ import { mountLanguageHeader } from './language-page.js';
 
 const terminal = new Set(['DELIVERED', 'FAILED', 'REFUNDED']);
 const statuses = new Set(['PENDING', 'PROCESSING', ...terminal]);
-const publicFields = ['status', 'testMode', 'recipientPhone', 'operatorName', 'productName', 'providerAmount', 'providerCurrency', 'feeUsd', 'totalChargeUsd'];
+const publicFields = ['countryCode', 'receiverQuote', 'deliveredValue', 'deliveredCurrency', 'receiverDiscrepancy', 'status', 'testMode', 'recipientPhone', 'operatorName', 'productName', 'providerAmount', 'providerCurrency', 'feeUsd', 'totalChargeUsd'];
 
 // Read exactly one record. Never retain account IDs, provider identifiers, hashes or snapshots.
 function displayTransaction(data) {
   const value = data?.transaction;
+  const receiverQuote = value?.receiverQuote;
+  const safeReceiverQuote = receiverQuote === null || (
+    receiverQuote && typeof receiverQuote === 'object' && !Array.isArray(receiverQuote) &&
+    Number.isFinite(receiverQuote.amount) && receiverQuote.amount >= 0 &&
+    typeof receiverQuote.currency === 'string' && /^[A-Z]{3}$/.test(receiverQuote.currency) &&
+    Number.isFinite(receiverQuote.senderAmount) && receiverQuote.senderAmount >= 0 &&
+    typeof receiverQuote.senderCurrency === 'string' && /^[A-Z]{3}$/.test(receiverQuote.senderCurrency) &&
+    typeof receiverQuote.source === 'string' && receiverQuote.source.length > 0 && receiverQuote.source.length <= 80 &&
+    typeof receiverQuote.quotedAt === 'string' && !Number.isNaN(Date.parse(receiverQuote.quotedAt)) &&
+    Object.keys(receiverQuote).every(key => ['amount', 'currency', 'senderAmount', 'senderCurrency', 'source', 'quotedAt'].includes(key))
+  );
+  const deliveredValueValid = value?.deliveredValue === null || (Number.isFinite(value?.deliveredValue) && value.deliveredValue >= 0);
+  const deliveredCurrencyValid = value?.deliveredCurrency === null ||
+    (typeof value?.deliveredCurrency === 'string' && /^[A-Z]{3}$/.test(value.deliveredCurrency));
   if (!value || typeof value !== 'object' || Object.keys(value).length !== publicFields.length ||
       Object.keys(value).some(key => !publicFields.includes(key)) || value.testMode !== false ||
+      typeof value.countryCode !== 'string' || !/^[A-Z]{2}$/.test(value.countryCode) ||
+      typeof value.receiverDiscrepancy !== 'boolean' || !safeReceiverQuote ||
+      !deliveredValueValid || !deliveredCurrencyValid ||
       !statuses.has(value.status) || value.providerCurrency !== 'USD' ||
       ![value.providerAmount, value.feeUsd, value.totalChargeUsd].every(n => Number.isFinite(n) && n >= 0) ||
       !['recipientPhone', 'operatorName', 'productName'].every(key => typeof value[key] === 'string' && value[key].length <= 300)) {
