@@ -152,7 +152,8 @@ export function mountRecharge(root, config, dependencies = {}) {
   const flupflapLogin = root.dataset.loginBrand === 'flupflap';
   const pageWindow = root.ownerDocument.defaultView;
   const resetLocation = new URL(pageWindow.location.href);
-  const isResetRoute = /^\/recharge\/reset-password\/?$/.test(resetLocation.pathname);
+  const isFlupFlapHost = /^(?:www\.)?flupflap\.com$/i.test(resetLocation.hostname);
+  const isResetRoute = isFlupFlapHost ? /^\/reset-password\/?$/.test(resetLocation.pathname) : /^\/recharge\/reset-password\/?$/.test(resetLocation.pathname);
   let resetToken = isResetRoute ? resetLocation.searchParams.get('token') || '' : '';
   if (resetLocation.searchParams.has('token')) {
     resetLocation.searchParams.delete('token');
@@ -910,7 +911,7 @@ export function mountRecharge(root, config, dependencies = {}) {
       if (mode === 'register') model.state.notice = flupflapLogin ? 'Your FlupFlap account was created.' : 'Your TiCash account was created.';
       render();
       // Fixed local destination; user-supplied return URLs are never used.
-      if (globalThis.location?.pathname.startsWith('/login')) globalThis.history.replaceState(null, '', '/recharge');
+      if (globalThis.location?.pathname.startsWith('/login')) globalThis.history.replaceState(null, '', isFlupFlapHost ? '/' : '/recharge');
       await model.start();
     } catch (error) { clearPasswords(); setLoginError(error.message); }
     finally { if (authMode === 'guest') authMode = 'login'; signingIn = false; render(); }
