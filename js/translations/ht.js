@@ -439,5 +439,8 @@ export default Object.freeze({
   "paymentInsufficientFunds": "Bank ki bay kat ou a refize peman sa a. Stripe rapòte fon ensifizan pou tantativ sa a. Ou ka eseye ankò oswa itilize yon lòt metòd peman.",
   "paymentDeclined": "Bank ki bay kat ou a refize peman sa a. Ou ka eseye ankò oswa itilize yon lòt metòd peman.",
   "paymentCancelled": "Peman sa a te anile. Pa gen rechaj ki te voye pou tantativ sa a.",
-  "paymentExpired": "Sesyon peman sa a ekspire san peman. Kòmanse yon nouvo rechaj pou eseye ankò."
+  "paymentExpired": "Sesyon peman sa a ekspire san peman. Kòmanse yon nouvo rechaj pou eseye ankò.",
+  "rechargeProviderFailed": "Peman ou te reyisi, men founisè rechaj mobil la pa t kapab fini rechaj la. Rekiperasyon peman an ap fèt.",
+  "rechargeProviderFailedRefundPending": "Peman ou te reyisi, men founisè rechaj mobil la pa t kapab fini rechaj la. Ranbousman ou ap trete.",
+  "rechargeProviderFailedRefunded": "Peman ou te reyisi, men founisè rechaj mobil la pa t kapab fini rechaj la. Peman ou te ranbouse."
 });
