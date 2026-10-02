@@ -337,9 +337,11 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
       })); again.id = 'recharge-again';
       again.hidden = !(delivered || retryable) || locked(); again.disabled = busy.has('repeat');
       n.refreshReceipt.removeAttribute('data-i18n'); n.refreshReceipt.textContent = t('journeyCheckStatus');
-      const recoveryText = recoveryPending || recovered ? t('rechargeInfo' + statusText) : '';
+      const failureMessageKey = paymentFailureMessage(txn);
+      const providerFailureText = failureMessageKey.startsWith('rechargeProviderFailed') ? t(failureMessageKey) : '';
+      const recoveryText = providerFailureText || (recoveryPending || recovered ? t('rechargeInfo' + statusText) : '');
       n.receipt.replaceChildren(el('span', { className: 'journey-result-symbol', 'aria-hidden': 'true' }, delivered || recovered ? '✓' : failed ? '!' : '…'), headingNode,
-        el('p', { className: 'muted' }, recoveryText || (failed && paymentFailureMessage(txn) ? t(paymentFailureMessage(txn)) : ui(delivered ? 'journeySuccessInfo' : failed ? 'journeyFailedInfo' : 'journeyPendingInfo'))),
+        el('p', { className: 'muted' }, recoveryText || (failed && failureMessageKey ? t(failureMessageKey) : ui(delivered ? 'journeySuccessInfo' : failed ? 'journeyFailedInfo' : 'journeyPendingInfo'))),
         operatorDetail(txn.operatorName, s.operator?.id === txn.operatorId ? s.operator : s.operators.find(op => op.id === txn.operatorId)),
         el('p', {}, txn.recipientPhone), priceSummary(txn, true), el('p', { className: 'status-pill', 'data-status': statusText }, t('rechargeStatus' + statusText)), n.refreshReceipt, again, fullReceipt);
       n.receipt.setAttribute('aria-labelledby', 'journey-result-title');

@@ -439,5 +439,8 @@ export default Object.freeze({
   "paymentInsufficientFunds": "Your card issuer declined this payment. Stripe reported insufficient funds for this attempt. You can try again or use another payment method.",
   "paymentDeclined": "Your card issuer declined this payment. You can try again or use another payment method.",
   "paymentCancelled": "This payment was cancelled. No recharge was sent for this attempt.",
-  "paymentExpired": "This checkout expired without payment. Start a new recharge to try again."
+  "paymentExpired": "This checkout expired without payment. Start a new recharge to try again.",
+  "rechargeProviderFailed": "Your payment was successful, but the mobile recharge provider could not complete the recharge. Payment recovery is in progress.",
+  "rechargeProviderFailedRefundPending": "Your payment was successful, but the mobile recharge provider could not complete the recharge. Your refund is being processed.",
+  "rechargeProviderFailedRefunded": "Your payment was successful, but the mobile recharge provider could not complete the recharge. Your payment has been refunded."
 });

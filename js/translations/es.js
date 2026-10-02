@@ -439,5 +439,8 @@ export default Object.freeze({
   "paymentInsufficientFunds": "El emisor de tu tarjeta rechazó este pago. Stripe informó de fondos insuficientes para este intento. Puedes volver a intentarlo o usar otro método de pago.",
   "paymentDeclined": "El emisor de tu tarjeta rechazó este pago. Puedes volver a intentarlo o usar otro método de pago.",
   "paymentCancelled": "Este pago fue cancelado. No se envió ninguna recarga en este intento.",
-  "paymentExpired": "Esta sesión caducó sin pago. Inicia una nueva recarga para volver a intentarlo."
+  "paymentExpired": "Esta sesión caducó sin pago. Inicia una nueva recarga para volver a intentarlo.",
+  "rechargeProviderFailed": "Tu pago se realizó correctamente, pero el proveedor de recarga móvil no pudo completar la recarga. La recuperación del pago está en curso.",
+  "rechargeProviderFailedRefundPending": "Tu pago se realizó correctamente, pero el proveedor de recarga móvil no pudo completar la recarga. Tu reembolso se está procesando.",
+  "rechargeProviderFailedRefunded": "Tu pago se realizó correctamente, pero el proveedor de recarga móvil no pudo completar la recarga. Tu pago ha sido reembolsado."
 });

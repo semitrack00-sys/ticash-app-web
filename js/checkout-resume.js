@@ -9,7 +9,7 @@ const statuses = new Set(['PENDING', 'PROCESSING', ...terminal]);
 const publicFields = ['status', 'testMode', 'recipientPhone', 'operatorName', 'productName', 'providerAmount', 'providerCurrency', 'feeUsd', 'totalChargeUsd'];
 const recoveryFields = ['paymentStatus', 'failureReason'];
 const paymentStates = new Set(['PENDING', 'SESSION_CREATED', 'AUTHORIZED', 'CAPTURED', 'FAILED', 'VOID_PENDING', 'VOIDED', 'REFUND_PENDING', 'REFUNDED']);
-const failures = new Set(['INSUFFICIENT_FUNDS', 'PAYMENT_DECLINED', 'PAYMENT_CANCELLED', 'PAYMENT_EXPIRED']);
+const failures = new Set(['INSUFFICIENT_FUNDS', 'PAYMENT_DECLINED', 'PAYMENT_CANCELLED', 'PAYMENT_EXPIRED', 'RECHARGE_PROVIDER_FAILED']);
 const receiverFields = ['countryCode', 'receiverQuote', 'deliveredValue', 'deliveredCurrency', 'receiverDiscrepancy'];
 function receiverDetails(value) {
   if (!receiverFields.some(key => Object.hasOwn(value, key))) return {}; // Original public DTO compatibility.

@@ -31,6 +31,12 @@ export const canHideTransaction = transaction => Boolean(transaction &&
 export function paymentFailureMessage(transaction) {
   if (!['FAILED', 'CANCELLED'].includes(transaction?.status)) return '';
   const reason = transaction.failureReason ?? transaction.failureCode;
+  if (reason === 'RECHARGE_PROVIDER_FAILED' || reason === 'TOPUP_PROVIDER_FAILED' ||
+      typeof reason === 'string' && reason.startsWith('PROVIDER_')) {
+    if (transaction.paymentStatus === 'REFUNDED') return 'rechargeProviderFailedRefunded';
+    if (transaction.paymentStatus === 'REFUND_PENDING') return 'rechargeProviderFailedRefundPending';
+    return 'rechargeProviderFailed';
+  }
   return ({ INSUFFICIENT_FUNDS: 'paymentInsufficientFunds', PAYMENT_DECLINED: 'paymentDeclined',
     PAYMENT_CANCELLED: 'paymentCancelled', CANCELLED_BY_CUSTOMER: 'paymentCancelled',
     PAYMENT_EXPIRED: 'paymentExpired' })[reason] || 'journeyFailedInfo';
