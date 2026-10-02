@@ -439,5 +439,8 @@ export default Object.freeze({
   "paymentInsufficientFunds": "L’émetteur de votre carte a refusé ce paiement. Stripe a signalé des fonds insuffisants pour cette tentative. Réessayez ou utilisez un autre moyen de paiement.",
   "paymentDeclined": "L’émetteur de votre carte a refusé ce paiement. Réessayez ou utilisez un autre moyen de paiement.",
   "paymentCancelled": "Ce paiement a été annulé. Aucune recharge n’a été envoyée pour cette tentative.",
-  "paymentExpired": "Cette session a expiré sans paiement. Commencez une nouvelle recharge pour réessayer."
+  "paymentExpired": "Cette session a expiré sans paiement. Commencez une nouvelle recharge pour réessayer.",
+  "rechargeProviderFailed": "Votre paiement a réussi, mais le fournisseur de recharge mobile n’a pas pu terminer la recharge. La récupération du paiement est en cours.",
+  "rechargeProviderFailedRefundPending": "Votre paiement a réussi, mais le fournisseur de recharge mobile n’a pas pu terminer la recharge. Votre remboursement est en cours.",
+  "rechargeProviderFailedRefunded": "Votre paiement a réussi, mais le fournisseur de recharge mobile n’a pas pu terminer la recharge. Votre paiement a été remboursé."
 });
