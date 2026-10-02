@@ -142,6 +142,29 @@ for (const [domain, kind, price, allowed] of [['FLUPFLAP','AIRTIME',1,true], ['T
   });
 }
 
+test('provider failure resume explains the completed refund without exposing provider internals', async () => {
+  const dto = {
+    status:'FAILED', paymentStatus:'REFUNDED', failureReason:'RECHARGE_PROVIDER_FAILED', testMode:false,
+    countryCode:'DO', receiverQuote:{ amount:301.8,currency:'DOP',senderAmount:5,senderCurrency:'USD',source:'PROVIDER_PRODUCT',quotedAt:'2026-10-02T00:00:00Z' },
+    deliveredValue:null, deliveredCurrency:null, receiverDiscrepancy:false,
+    recipientPhone:'+18095550123', operatorName:'Altice DR', productName:'Altice DR',
+    providerAmount:5, providerCurrency:'USD', feeUsd:1.24, totalChargeUsd:6.24,
+  };
+  const dom = new JSDOM('<main></main>', { url:'https://www.flupflap.com/' });
+  const root = dom.window.document.querySelector('main');
+  const app = mountCheckoutResume(root, {}, 'R'.repeat(43), { api:{ resumeCheckout:async () => ({ transaction:dto }) } });
+  try {
+    await flush();
+    assert.equal(root.querySelector('.status-pill').dataset.status, 'REFUNDED');
+    assert.match(root.textContent, /payment was successful/i);
+    assert.match(root.textContent, /payment has been refunded/i);
+    assert.doesNotMatch(root.textContent, /RECIPIENT_NOT_FOUND|PROVIDER_/);
+    assert.doesNotMatch(root.textContent, /Delivered to receiver/);
+  } finally {
+    app.dispose(); dom.window.close();
+  }
+});
+
 test('current backend resume DTO is accepted, receiver values displayed, internal fields still rejected', async () => {
   const dto = { status:'DELIVERED', testMode:false, countryCode:'JM', receiverQuote:{ amount:1170,currency:'JMD',senderAmount:7.5,senderCurrency:'USD',source:'PROVIDER_PRODUCT',quotedAt:'2026-10-01T00:00:00Z' }, deliveredValue:1170,deliveredCurrency:'JMD',receiverDiscrepancy:false,recipientPhone:quote.recipientPhone,operatorName:operator.name,productName:quote.productName,providerAmount:7.5,providerCurrency:'USD',feeUsd:quote.feeUsd,totalChargeUsd:quote.totalChargeUsd };
   for (const extra of [{}, { id:'internal-id' }, { checkoutResumeTokenHash:'secret' }, { paymentProviderTransactionId:'pi_private' }]) {
