@@ -474,6 +474,9 @@ test('page-level hosted checkout mounts once and never posts browser fulfillment
     }
 
     assert.match(document.getElementById('checkout-flow-container').textContent, /Stripe Checkout will open in a secure hosted page/);
+    const checkoutLink = document.getElementById('open-stripe-checkout');
+    assert.equal(checkoutLink.hidden, false);
+    assert.equal(checkoutLink.href, stripePaymentSession().checkoutSession.url);
     assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/payment-sessions' && call.method === 'POST').length, 1);
     assert.equal(api.calls.filter((call) => call.path === '/mobile-topups/transactions' && call.method === 'POST').length, 0);
   } finally {
