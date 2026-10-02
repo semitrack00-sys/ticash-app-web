@@ -45,12 +45,13 @@ export function marketingControls({ doc, client, url }) {
   const panel = node('details', null, 'marketing-controls');
   const summary = node('summary', t('marketingShare'));
   const status = node('p'); status.setAttribute('role','status');
+  const referralCode = node('p', null, 'marketing-referral-code'); referralCode.hidden = true;
   const link = node('input'); link.readOnly = true; link.setAttribute('aria-label', t('marketingReferralLink'));
   const copy = node('button', t('marketingCopy')); copy.type = 'button';
   const whatsapp = node('a','WhatsApp'); const sms = node('a','SMS');
   const qr = node('img'); qr.width = 180; qr.height = 180; qr.alt = t('marketingQr'); qr.hidden = true;
   const actions = node('div', null, 'marketing-share-actions'); actions.append(copy, whatsapp, sms);
-  panel.append(summary, status, link, actions, qr);
+  panel.append(summary, status, referralCode, link, actions, qr);
   let loaded = false, generation = 0, available = false;
   panel.addEventListener('toggle', async () => {
     if (!panel.open || loaded || !available) return;
@@ -60,7 +61,9 @@ export function marketingControls({ doc, client, url }) {
       const data = await client.request('/marketing/share');
       if (version !== generation) return;
       const safe = safeShareUrl(data.url); if (!safe) throw new Error('Invalid share link');
-      link.value = safe; whatsapp.href = 'https://wa.me/?text=' + encodeURIComponent(safe); sms.href = 'sms:?body=' + encodeURIComponent(safe);
+      if (typeof data.code !== 'string' || !/^[a-f0-9]{32}$/.test(data.code)) throw new Error('Invalid referral code');
+      referralCode.textContent = `Referral code: ${data.code}`; referralCode.hidden = false;
+      link.value = safe; whatsapp.href = 'https://wa.me/?text=' + encodeURIComponent(`Join FlupFlap with my referral code ${data.code}: ${safe}`); sms.href = 'sms:?body=' + encodeURIComponent(`Join FlupFlap with my referral code ${data.code}: ${safe}`);
       loaded = true; status.textContent = '';
       const image = await client.request('/marketing/share/qr');
       if (version === generation && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(image.dataUrl)) { qr.src = image.dataUrl; qr.hidden = false; }
@@ -92,7 +95,7 @@ export function marketingControls({ doc, client, url }) {
       available = user?.guest !== true; panel.hidden = !available;
       try { await acquisition.claim(); } catch { feedback.textContent = t('marketingPromoUnavailable'); }
     },
-    reset() { generation++; available = loaded = false; panel.open = false; panel.hidden = true; link.value = ''; qr.removeAttribute('src'); qr.hidden = true; whatsapp.removeAttribute('href'); sms.removeAttribute('href'); },
+    reset() { generation++; available = loaded = false; panel.open = false; panel.hidden = true; referralCode.textContent = ''; referralCode.hidden = true; link.value = ''; qr.removeAttribute('src'); qr.hidden = true; whatsapp.removeAttribute('href'); sms.removeAttribute('href'); },
     dispose() { unsubscribe(); acquisition.clear(); },
   };
 }
