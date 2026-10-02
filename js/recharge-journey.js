@@ -240,8 +240,11 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     }
     const session = await model.confirm();
     const redirectUrl = session?.checkoutSession?.url || session?.checkoutSession?.checkoutUrl || session?.checkoutSession?.redirectUrl;
-    if (redirectUrl && typeof globalThis.location?.assign === 'function') {
-      globalThis.location.assign(redirectUrl);
+    const pageWindow = root.ownerDocument.defaultView;
+    if (redirectUrl && pageWindow?.location) {
+      // Navigate the actual owning window. This avoids relying on a potentially
+      // different global object in mobile/embedded browsers.
+      pageWindow.location.href = redirectUrl;
     }
   }
   async function viewTransaction(id) {
