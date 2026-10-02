@@ -436,7 +436,7 @@ function mountRechargeInstance(root, config, dependencies = {}) {
     try {
       const result = await flowComponent.confirm({ returnUrl: rechargePath(root) });
       const redirectUrl = result?.redirectUrl || result?.url;
-      if (redirectUrl && typeof globalThis.location?.assign === 'function') globalThis.location.assign(redirectUrl);
+      if (redirectUrl && pageWindow?.location) pageWindow.location.href = redirectUrl;
     } catch {
       flowError = 'journeyPaymentError';
     } finally {
@@ -444,8 +444,9 @@ function mountRechargeInstance(root, config, dependencies = {}) {
       render();
     }
   }); confirmPayment.id = 'confirm-card-payment';
+  const checkoutLink = el('a', { className: 'button', id: 'open-stripe-checkout', hidden: '', rel: 'noopener' }, ui('Continue to secure payment'));
   const flowPanel = el('section', { id: 'checkout-flow-panel', hidden: '', 'aria-label': t('Secure card payment'), 'data-i18n-aria-label': 'Secure card payment' },
-    el('h3', {}, ui('Secure card payment')), flowMessage, flowContainer, confirmPayment, retryFlow, refreshPayment);
+    el('h3', {}, ui('Secure card payment')), flowMessage, flowContainer, confirmPayment, checkoutLink, retryFlow, refreshPayment);
   const reviewPanel = el('section', { className: 'panel checkout-step review-panel', open: '', 'data-checkout-step': '3', 'aria-labelledby': 'review-title' },
     cardHeading('receipt', '3. REVIEW & CONFIRM', 'Review & Pay', 'review-title'),
     reviewContent, expiry, billingStep, paymentAvailability, profileRetry, reviewCheck, confirmButton, recoveryNote, flowPanel,
@@ -613,6 +614,9 @@ function mountRechargeInstance(root, config, dependencies = {}) {
     confirmPayment.hidden = !flowComponent;
     confirmPayment.disabled = flowConfirmPending || s.submitting || !flowComponent || Boolean(s.transaction);
     confirmPayment.textContent = t(flowConfirmPending ? 'Confirming…' : 'confirmSandboxCardPayment');
+    const checkoutUrl = s.checkoutSession?.checkoutSession?.url;
+    checkoutLink.hidden = !checkoutUrl || Boolean(s.transaction);
+    if (checkoutUrl) checkoutLink.href = checkoutUrl; else checkoutLink.removeAttribute('href');
     retryFlow.hidden = !(s.checkoutSession && !flowComponent && !flowMountPending && flowError);
     retryFlow.disabled = s.submitting || flowConfirmPending;
     refreshPayment.disabled = busy.has('receipt') || busy.has('history') || s.submitting;
