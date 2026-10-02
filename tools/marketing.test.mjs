@@ -36,11 +36,12 @@ test('referral sharing accepts only fixed-origin opaque public URLs',()=>{
 test('authenticated share controls generate WhatsApp/SMS/copy/QR without exposing customer identity',async()=>{
   const dom=new JSDOM('<body></body>',{url:'https://www.flupflap.com/'});const doc=dom.window.document;
   const url=`https://www.flupflap.com/join?r=${ref}`, calls=[];
-  const api={request:async path=>{calls.push(path);return path.endsWith('/qr')?{dataUrl:'data:image/png;base64,aGVsbG8='}:{url};}};
+  const api={request:async path=>{calls.push(path);return path.endsWith('/qr')?{dataUrl:'data:image/png;base64,aGVsbG8='}:{url,code:ref};}};
   const controls=marketingControls({doc,client:api,url:dom.window.location.href});doc.body.append(controls.panel);
   await controls.authenticated({guest:false});controls.panel.open=true;await tick();
+  assert.equal(doc.querySelector('.marketing-referral-code').textContent,`Referral code: ${ref}`);
   assert.equal(doc.querySelector('input').value,url);
-  assert.ok(doc.querySelector('a').href.startsWith('https://wa.me/?text='));
+  assert.match(decodeURIComponent(doc.querySelector('a').href),new RegExp(ref));
   assert.equal(doc.querySelector('img').hidden,false);assert.deepEqual(calls,['/marketing/share','/marketing/share/qr']);
   controls.reset();assert.equal(controls.panel.hidden,true);assert.equal(doc.querySelector('input').value,'');
   controls.dispose();dom.window.close();
