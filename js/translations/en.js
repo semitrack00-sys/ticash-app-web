@@ -433,5 +433,11 @@ export default Object.freeze({
   "cancellationVerificationFailed": "Unable to verify the cancellation.",
   "sandboxReceipt": "TEST RECEIPT",
   "sandboxReceiptWarning": "This is a test transaction. No real money or airtime was transferred.",
-  "sandboxPaymentStatus": "Test payment status"
+  "sandboxPaymentStatus": "Test payment status",
+  "rechargeTryAgain": "Start new recharge",
+  "receiverQuoted": "Quoted receiver value (not delivered)",
+  "paymentInsufficientFunds": "Your card issuer declined this payment. Stripe reported insufficient funds for this attempt. You can try again or use another payment method.",
+  "paymentDeclined": "Your card issuer declined this payment. You can try again or use another payment method.",
+  "paymentCancelled": "This payment was cancelled. No recharge was sent for this attempt.",
+  "paymentExpired": "This checkout expired without payment. Start a new recharge to try again."
 });

@@ -144,8 +144,7 @@ test('return displays only the recovered recharge without authenticating; URL is
     assert.equal(p.dom.window.sessionStorage.length, 0); assert.equal(p.dom.window.localStorage.length, 0);
     assert.equal(p.dom.window.document.cookie, '');
     assert.equal(p.root.querySelector('form, input, button'), null);
-    const link = p.root.querySelector('a'); assert.equal(link.getAttribute('href'), '/recharge');
-    assert.match(link.textContent, /Sign in or continue as guest/);
+    assert.equal(p.root.querySelector('a'), null, 'pending recovery cannot offer a new payment');
     assert.deepEqual(p.calls, ['resume']);
   } finally { p.close(); }
 });
@@ -231,6 +230,58 @@ test('resume module has no protected API, browser fulfillment, token persistence
   const source = readFileSync('js/checkout-resume.js', 'utf8');
   assert.doesNotMatch(source, /\.request\(|\.login\(|\.guest\(|signedIn|localStorage|sessionStorage|console\.|\.cookie|fulfillPaidRecharge/);
   assert.match(source, /resumeToken = ''/);
-  assert.match(source, /if \(terminal\.has\(next\.status\)\) stop\(\)/);
+  assert.match(source, /if \(transactionFullySettled\(next\)\) stop\(\)/);
   assert.match(source, /client\.resumeCheckout\(resumeToken, /);
+});
+
+for (const state of ['REFUND_PENDING', 'VOID_PENDING', 'CAPTURED', 'AUTHORIZED']) {
+  test(`failed recharge with ${state} keeps recovery pending and blocks retry`, async () => {
+    const p = page(() => result({ status: 'FAILED', paymentStatus: state, failureReason: null }));
+    try {
+      await flush(); assert.equal(p.clock.size, 1); assert.equal(p.root.querySelector('a'), null);
+      await p.clock.advance(5000); assert.equal(p.calls.length, 2);
+    } finally { p.close(); }
+  });
+}
+
+test('failed resume hides delivery claims, reports issuer decline safely and offers a new recharge', async () => {
+  const p = page(() => result({ status: 'FAILED', paymentStatus: 'FAILED', failureReason: 'INSUFFICIENT_FUNDS',
+    countryCode: 'JM', receiverQuote: { amount: 1170, currency: 'JMD', senderAmount: transaction.providerAmount,
+      senderCurrency: 'USD', source: 'PROVIDER_PRODUCT', quotedAt: '2026-10-01T00:00:00Z' },
+    deliveredValue: null, deliveredCurrency: null, receiverDiscrepancy: false }));
+  try {
+    await flush(); assert.equal(p.clock.size, 0);
+    assert.doesNotMatch(p.root.textContent, /Receiver gets|Delivered to receiver|Sign in or continue as guest/);
+    assert.match(p.root.textContent, /card issuer declined.*Stripe reported insufficient funds/);
+    assert.match(p.root.querySelector('details').textContent, /Quoted receiver value \(not delivered\)/);
+    const link = p.root.querySelector('a'); assert.equal(link.textContent, 'Start new recharge');
+    assert.equal(link.getAttribute('href'), '/recharge');
+  } finally { p.close(); }
+});
+
+test('return B disposes old A resume polling and ignores an in-flight A response', async () => {
+  let finishA;
+  const p = page(count => count === 1 ? result({ status: 'PENDING', operatorName: 'Attempt A' }) : new Promise(resolve => { finishA = resolve; }));
+  let b;
+  try {
+    await flush(); await p.clock.advance(5000); assert.equal(p.calls.length, 2);
+    const bToken = 'B'.repeat(43); const calls = [];
+    p.dom.window.history.replaceState(null, '', '/recharge?checkoutResumeToken=' + bToken);
+    b = mountRecharge(p.root, {}, { resumeClock: p.clock, api: { resumeCheckout: async value => {
+      calls.push(value); return result({ status: 'DELIVERED', operatorName: 'Attempt B', paymentStatus: 'CAPTURED', failureReason: null });
+    } } });
+    await flush(); finishA(result({ status: 'FAILED', operatorName: 'Attempt A' })); await flush();
+    await p.clock.advance(600000);
+    assert.deepEqual(calls, [bToken]); assert.equal(p.calls.length, 2);
+    assert.match(p.root.textContent, /Attempt B/); assert.doesNotMatch(p.root.textContent, /Attempt A|failed/);
+    assert.equal(p.root.querySelector('.status-pill').dataset.status, 'DELIVERED');
+    assert.equal(p.clock.size, 0); assert.equal(p.dom.window.location.search, '');
+  } finally { b?.dispose(); p.close(); }
+});
+
+test('pending public return polling is bounded and never grants a new payment', async () => {
+  const p = page(() => result({ status: 'PENDING', paymentStatus: 'SESSION_CREATED', failureReason: null }));
+  try { await flush(); await p.clock.advance(900000); assert.equal(p.calls.length, 120); assert.equal(p.clock.size, 0);
+    assert.equal(p.root.querySelector('a'), null); assert.match(p.root.querySelector('button').textContent, /Check status/);
+  } finally { p.close(); }
 });

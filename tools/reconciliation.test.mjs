@@ -6,7 +6,7 @@ import { mountRecharge } from '../js/recharge-page.js';
 import { mountCheckoutResume } from '../js/checkout-resume.js';
 import { transactionStatus, transactionFullySettled, canCancelTransaction, canHideTransaction } from '../js/transaction-state.js';
 import { setLanguage, t } from '../js/i18n.js';
-import { billingFixture } from './billing-fixture.mjs';
+import { billingFixture, billingQuote } from './billing-fixture.mjs';
 import { fixtureApi, products, operator, quote, transaction } from './fixtures.mjs';
 
 const flush = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); };
@@ -152,4 +152,87 @@ test('current backend resume DTO is accepted, receiver values displayed, interna
     else assert.doesNotMatch(root.textContent,/1,170|internal-id|secret|pi_private/);
     app.dispose(); dom.window.close();
   }
+});
+
+
+test('failed authenticated A is cleared when authoritative Stripe return B mounts', async () => page(async ({ app, api, dom, root }) => {
+  await app.model.start();
+  const a = live({ status: 'FAILED', paymentStatus: 'FAILED', failureCode: 'INSUFFICIENT_FUNDS', operatorName: 'Attempt A' });
+  app.model.state.transaction = a;
+  app.model.state.checkoutSession = { transactionId: a.id };
+  app.model.state.attempt = { mode: 'STRIPE_LIVE', transactionId: a.id, body: { quoteId: a.quoteId }, key: 'old-A-key' };
+  app.model.emit();
+  const token = 'B'.repeat(43); let reads = 0;
+  dom.window.history.replaceState(null, '', '/?checkoutResumeToken=' + token);
+  const b = mountRecharge(root, {}, { api: { async resumeCheckout(value) {
+    assert.equal(value, token); reads++;
+    return { transaction: { status: 'DELIVERED', paymentStatus: 'CAPTURED', failureReason: null, testMode: false,
+      recipientPhone: '+15555550102', operatorName: 'Attempt B', productName: 'B product',
+      providerAmount: 10, providerCurrency: 'USD', feeUsd: 1.64, totalChargeUsd: 11.64 } };
+  } } });
+  try { await flush(); assert.equal(reads, 1); assert.equal(b.model, undefined);
+    assert.equal(app.model.state.transaction, null); assert.equal(app.model.state.attempt, null); assert.equal(app.model.state.checkoutSession, null);
+    assert.match(root.textContent, /Attempt B/); assert.doesNotMatch(root.textContent, /Attempt A/);
+    assert.equal(root.querySelector('.status-pill').dataset.status, 'DELIVERED');
+  } finally { b.dispose(); }
+}));
+
+test('terminal failed A starts a fresh selection while pending and recovery-pending payments cannot restart', async () => page(async ({ app, q, api }) => {
+  await app.model.start();
+  const a = live({ status: 'FAILED', paymentStatus: 'FAILED', failureCode: 'INSUFFICIENT_FUNDS', deliveredValue: null, deliveredCurrency: null, receiverQuote: { amount: 987, currency: 'HTG' } });
+  app.model.state.history = [a]; app.model.state.transaction = a; app.model.emit();
+  assert.doesNotMatch(q('#receipt').textContent, /Receiver gets|Delivered to receiver/);
+  assert.match(q('#receipt .journey-full-receipt').textContent, /Quoted receiver value \(not delivered\)/);
+  assert.match(q('#receipt .journey-full-receipt').textContent, /987/);
+  assert.match(q('#receipt').textContent, /Stripe reported insufficient funds/);
+  assert.equal(q('#recharge-again').hidden, false); q('#recharge-again').click(); await flush();
+  assert.equal(app.model.state.transaction, null); assert.equal(app.model.state.quote, null); assert.equal(app.model.state.checkoutSession, null);
+  assert.deepEqual(app.model.state.history, [a]);
+  assert.equal(api.calls.some(c => c.method === 'POST'), false);
+  for (const value of [live({ status: 'PENDING', paymentStatus: 'SESSION_CREATED' }), live({ status: 'FAILED', paymentStatus: 'REFUND_PENDING' })]) {
+    app.model.state.transaction = value; app.model.emit();
+    assert.equal(q('#recharge-again').hidden, true); assert.throws(() => app.model.startNewRecharge(), /Resolve/);
+    assert.throws(() => app.model.setAmount('10'), /Resolve/);
+  }
+}));
+
+test('late status read for A cannot replace newly active transaction B', async () => {
+  const api = fixtureApi(); const model = new Recharge(api); await model.start();
+  const a = { ...transaction, status: 'PROCESSING' };
+  const b = { ...transaction, id: '33333333-3333-4333-8333-333333333333', status: 'DELIVERED', operatorName: 'Attempt B' };
+  let finish; api.overrides.set('GET /mobile-topups/transactions/' + a.id, () => new Promise(resolve => { finish = resolve; }));
+  model.state.transaction = a; const pending = model.refreshTransaction(a.id);
+  model.state.transaction = b; finish({ transaction: { ...a, status: 'FAILED' } }); await pending;
+  assert.equal(model.state.transaction, b);
+});
+
+
+test('failed checkout A retries with a new quote, idempotency key and session for B without changing A', async () => {
+  const api = billingFixture(), model = new Recharge(api);
+  model.setAccount({ id: 'guest-user' }, true); await model.start();
+  let count = 0;
+  const ids = ['22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333'];
+  api.overrides.set('POST /mobile-topups/quotes', () => ({ quote: { ...billingQuote, id: ids[count] } }));
+  api.overrides.set('POST /mobile-topups/payment-sessions', () => {
+    const id = ids[count++];
+    return { provider: 'STRIPE', environment: 'PRODUCTION', testMode: false, transactionId: id,
+      checkoutSession: { id: 'cs_live_' + count, url: 'https://checkout.stripe.com/c/pay/cs_live_' + count },
+      amountMinor: 5449, currency: 'USD', paymentStatus: 'SESSION_CREATED' };
+  });
+  const checkout = async () => {
+    await model.selectCountry('HT'); model.setPhone(billingQuote.recipientPhone); await model.selectOperator(77);
+    model.selectProduct(billingQuote.productId); await model.getQuote();
+    model.state.billingCountry = 'US'; model.state.reviewed = true; await model.confirm();
+  };
+  await checkout();
+  const a = Object.freeze({ ...billingQuote, id: ids[0], quoteId: ids[0], testMode: false, status: 'FAILED', paymentStatus: 'FAILED', failureCode: 'INSUFFICIENT_FUNDS' });
+  assert.equal(model.reconcileCheckout(a), true); model.state.history = [a];
+  model.startNewRecharge(); await checkout();
+  assert.equal(model.state.transaction, null); assert.equal(model.state.attempt.transactionId, ids[1]);
+  assert.equal(model.state.checkoutSession.checkoutSession.id, 'cs_live_2');
+  assert.deepEqual(model.state.history, [a]); assert.equal(a.status, 'FAILED');
+  const requests = api.calls.filter(c => c.path === '/mobile-topups/payment-sessions');
+  assert.equal(requests.length, 2); assert.notEqual(requests[0].body.quoteId, requests[1].body.quoteId);
+  assert.notEqual(requests[0].headers['Idempotency-Key'], requests[1].headers['Idempotency-Key']);
+  assert.equal(api.calls.some(c => c.method === 'POST' && c.path === '/mobile-topups/transactions'), false);
 });

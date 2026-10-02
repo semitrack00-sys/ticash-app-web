@@ -26,3 +26,12 @@ export const canHideTransaction = transaction => Boolean(transaction &&
   transaction.status === 'FAILED' && transaction.paymentStatus === 'FAILED' &&
   transaction.failureCode === 'CANCELLED_BY_CUSTOMER' && !transaction.providerTransactionId &&
   !transaction.paymentAuthorizationId && !transaction.paymentProviderTransactionId);
+
+// Only a small public vocabulary reaches the UI; never display raw Stripe messages.
+export function paymentFailureMessage(transaction) {
+  if (!['FAILED', 'CANCELLED'].includes(transaction?.status)) return '';
+  const reason = transaction.failureReason ?? transaction.failureCode;
+  return ({ INSUFFICIENT_FUNDS: 'paymentInsufficientFunds', PAYMENT_DECLINED: 'paymentDeclined',
+    PAYMENT_CANCELLED: 'paymentCancelled', CANCELLED_BY_CUSTOMER: 'paymentCancelled',
+    PAYMENT_EXPIRED: 'paymentExpired' })[reason] || 'journeyFailedInfo';
+}

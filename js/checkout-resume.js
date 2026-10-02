@@ -1,3 +1,4 @@
+import { transactionFullySettled, transactionStatus, paymentFailureMessage } from './transaction-state.js';
 import { rechargePath } from './recharge-routes.js';
 import { apiBaseUrl, createApiClient, isCheckoutResumeToken } from './api-client.js';
 import { t, languageLocale, onLanguageChange } from './i18n.js';
@@ -6,6 +7,9 @@ import { mountLanguageHeader } from './language-page.js';
 const terminal = new Set(['DELIVERED', 'FAILED', 'REFUNDED']);
 const statuses = new Set(['PENDING', 'PROCESSING', ...terminal]);
 const publicFields = ['status', 'testMode', 'recipientPhone', 'operatorName', 'productName', 'providerAmount', 'providerCurrency', 'feeUsd', 'totalChargeUsd'];
+const recoveryFields = ['paymentStatus', 'failureReason'];
+const paymentStates = new Set(['PENDING', 'SESSION_CREATED', 'AUTHORIZED', 'CAPTURED', 'FAILED', 'VOID_PENDING', 'VOIDED', 'REFUND_PENDING', 'REFUNDED']);
+const failures = new Set(['INSUFFICIENT_FUNDS', 'PAYMENT_DECLINED', 'PAYMENT_CANCELLED', 'PAYMENT_EXPIRED']);
 const receiverFields = ['countryCode', 'receiverQuote', 'deliveredValue', 'deliveredCurrency', 'receiverDiscrepancy'];
 function receiverDetails(value) {
   if (!receiverFields.some(key => Object.hasOwn(value, key))) return {}; // Original public DTO compatibility.
@@ -30,13 +34,16 @@ function receiverDetails(value) {
 function displayTransaction(data) {
   const value = data?.transaction;
   if (!value || typeof value !== 'object' || !publicFields.every(key => Object.hasOwn(value, key)) ||
-      Object.keys(value).some(key => ![...publicFields, ...receiverFields].includes(key)) || value.testMode !== false ||
+      Object.keys(value).some(key => ![...publicFields, ...receiverFields, ...recoveryFields].includes(key)) || value.testMode !== false ||
       !statuses.has(value.status) || value.providerCurrency !== 'USD' ||
       ![value.providerAmount, value.feeUsd, value.totalChargeUsd].every(n => Number.isFinite(n) && n >= 0) ||
       !['recipientPhone', 'operatorName', 'productName'].every(key => typeof value[key] === 'string' && value[key].length <= 300)) {
     throw new Error('Invalid checkout status.');
   }
+  const hasRecovery = recoveryFields.some(key => Object.hasOwn(value, key));
+  if (hasRecovery && (!paymentStates.has(value.paymentStatus) || value.failureReason !== null && !failures.has(value.failureReason))) throw new Error('Invalid recovery status.');
   return Object.freeze({
+    ...(hasRecovery ? { paymentStatus: value.paymentStatus, failureReason: value.failureReason } : {}),
     status: value.status, recipientPhone: value.recipientPhone,
     operatorName: value.operatorName, productName: value.productName,
     providerAmount: value.providerAmount, feeUsd: value.feeUsd, totalChargeUsd: value.totalChargeUsd,
@@ -66,6 +73,7 @@ export function mountCheckoutResume(root, config, resumeToken, dependencies = {}
     clearTimeout: id => pageWindow.clearTimeout(id),
   };
   let client, transaction, pollTimer, requestController, generation = 0, disposed = false;
+  let polls = 0;
   let message = 'checkoutResumeLoading';
   const removeLanguageHeader = mountLanguageHeader(doc);
   const node = (tag, text, className) => {
@@ -85,12 +93,14 @@ export function mountCheckoutResume(root, config, resumeToken, dependencies = {}
     const panel = node('section', undefined, 'panel');
     panel.setAttribute('aria-live', 'polite');
     panel.dataset.checkoutResume = 'readonly';
-    const title = transaction ? transaction.status === 'DELIVERED' ? 'journeySuccess' :
-      terminal.has(transaction.status) ? 'journeyFailed' : 'journeyPending' : 'checkoutResumeLoading';
+    const status = transactionStatus(transaction);
+    const settled = transaction && transactionFullySettled(transaction);
+    const title = transaction ? status === 'DELIVERED' ? 'journeySuccess' :
+      ['REFUNDED', 'VOIDED'].includes(status) ? 'rechargeStatus' + status : settled ? 'journeyFailed' : 'journeyPending' : 'checkoutResumeLoading';
     panel.append(node('h2', t(message || title)), node('p', t('checkoutResumeReadOnly'), 'muted'));
     if (transaction) {
-      const badge = node('p', t('rechargeStatus' + transaction.status), 'status-pill');
-      badge.dataset.status = transaction.status; panel.append(badge);
+      const badge = node('p', t('rechargeStatus' + status), 'status-pill');
+      badge.dataset.status = status; panel.append(badge);
       const details = node('dl', undefined, 'details');
       const money = amount => new Intl.NumberFormat(languageLocale(), { style: 'currency', currency: 'USD' }).format(amount);
       for (const [label, value] of [
@@ -99,22 +109,36 @@ export function mountCheckoutResume(root, config, resumeToken, dependencies = {}
       ]) {
         const row = node('div'); row.append(node('dt', t(label)), node('dd', value)); details.append(row);
       }
+      const failed = ['FAILED', 'CANCELLED'].includes(transaction.status);
+      if (failed && settled) panel.append(node('p', t(paymentFailureMessage(transaction)), 'message'));
+      else if (['REFUND_PENDING', 'VOID_PENDING', 'REFUNDED', 'VOIDED'].includes(status)) panel.append(node('p', t('rechargeInfo' + status), 'message'));
       const receiving = transaction.deliveredValue != null
         ? { amount: transaction.deliveredValue, currency: transaction.deliveredCurrency } : transaction.receiverQuote;
-      if (receiving) {
+      if (receiving && !failed) {
         const row = node('div'); row.append(node('dt', t(transaction.deliveredValue != null ? 'receiverDelivered' : 'Receiver gets')),
           node('dd', new Intl.NumberFormat(languageLocale(), { style: 'currency', currency: receiving.currency }).format(receiving.amount))); details.append(row);
       }
       panel.append(details);
+      if (receiving && failed) {
+        const quote = node('details'); quote.append(node('summary', t('journeyViewReceipt')),
+          node('p', t('receiverQuoted') + ': ' + new Intl.NumberFormat(languageLocale(), { style: 'currency', currency: receiving.currency }).format(receiving.amount)));
+        panel.append(quote);
+      }
       if (transaction.receiverDiscrepancy) panel.append(node('p', t('receiverValueChanged'), 'message'));
     }
-    const again = node('a', t('checkoutResumeStart'), 'button secondary');
-    // A fresh page requires a new guest session/sign-in. No repeat, quote or payment action exists here.
-    again.href = rechargePath(root); again.addEventListener('click', stop);
-    panel.append(again); root.replaceChildren(panel);
+    if (settled || !transaction) {
+      const again = node('a', t(settled ? status === 'DELIVERED' ? 'journeyAgain' : 'rechargeTryAgain' : 'checkoutResumeStart'), 'button secondary');
+      // Navigate without account/transaction parameters; the normal app restores its HttpOnly session.
+      again.href = rechargePath(root); again.addEventListener('click', stop); panel.append(again);
+    }
+    if (transaction && !settled && polls >= 120) {
+      const check = node('button', t('journeyCheckStatus'), 'button secondary'); check.type = 'button';
+      check.addEventListener('click', () => { polls = 0; message = ''; void poll(); render(); }); panel.append(check);
+    }
+    root.replaceChildren(panel);
   }
   function fail(expired = false) {
-    stop(); message = expired ? 'checkoutResumeExpired' : 'checkoutResumeUnavailable'; render();
+    stop(); transaction = undefined; message = expired ? 'checkoutResumeExpired' : 'checkoutResumeUnavailable'; render();
   }
   async function poll() {
     const current = generation;
@@ -122,9 +146,9 @@ export function mountCheckoutResume(root, config, resumeToken, dependencies = {}
       requestController = new AbortController();
       const next = displayTransaction(await client.resumeCheckout(resumeToken, { signal: requestController.signal }));
       if (disposed || current !== generation) return;
-      transaction = next; message = '';
-      if (terminal.has(next.status)) stop();
-      else {
+      transaction = next; message = ''; polls += 1;
+      if (transactionFullySettled(next)) stop();
+      else if (polls < 120) {
         // Expiry is server-authoritative (HTTP 410); it is deliberately not part of the public DTO.
         // Non-overlapping reads, below the backend's 20/minute resume limit.
         pollTimer = clock.setTimeout(poll, 5000);

@@ -546,6 +546,8 @@ test('manual operator selection keeps logo through quote and receipt', async () 
     operator.logoUrl,
   );
 
+  await app.model.refreshTransaction();
+  assert.equal(app.model.state.transaction.status, 'DELIVERED');
   await app.model.selectCountry('CA');
 
   assert.equal(app.model.state.operator, null);
@@ -743,7 +745,8 @@ test('journey uses authoritative statuses, limits recent history, and repeats on
     await login(); query('[data-journey-nav=home]').click(); assert.equal(query('.recent-list').children.length, 3);
     assert.equal(query('#history-list').children.length, 5);
     app.model.state.transaction = { ...transaction, status: 'FAILED', paymentStatus: 'FAILED' }; app.model.emit();
-    assert.match(query('#receipt h2').textContent, /failed/); assert.equal(query('#recharge-again').hidden, true);
+    assert.match(query('#receipt h2').textContent, /failed/); assert.equal(query('#recharge-again').hidden, false);
+    assert.equal(query('#recharge-again').textContent, t('rechargeTryAgain'));
     app.model.state.transaction = { ...transaction, status: 'DELIVERED', paymentStatus: 'AUTHORIZED' }; app.model.emit();
     assert.match(query('#receipt h2').textContent, /successful/); assert.equal(query('#recharge-again').hidden, false);
     app.model.state.transaction = { ...transaction, status: 'DELIVERED', paymentStatus: 'CAPTURED' }; app.model.emit();
