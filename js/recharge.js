@@ -68,7 +68,7 @@ function validOperator(operator, country) {
   return Number.isSafeInteger(operator?.id) && operator.id > 0 && operator.countryCode === country && operator.status === true;
 }
 export const productClassification = product => product.classification ?? product.kind;
-function validProduct(product, operatorId, country, flupflap) {
+function validProduct(product, operatorId, country) {
   if (!product || product.operatorId !== operatorId || product.countryCode !== country || !['FIXED', 'RANGE'].includes(product.amountType)) return false;
   const classification = productClassification(product);
   if (!['AIRTIME', 'DATA', 'BUNDLE'].includes(classification) || product.priceCurrency !== 'USD' || typeof product.id !== 'string' || typeof product.name !== 'string') return false;
@@ -76,7 +76,7 @@ function validProduct(product, operatorId, country, flupflap) {
   if (classification !== 'AIRTIME' && product.amountType !== 'FIXED') return false;
   if (product.benefits !== undefined && (!Array.isArray(product.benefits) || product.benefits.some(b => !['DATA', 'MINUTES', 'SMS'].includes(b?.type) || !Number.isFinite(b.amount) || (b.amount < 0 && b.amount !== -1) || !/^[A-Z_]{1,24}$/.test(b.unit)))) return false;
   if (product.validity !== undefined && (!Number.isInteger(product.validity.quantity) || (product.validity.quantity <= 0 && product.validity.quantity !== -1) || !['HOUR', 'DAY', 'WEEK', 'MONTH', 'YEAR'].includes(product.validity.unit) || !['SERVICE', 'REDEMPTION'].includes(product.validity.semantics))) return false;
-  const minimum = flupflap && classification === 'AIRTIME' ? 1 : 5;
+  const minimum = 5;
   if (product.amountPrecision !== undefined && (!Number.isInteger(product.amountPrecision) || product.amountPrecision < 0 || product.amountPrecision > 2)) return false;
   if (product.amountIncrement !== undefined && (!Number.isFinite(product.amountIncrement) || product.amountIncrement <= 0 || Math.abs(product.amountIncrement * 100 - Math.round(product.amountIncrement * 100)) > 1e-7)) return false;
   if (product.amountType === 'FIXED') return Number.isFinite(product.price) && product.price >= minimum && product.price <= 100;
@@ -288,7 +288,7 @@ export class Recharge {
     return this.run(`products:${revision}`, async (active) => {
       const data = await this.api.request(`${root}/operators/${operator.id}/products?${new URLSearchParams({ country: this.state.country })}`);
       const products = array(data, 'products');
-      if (!validOperator(data.operator, operator.countryCode) || data.operator.id !== operator.id || products.some((p) => !validProduct(p, operator.id, operator.countryCode, this.api.identityDomain === 'FLUPFLAP'))) {
+      if (!validOperator(data.operator, operator.countryCode) || data.operator.id !== operator.id || products.some((p) => !validProduct(p, operator.id, operator.countryCode))) {
         throw invalid('The product catalog did not match the selected operator.');
       }
       if (active()) { this.state.products = products; this.state.category = products.length ? productClassification(products[0]) : ''; }

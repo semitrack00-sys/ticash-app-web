@@ -48,12 +48,12 @@ for (const [pending, final] of [['REFUND_PENDING', 'REFUNDED'], ['VOID_PENDING',
 
 test('provider RANGE minimum, maximum, increment and precision are preserved without calculating fees', async () => {
   const api = fixtureApi(); api.identityDomain = 'FLUPFLAP';
-  const product = { ...products[1], price:1, minimumAmount:1, maximumAmount:9, amountIncrement:0.5, amountPrecision:1 };
+  const product = { ...products[1], price:5, minimumAmount:5, maximumAmount:9, amountIncrement:0.5, amountPrecision:1 };
   api.overrides.set('GET /mobile-topups/operators/77/products', () => ({ operator, products:[product] }));
   const model = new Recharge(api); await model.start(); await model.selectCountry('JM'); model.setPhone(quote.recipientPhone); await model.selectOperator(77); model.selectProduct(product.id);
   assert.deepEqual(model.state.product, product);
-  for (const amount of ['1', '1.5', '9']) { model.setAmount(amount); assert.equal(model.quoteBody().amount, Number(amount)); assert.equal(model.quoteBody().fee, undefined); }
-  for (const amount of ['0.99', '9.5', '1.1', '1.55', '1.501']) { model.setAmount(amount); assert.throws(() => model.quoteBody(), /within the displayed range/); }
+  for (const amount of ['5', '5.5', '9']) { model.setAmount(amount); assert.equal(model.quoteBody().amount, Number(amount)); assert.equal(model.quoteBody().fee, undefined); }
+  for (const amount of ['1', '4.99', '9.5', '5.1', '5.55', '5.501']) { model.setAmount(amount); assert.throws(() => model.quoteBody(), /within the displayed range/); }
 });
 
 for (const [status, paymentStatus, expected, settled] of [
@@ -132,7 +132,7 @@ test('provider choice uses advertised API providers only; AUTO omits filter; cha
   await model.selectProvider('unadvertised'); assert.equal(model.state.provider, 'RELOADLY');
 });
 
-for (const [domain, kind, price, allowed] of [['FLUPFLAP','AIRTIME',1,true], ['TICASH','AIRTIME',1,false], ['FLUPFLAP','DATA',1,false], ['FLUPFLAP','BUNDLE',12,true]]) {
+for (const [domain, kind, price, allowed] of [['FLUPFLAP','AIRTIME',1,false], ['FLUPFLAP','AIRTIME',4.99,false], ['FLUPFLAP','AIRTIME',5,true], ['FLUPFLAP','AIRTIME',100,true], ['FLUPFLAP','AIRTIME',100.01,false], ['TICASH','AIRTIME',1,false], ['FLUPFLAP','DATA',1,false], ['FLUPFLAP','BUNDLE',12,true]]) {
   test(`${domain} ${kind} provider price ${price}: accepted ${allowed}, no browser fee`, async () => {
     const api = fixtureApi(); api.identityDomain = domain;
     api.overrides.set('GET /mobile-topups/operators/77/products', () => ({ operator, products:[{ ...products[0], kind, classification:kind, price }] }));
