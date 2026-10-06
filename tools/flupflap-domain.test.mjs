@@ -251,3 +251,21 @@ test('every generated FlupFlap page exposes the exact non-secret build revision'
     assert.match(built(path), /<meta name="flupflap-assets" content="[a-f0-9]{16}">/);
   }
 });
+
+test('dedicated build exposes a direct deletion email path without login or scripts', () => {
+  const html = readFileSync('dist/flupflap/legal/delete-account/index.html', 'utf8');
+  const document = new JSDOM(html).window.document;
+  const link = [...document.querySelectorAll('a')].find(a => a.textContent === 'Write deletion request');
+  assert.ok(link);
+  const uri = new URL(link.href);
+  assert.equal(uri.protocol, 'mailto:');
+  assert.equal(uri.pathname, 'contact@ticash-app.com');
+  assert.equal(uri.searchParams.get('subject'), 'FlupFlap account deletion request');
+  assert.match(uri.searchParams.get('body'), /associated personal data/);
+  assert.equal(document.querySelectorAll('script,form,input').length, 0);
+  assert.match(document.body.textContent, /without signing in or reinstalling/);
+  assert.match(document.body.textContent, /does not automatically erase/);
+  const privacy = readFileSync('dist/flupflap/legal/privacy/index.html', 'utf8');
+  assert.match(privacy, /id="account-deletion"/);
+  assert.match(privacy, /href="\/legal\/delete-account\/"/);
+});
