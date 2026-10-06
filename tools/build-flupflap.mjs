@@ -53,7 +53,7 @@ for (const path of [
   'public-config.js', 'route.css', 'language.css', 'login/login.css', 'support/flupflap-support.css',
   'legal/flupflap-legal.css', 'recharge/checkout.css', 'join/marketing.css',
   'recharge/index.html', 'login/index.html', 'support/flupflap-support.html',
-  'legal/flupflap-privacy.html', 'legal/flupflap-terms.html', 'join/index.html',
+  'legal/flupflap-privacy.html', 'legal/flupflap-delete-account.html', 'legal/flupflap-terms.html', 'join/index.html',
   'recharge/reset-password/index.html',
 ].sort()) {
   versionHash.update(path);
@@ -98,6 +98,7 @@ page('recharge/index.html', 'index.html');
 page('login/index.html', 'login/index.html');
 page('support/flupflap-support.html', 'support/index.html');
 page('legal/flupflap-privacy.html', 'legal/privacy/index.html');
+page('legal/flupflap-delete-account.html', 'legal/delete-account/index.html');
 page('legal/flupflap-terms.html', 'legal/terms/index.html');
 page('join/index.html', 'join/index.html');
 page('recharge/reset-password/index.html', 'reset-password/index.html');
