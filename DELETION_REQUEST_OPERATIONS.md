@@ -1,6 +1,6 @@
 # FlupFlap deletion request rollout
 
-Request inbox confirmed by the owner: `contact@ticash-app.com`.
+Request inbox selected by the owner: `contact@ticash-app.com`.
 Proposed public resource: `https://www.flupflap.com/legal/delete-account/`.
 The dedicated site build includes this page and links it from the privacy policy.
 The Android draft adds Account → Delete my account, instructions, a fixed email
