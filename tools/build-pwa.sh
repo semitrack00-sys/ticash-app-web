@@ -26,6 +26,10 @@ if [[ "$(git -C .build-cache/flutter rev-parse HEAD 2>/dev/null || true)" != "$s
   git -C .build-cache/flutter checkout --quiet --detach FETCH_HEAD
 fi
 export PATH="$PWD/.build-cache/flutter/bin:$PATH"
+# Flutter derives its version from Git release tags, even at a pinned SHA.
+git -C .build-cache/flutter fetch --depth=1 origin refs/tags/3.47.1:refs/tags/3.47.1
+[[ "$(git -C .build-cache/flutter rev-parse refs/tags/3.47.1)" = "$sdk_revision" ]] || { echo 'Flutter release tag does not match pinned SDK'; exit 1; }
+rm -f .build-cache/flutter/bin/cache/flutter.version.json
 python3 -m pip install --disable-pip-version-check --target "$build_dir/python" pillow==11.3.0
 export PYTHONPATH="$build_dir/python${PYTHONPATH:+:$PYTHONPATH}"
 bash "$build_dir/source/apps/flupflap/tool/build_pwa.sh"
