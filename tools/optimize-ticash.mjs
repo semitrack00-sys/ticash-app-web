@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const ORIGIN = 'https://www.ticash-app.com';
 const pages = {
-  'index.html': ['/', 'TiCash | Support family in Haiti', 'Learn about TiCash, a service in development for supporting family in Haiti through money transfers and mobile connectivity. Explore our plans and contact our team.'],
+  'index.html': ['/', 'TiCash & FlupFlap Recharge | Support family in Haiti', 'Explore FlupFlap Recharge, powered by TiCash App, for mobile airtime and supported data plans. Learn about TiCash money transfers in development.'],
   'about.html': ['/about.html', 'About TiCash | Built for the Haitian diaspora', 'Learn about TiCash and our mission to help the Haitian diaspora support family and loved ones in Haiti.'],
   'security.html': ['/security.html', 'TiCash Security | Account protection and service readiness', 'Learn about TiCash account protection, responsible integrations, and the approvals required before money-transfer services launch.'],
   'privacy.html': ['/privacy.html', 'TiCash Privacy Policy', 'Read the TiCash privacy policy and learn how to contact our team about personal information and privacy questions.'],
@@ -25,6 +25,40 @@ export function brandHomepage(html) {
   return html.replace(anchor, anchor + '\n' + lockup)
     .replace('Explore Mobile Recharge</a>', 'Explore FlupFlap Recharge</a>')
     .replace('</head>', '<link rel="stylesheet" href="/flupflap-home.css">\n</head>');
+}
+
+export function updateRechargeContent(html) {
+  const sectionPattern = /<section\b[^>]*\bid=["']services["'][^>]*>[\s\S]*?<\/section>/i;
+  if (!sectionPattern.test(html)) throw new Error('Missing homepage services section');
+  return html.replace(sectionPattern, section => {
+    section = section.replace(/<p class="services-intro">[\s\S]*?<\/p>/, '<p class="services-intro">FlupFlap Recharge is available now for mobile airtime and supported data plans. TiCash money-transfer services are still being prepared.</p>');
+    section = section.replace(/<article\b[^>]*>[\s\S]*?<\/article>/g, article => {
+      if (/<h3>Mobile Recharge<\/h3>/.test(article)) {
+        return article.replace('<article class="service-card">', '<article class="service-card" data-service-live>')
+          .replace('COMING SOON', 'AVAILABLE NOW')
+          .replace('<h3>Mobile Recharge</h3>', '<h3>FlupFlap Recharge</h3>')
+          .replace(/<p>[\s\S]*?<\/p>/, '<p>Send mobile airtime with FlupFlap. Choose a supported country and operator, enter the phone number, and review your total before paying.</p>');
+      }
+      if (/<h3>Internet &amp; Data Plans<\/h3>/.test(article)) {
+        article = article.replace('COMING SOON', 'CHECK AVAILABILITY')
+          .replace(/<p>[\s\S]*?<\/p>/, '<p>Browse supported data bundles. Plan duration, allowance, and availability depend on the destination and mobile operator.</p>');
+        if (!article.includes('href="/recharge"')) article = article.replace('</article>', '<a class="service-link" href="/recharge">Browse plans <span aria-hidden="true">→</span></a></article>');
+      }
+      return article;
+    });
+    section = section.replace(/(<div class="connect-copy">[\s\S]*?<p>)[\s\S]*?(<\/p>)/, '$1Send airtime and supported mobile data plans to loved ones with FlupFlap Recharge, powered by TiCash App. Select your destination and operator to see the options available for that phone number.$2')
+      .replace('Explore FlupFlap Recharge</a>', 'Start FlupFlap Recharge</a>')
+      .replace('<span class="demo-label">MOBILE RECHARGE</span>', '<span class="demo-label">FLUPFLAP RECHARGE</span>')
+      .replace('<span class="demo-status">COMING SOON</span>', '<span class="demo-status">ILLUSTRATION</span>');
+    if (!section.includes('data-flupflap-home-details')) {
+      section = section.replace('</section>', `<div class="flupflap-home-details" data-flupflap-home-details aria-label="Before you recharge">
+        <article><span class="flupflap-detail-number">01</span><h3>Airtime or data</h3><p>Choose mobile credit or an available data bundle. Check the phone number, operator, plan allowance, and duration carefully.</p></article>
+        <article><span class="flupflap-detail-number">02</span><h3>Clear before you pay</h3><p>Review the recharge price, applicable service fee, and total at checkout. Your final quote shows the amount you will pay.</p></article>
+        <article><span class="flupflap-detail-number">03</span><h3>Delivery &amp; support</h3><p>Payment confirmation and recharge delivery are separate steps. Follow the transaction status; delivery timing depends on the operator.</p><a href="/support/">Contact support <span aria-hidden="true">→</span></a></article>
+      </div></section>`);
+    }
+    return section;
+  });
 }
 
 export function optimizeHtml(source, details) {
@@ -77,10 +111,15 @@ export async function build(root = process.cwd()) {
   const report = [];
   // Stage and validate every page before writing any HTML.
   const outputs = [];
+  const publicConfig = await readFile(join(root, 'public-config.js'), 'utf8');
+  const rechargeLive = /mobileRechargeLive:\s*true\b/.test(publicConfig);
   for (const [path, details] of Object.entries(pages)) {
     const source = await readFile(join(root, path), 'utf8');
     const output = optimizeHtml(source, details);
-    if (path === 'index.html') output.html = brandHomepage(output.html);
+    if (path === 'index.html') {
+      output.html = brandHomepage(output.html);
+      if (rechargeLive) output.html = updateRechargeContent(output.html);
+    }
     outputs.push({ path, source, ...output });
   }
   await copyFile(join(root, 'brand/flupflap/ChatGPT Image Sep 24, 2026, 09_49_40 PM.png'), join(root, 'assets/flupflap-home-logo.png'));
