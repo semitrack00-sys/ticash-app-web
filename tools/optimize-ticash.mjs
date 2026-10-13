@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,6 +13,19 @@ const pages = {
 };
 const mimeExtensions = { png: 'png', jpeg: 'jpg', jpg: 'jpg', webp: 'webp', gif: 'gif', 'svg+xml': 'svg', 'x-icon': 'ico' };
 const escapeAttribute = (value) => value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+
+export function brandHomepage(html) {
+  if (html.includes('data-flupflap-home-brand')) return html;
+  const anchor = '<div class="connect-copy">';
+  if (html.split(anchor).length !== 2) throw new Error('Expected one homepage recharge feature');
+  const lockup = `<div class="flupflap-home-lockup" data-flupflap-home-brand>
+    <div class="flupflap-home-product"><img src="/assets/flupflap-home-logo.png" alt="FlupFlap" width="2172" height="724" loading="lazy" decoding="async"><span>Recharge</span></div>
+    <div class="flupflap-home-powered"><span>Powered by</span><strong>TiCash App</strong></div>
+  </div>`;
+  return html.replace(anchor, anchor + '\n' + lockup)
+    .replace('Explore Mobile Recharge</a>', 'Explore FlupFlap Recharge</a>')
+    .replace('</head>', '<link rel="stylesheet" href="/flupflap-home.css">\n</head>');
+}
 
 export function optimizeHtml(source, details) {
   if (!/<head\b[^>]*>/i.test(source) || !/<\/head\s*>/i.test(source)) throw new Error('Missing HTML head');
@@ -67,8 +80,10 @@ export async function build(root = process.cwd()) {
   for (const [path, details] of Object.entries(pages)) {
     const source = await readFile(join(root, path), 'utf8');
     const output = optimizeHtml(source, details);
+    if (path === 'index.html') output.html = brandHomepage(output.html);
     outputs.push({ path, source, ...output });
   }
+  await copyFile(join(root, 'brand/flupflap/ChatGPT Image Sep 24, 2026, 09_49_40 PM.png'), join(root, 'assets/flupflap-home-logo.png'));
   for (const { path, source, html, assets } of outputs) {
     for (const [url, asset] of assets) await writeFile(join(root, url.slice(1)), asset.bytes);
     await writeFile(join(root, path), html);
