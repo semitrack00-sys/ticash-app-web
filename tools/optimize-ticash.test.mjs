@@ -1,9 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { optimizeHtml, brandHomepage, updateRechargeContent } from './optimize-ticash.mjs';
+import homeCopy from '../js/home-copy.js';
 const details = ['/', 'TiCash | Support family in Haiti', 'Service in development.'];
 const image = 'data:image/png;base64,aGVsbG8=';
 const fixture = `<!doctype html><html><head><title>Old</title><meta name="description" content="Old"><link rel="canonical" href="https://ticash-app.com/"><link rel="stylesheet" href="/style.css"><style>.brand {background:url('${image}')}</style></head><body><h1>Support family</h1><a href="/recharge">Recharge</a><img src="${image}"><script src="/public-config.js"></script></body></html>`;
+test('homepage customer copy is complete and plain text in all 27 supported languages', () => {
+  assert.equal(Object.keys(homeCopy).length, 27);
+  for (const [code, values] of Object.entries(homeCopy)) {
+    assert.equal(values.length, 15, code);
+    for (const text of values) { assert.ok(typeof text === 'string' && text.trim()); assert.doesNotMatch(text, /<\/?[a-z]/i); }
+    assert.ok(values[0].includes('FlupFlap') && values[0].includes('TiCash'), code);
+  }
+});
 test('deduplicates embedded image bytes across CSS and HTML without changing links or scripts', () => {
   const { html, assets } = optimizeHtml(fixture, details);
   assert.equal(assets.size, 1);

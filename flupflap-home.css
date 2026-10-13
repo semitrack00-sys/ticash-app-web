@@ -21,7 +21,7 @@
   text-transform: uppercase;
   color: #526177;
 }
-.flupflap-home-powered { display: flex; flex-direction: column; gap: 4px; border-left: 1px solid #e5e8ec; padding-left: 20px; }
+.flupflap-home-powered { display: flex; flex-direction: column; gap: 4px; border-inline-start: 1px solid #e5e8ec; padding-inline-start: 20px; }
 .flupflap-home-powered > span { color: #687487; font-size: 11px; line-height: 1.5; }
 .flupflap-home-powered strong { color: #07182f; font-size: 15px; line-height: 1.4; font-weight: 700; }
 .ticash-services [data-service-live] .service-status { color: #176644; background: #eaf7ef; }
@@ -37,5 +37,5 @@
   .flupflap-home-lockup { padding: 18px; gap: 16px; }
   .flupflap-home-product img { width: 210px; }
   .flupflap-home-product { min-width: 0; max-width: 100%; }
-  .flupflap-home-powered { border-left: 0; padding-left: 0; border-top: 1px solid #e5e8ec; padding-top: 12px; width: 100%; flex-direction: row; align-items: baseline; gap: 6px; }
+  .flupflap-home-powered { border-inline-start: 0; padding-inline-start: 0; border-top: 1px solid #e5e8ec; padding-top: 12px; width: 100%; flex-direction: row; align-items: baseline; gap: 6px; }
 }
