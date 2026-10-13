@@ -109,6 +109,8 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
   const fallbackControls = el('div', { id: 'operator-fallback', hidden: '' },
     el('p', { className: 'small muted' }, ui('journeyOperatorFallback')),
     n.operatorControls.querySelector('.operator-actions'), n.operatorPicker.closest('.field'));
+  const fallbackNote = el('p', { id: 'journey-catalog-status', className: 'small muted', role: 'status', hidden: '' });
+  fallbackControls.append(fallbackNote);
   n.destinationControls.append(fallbackControls);
   const backButton = button('Back', () => {
     const previousScreen = screen === 'pay' ? 'amount' : screen === 'amount' ? 'number' : null;
@@ -276,6 +278,10 @@ export function mountRechargeJourney({ root, model, render, el, ui, button, acti
     n.hero.hidden = !signedIn || !['number', 'home'].includes(screen);
     if (signedIn) { const live = s.testMode === false && s.paymentMode === 'STRIPE_LIVE'; n.testTitle.textContent = t(live ? 'Live recharge' : 'Test mode'); n.testText.textContent = t(live ? 'Secure payment by Stripe. Recharge is sent after payment confirmation.' : 'No real payment is collected.'); }
     fallbackControls.hidden = !fallback;
+    const productsLoading = [...busy].some(key => key.startsWith('products:'));
+    const noProducts = Boolean(s.operator && !s.products.length && !productsLoading);
+    fallbackNote.hidden = !productsLoading && !noProducts;
+    fallbackNote.textContent = t(productsLoading ? 'Loading available products…' : noProducts ? 'No products loaded. Select the operator again to retry, or choose another operator.' : '');
     n.destinationPanel.open = true; n.reviewPanel.open = true;
     const index = ['number', 'amount', 'pay'].indexOf(screen);
     n.progressItems.forEach((item, i) => {
