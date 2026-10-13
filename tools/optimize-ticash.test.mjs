@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { optimizeHtml } from './optimize-ticash.mjs';
+import { optimizeHtml, brandHomepage } from './optimize-ticash.mjs';
 const details = ['/', 'TiCash | Support family in Haiti', 'Service in development.'];
 const image = 'data:image/png;base64,aGVsbG8=';
 const fixture = `<!doctype html><html><head><title>Old</title><meta name="description" content="Old"><link rel="canonical" href="https://ticash-app.com/"><link rel="stylesheet" href="/style.css"><style>.brand {background:url('${image}')}</style></head><body><h1>Support family</h1><a href="/recharge">Recharge</a><img src="${image}"><script src="/public-config.js"></script></body></html>`;
@@ -26,4 +26,14 @@ test('replaces stale metadata and is idempotent', () => {
 test('rejects malformed and oversized pages', () => {
   assert.throws(() => optimizeHtml('<html></html>', details), /Missing HTML head/);
   assert.throws(() => optimizeHtml('<html><head></head><body>'+'x'.repeat(300000)+'</body></html>', details), /larger than/);
+});
+test('homepage branding uses the official logo and preserves the recharge destination', () => {
+  const original = '<html><head></head><body><div class="connect-copy"><h2>Keep connected</h2><a href="/recharge">Explore Mobile Recharge</a></div></body></html>';
+  const html = brandHomepage(original);
+  assert.ok(html.includes('alt="FlupFlap"'));
+  assert.ok(html.includes('Powered by</span><strong>TiCash App</strong>'));
+  assert.ok(html.includes('href="/recharge">Explore FlupFlap Recharge</a>'));
+  assert.ok(html.includes('<h2>Keep connected</h2>'));
+  assert.equal(brandHomepage(html), html);
+  assert.throws(() => brandHomepage('<head></head>'), /Expected one/);
 });

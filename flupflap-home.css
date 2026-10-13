@@ -1,0 +1,31 @@
+.flupflap-home-lockup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px;
+  margin-bottom: 28px;
+  border: 1px solid #e3e7e9;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 8px 28px rgb(7 24 47 / 4%);
+}
+.flupflap-home-product { display: flex; flex-direction: column; gap: 4px; }
+.flupflap-home-product img { display: block; width: 230px; max-width: 100%; height: auto; }
+.flupflap-home-product > span {
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: #526177;
+}
+.flupflap-home-powered { display: flex; flex-direction: column; gap: 4px; border-left: 1px solid #e5e8ec; padding-left: 20px; }
+.flupflap-home-powered > span { color: #687487; font-size: 11px; line-height: 1.5; }
+.flupflap-home-powered strong { color: #07182f; font-size: 15px; line-height: 1.4; font-weight: 700; }
+@media (max-width: 600px) {
+  .flupflap-home-lockup { padding: 18px; gap: 16px; }
+  .flupflap-home-product img { width: 210px; }
+  .flupflap-home-powered { border-left: 0; padding-left: 0; border-top: 1px solid #e5e8ec; padding-top: 12px; width: 100%; flex-direction: row; align-items: baseline; gap: 6px; }
+}
