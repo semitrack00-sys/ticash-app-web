@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const ORIGIN = 'https://www.ticash-app.com';
 const pages = {
-  'index.html': ['/', 'TiCash & FlupFlap Recharge | Support family in Haiti', 'Explore FlupFlap Recharge, powered by TiCash App, for mobile airtime and supported data plans. Learn about TiCash money transfers in development.'],
+  'index.html': ['/', 'TiCash & FlupFlap Recharge | Worldwide mobile recharge', 'Send mobile airtime and supported data plans worldwide with FlupFlap Recharge, powered by TiCash App. Availability varies by country and operator. TiCash money transfers to Haiti are in development.'],
   'about.html': ['/about.html', 'About TiCash | Built for the Haitian diaspora', 'Learn about TiCash and our mission to help the Haitian diaspora support family and loved ones in Haiti.'],
   'security.html': ['/security.html', 'TiCash Security | Account protection and service readiness', 'Learn about TiCash account protection, responsible integrations, and the approvals required before money-transfer services launch.'],
   'privacy.html': ['/privacy.html', 'TiCash Privacy Policy', 'Read the TiCash privacy policy and learn how to contact our team about personal information and privacy questions.'],
@@ -31,13 +31,13 @@ export function updateRechargeContent(html) {
   const sectionPattern = /<section\b[^>]*\bid=["']services["'][^>]*>[\s\S]*?<\/section>/i;
   if (!sectionPattern.test(html)) throw new Error('Missing homepage services section');
   return html.replace(sectionPattern, section => {
-    section = section.replace(/<p class="services-intro">[\s\S]*?<\/p>/, '<p class="services-intro">FlupFlap Recharge is available now for mobile airtime and supported data plans. TiCash money-transfer services are still being prepared.</p>');
+    section = section.replace(/<p class="services-intro">[\s\S]*?<\/p>/, '<p class="services-intro">FlupFlap Recharge connects family and friends worldwide with mobile airtime and supported data plans. Availability varies by country and operator. TiCash money transfers to Haiti are still being prepared.</p>');
     section = section.replace(/<article\b[^>]*>[\s\S]*?<\/article>/g, article => {
       if (/<h3>Mobile Recharge<\/h3>/.test(article)) {
         return article.replace('<article class="service-card">', '<article class="service-card" data-service-live>')
           .replace('COMING SOON', 'AVAILABLE NOW')
           .replace('<h3>Mobile Recharge</h3>', '<h3>FlupFlap Recharge</h3>')
-          .replace(/<p>[\s\S]*?<\/p>/, '<p>Send mobile airtime with FlupFlap. Choose a supported country and operator, enter the phone number, and review your total before paying.</p>');
+          .replace(/<p>[\s\S]*?<\/p>/, '<p>Send mobile airtime worldwide with FlupFlap. Choose a supported country and operator, enter the phone number, and review your total before paying.</p>');
       }
       if (/<h3>Internet &amp; Data Plans<\/h3>/.test(article)) {
         article = article.replace('COMING SOON', 'CHECK AVAILABILITY')
@@ -46,7 +46,8 @@ export function updateRechargeContent(html) {
       }
       return article;
     });
-    section = section.replace(/(<div class="connect-copy">[\s\S]*?<p>)[\s\S]*?(<\/p>)/, '$1Send airtime and supported mobile data plans to loved ones with FlupFlap Recharge, powered by TiCash App. Select your destination and operator to see the options available for that phone number.$2')
+    section = section.replace(/(<div class="connect-copy">[\s\S]*?<p>)[\s\S]*?(<\/p>)/, '$1Send airtime and supported mobile data plans worldwide with FlupFlap Recharge, powered by TiCash App. Select your destination country and operator to see the options available for that phone number.$2')
+      .replace('<span>🇭🇹 Built for Haiti</span>', '<span>🌍 Worldwide recharge</span>')
       .replace('Explore FlupFlap Recharge</a>', 'Start FlupFlap Recharge</a>')
       .replace('<span class="demo-label">MOBILE RECHARGE</span>', '<span class="demo-label">FLUPFLAP RECHARGE</span>')
       .replace('<span class="demo-status">COMING SOON</span>', '<span class="demo-status">ILLUSTRATION</span>');

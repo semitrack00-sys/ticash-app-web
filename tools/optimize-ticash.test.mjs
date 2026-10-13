@@ -20,6 +20,8 @@ test('live recharge wording preserves the unpublished money-transfer status and 
   assert.equal((updated.match(/COMING SOON/g) || []).length, 1);
   assert.ok(updated.includes('<h3>Send Money</h3><p>Transfers</p>'));
   assert.ok(updated.includes('AVAILABLE NOW'));
+  assert.ok(updated.includes('mobile airtime worldwide'));
+  assert.ok(updated.includes('Availability varies by country and operator'));
   assert.ok(updated.includes('CHECK AVAILABILITY'));
   assert.ok(updated.includes('ILLUSTRATION'));
   assert.ok(updated.includes('applicable service fee'));
