@@ -120,6 +120,7 @@ export async function build(root = process.cwd()) {
     if (path === 'index.html') {
       output.html = brandHomepage(output.html);
       if (rechargeLive) output.html = updateRechargeContent(output.html);
+      if (!output.html.includes('/js/home-language.js')) output.html = output.html.replace('</body>', '<script type="module" src="/js/home-language.js"></script>\n</body>');
     }
     outputs.push({ path, source, ...output });
   }
