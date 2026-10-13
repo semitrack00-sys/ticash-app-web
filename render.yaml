@@ -2,7 +2,7 @@ services:
   - type: web
     name: ticash-app-web
     runtime: static
-    buildCommand: echo "Static TiCash site"
+    buildCommand: node --test tools/optimize-ticash.test.mjs && node tools/optimize-ticash.mjs
     staticPublishPath: .
     headers:
       - path: /.well-known/*
