@@ -4,7 +4,7 @@ import copy from './home-copy.js';
 
 const bindings = [
   ['.services-intro', 0], ['[data-service-live] .service-status', 1],
-  ['.service-grid .service-card:nth-child(3) .service-status', 2],
+  ['[data-service-data] .service-status', 1],
   ['.flupflap-home-powered > span', 3], ['.connect-copy > p', 4],
   ['[data-service-live] > p', 4], ['.benefit-grid > span:first-child', 5],
   ['.services-cta', 6], ['[data-flupflap-home-details] article:nth-child(1) h3', 7],

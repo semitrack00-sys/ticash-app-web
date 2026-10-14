@@ -31,7 +31,9 @@ test('live recharge wording preserves the unpublished money-transfer status and 
   assert.ok(updated.includes('AVAILABLE NOW'));
   assert.ok(updated.includes('mobile airtime worldwide'));
   assert.ok(updated.includes('Availability varies by country and operator'));
-  assert.ok(updated.includes('CHECK AVAILABILITY'));
+  assert.equal((updated.match(/AVAILABLE NOW/g) || []).length, 2);
+  assert.ok(updated.includes('data-service-data'));
+  assert.doesNotMatch(updated, /CHECK AVAILABILITY/);
   assert.ok(updated.includes('ILLUSTRATION'));
   assert.ok(updated.includes('applicable service fee'));
   assert.ok(updated.includes('Payment confirmation and recharge delivery are separate'));
