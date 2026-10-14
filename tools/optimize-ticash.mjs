@@ -40,7 +40,8 @@ export function updateRechargeContent(html) {
           .replace(/<p>[\s\S]*?<\/p>/, '<p>Send mobile airtime worldwide with FlupFlap. Choose a supported country and operator, enter the phone number, and review your total before paying.</p>');
       }
       if (/<h3>Internet &amp; Data Plans<\/h3>/.test(article)) {
-        article = article.replace('COMING SOON', 'CHECK AVAILABILITY')
+        article = article.replace('<article class="service-card">', '<article class="service-card" data-service-data>')
+          .replace(/COMING SOON|CHECK AVAILABILITY/g, 'AVAILABLE NOW')
           .replace(/<p>[\s\S]*?<\/p>/, '<p>Browse supported data bundles. Plan duration, allowance, and availability depend on the destination and mobile operator.</p>');
         if (!article.includes('href="/recharge"')) article = article.replace('</article>', '<a class="service-link" href="/recharge">Browse plans <span aria-hidden="true">→</span></a></article>');
       }
