@@ -269,3 +269,17 @@ test('dedicated build exposes a direct deletion email path without login or scri
   assert.match(privacy, /id="account-deletion"/);
   assert.match(privacy, /href="\/legal\/delete-account\/"/);
 });
+
+
+test('both reset routes use the compact FlupFlap header', () => {
+  for (const path of ['reset-password/index.html', 'recharge/reset-password/index.html']) {
+    const doc = new JSDOM(built(path)).window.document;
+    assert.ok(doc.body.classList.contains('flupflap-reset-page'));
+    const logo = doc.querySelector('.site-header .brand img');
+    assert.equal(logo.alt, 'FlupFlap');
+    assert.match(logo.src, /brand\/flupflap/);
+    assert.equal(logo.getAttribute('width'), '180');
+    assert.equal(doc.querySelector('.site-header a[href="/send"]'), null);
+    assert.ok(doc.querySelector('[data-login-brand="flupflap"]'));
+  }
+});
